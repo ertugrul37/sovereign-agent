@@ -170,6 +170,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       );
       this.postInit();
     } catch (err) {
+      if (err instanceof Error && /not a registered configuration/i.test(err.message)) {
+        vscode.window.showErrorMessage(
+          'This installed extension is outdated. Install the latest Sovereign Agent VSIX and reload VS Code.'
+        );
+        return;
+      }
       vscode.window.showErrorMessage(err instanceof Error ? err.message : String(err));
     }
   }
