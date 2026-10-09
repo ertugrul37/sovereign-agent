@@ -23,6 +23,7 @@ export const en = {
   'ui.loadingHistory': 'Reading local Git history…',
   'ui.noHistory': 'No Git history found in this workspace.',
   'ui.historyHint': 'Select a commit to inspect its summary.',
+  'ui.undo': 'Undo last change',
 
   // Approvals
   'approval.write': 'Allow the agent to write to "{path}"?',
@@ -32,6 +33,9 @@ export const en = {
   'approval.replaceDetail': 'Only the exact matching text will be replaced.',
   'approval.allow': 'Allow',
   'approval.deny': 'Deny',
+  'approval.mcp': 'Allow the local MCP server to start?',
+  'approval.applyChange': 'Apply the reviewed change to "{path}"?',
+  'approval.applyChangeDetail': 'Review the diff before confirming.',
 
   // Errors and notices
   'error.notLocal': 'Refusing to connect to a non-local address: {url}. Sovereign Agent only talks to local models. Use localhost, or enable sovereignAgent.allowLanHosts for a machine on your LAN.',
@@ -51,6 +55,9 @@ export const en = {
   'history.noWorkspace': 'Open a workspace to inspect Git history.',
   'history.unavailable': 'Git history is unavailable in this workspace.',
   'history.invalidCommit': 'Invalid commit identifier.'
+  ,'checkpoint.none': 'There is no change to undo.'
+  ,'checkpoint.restored': 'Restored {path}.'
+  ,'checkpoint.preview': 'Change preview'
 };
 
 export type MessageKey = keyof typeof en;

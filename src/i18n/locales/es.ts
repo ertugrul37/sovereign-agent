@@ -24,6 +24,7 @@ export const es: Record<MessageKey, string> = {
   'ui.loadingHistory': 'Leyendo historial local de Git…',
   'ui.noHistory': 'No hay historial de Git en este espacio.',
   'ui.historyHint': 'Selecciona un commit para ver su resumen.',
+  'ui.undo': 'Deshacer último cambio',
 
   'approval.write': '¿Permitir que el agente escriba en "{path}"?',
   'approval.writeDetail': 'Se escribirán {bytes} bytes.',
@@ -48,4 +49,10 @@ export const es: Record<MessageKey, string> = {
   'history.noWorkspace': 'Abre un espacio para ver el historial de Git.',
   'history.unavailable': 'El historial de Git no está disponible.',
   'history.invalidCommit': 'Identificador de commit no válido.'
+  ,'approval.mcp': '¿Permitir iniciar el servidor MCP local?'
+  ,'approval.applyChange': '¿Aplicar el cambio a "{path}"?'
+  ,'approval.applyChangeDetail': 'Revisa el diff antes de confirmar.'
+  ,'checkpoint.none': 'No hay cambios que deshacer.'
+  ,'checkpoint.restored': '{path} restaurado.'
+  ,'checkpoint.preview': 'Vista previa del cambio'
 };

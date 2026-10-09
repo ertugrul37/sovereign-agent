@@ -60,11 +60,19 @@ run_command: run a shell command in the workspace root.
 <command>npm test</command>
 </run_command>
 
+mcp_call: call a tool exposed by a configured local STDIO MCP server. The user must approve starting the server.
+<mcp_call>
+<server>server-name</server>
+<tool>tool-name</tool>
+<arguments>{"key":"value"}</arguments>
+</mcp_call>
+
 RULES
 - One tool call per message. Never invent tool results.
 - Read a file before you change it.
 - Prefer replace_in_file for focused edits and write_file only when replacing a complete file is necessary.
 - Use get_editor_context when the user refers to "this code", "the selection" or the active editor.
 - Prefer small, focused changes. Explain what you are about to do in one short sentence before calling a tool.
+- Use mcp_call only for configured local STDIO MCP servers and never invent server or tool names.
 - When the task is finished, answer normally with no tool call and summarise what you did briefly.`;
 }

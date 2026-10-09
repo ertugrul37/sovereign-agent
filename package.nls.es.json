@@ -32,6 +32,7 @@
   "config.maxIterations": "Número máximo de pasos con herramientas por mensaje.",
   "config.requireWriteApproval": "Preguntar antes de que el agente escriba o sobrescriba un archivo.",
   "config.requireCommandApproval": "Preguntar antes de que el agente ejecute un comando de shell.",
+  "config.mcpServers": "Mapa JSON de servidores MCP STDIO locales. Los servidores solo se inician después de la aprobación.",
   "config.tools": "Las herramientas del espacio de trabajo están disponibles para el agente local. Las modificaciones y comandos requieren aprobación por defecto.",
   "config.allowLanHosts": "Permitir servidores en direcciones privadas de la red local (10.x, 192.168.x, 172.16-31.x, `*.local`). Desactivado por defecto para que nada salga de tu máquina."
 }

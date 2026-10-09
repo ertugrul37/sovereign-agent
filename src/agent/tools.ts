@@ -9,6 +9,9 @@ export interface ToolContext {
   confirmReplace(relPath: string): Promise<boolean>;
   confirmCommand(command: string): Promise<boolean>;
   getEditorContext(): Promise<string>;
+  checkpoint(relPath: string, content: string | undefined): Promise<void>;
+  previewChange(relPath: string, original: string, updated: string): Promise<boolean>;
+  callMcp(server: string, tool: string, argsJson: string): Promise<ToolResult>;
   signal: AbortSignal;
 }
 
@@ -135,10 +138,18 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
           return missing(call, 'content');
         }
         const file = await safePath(root, p.path);
+        const original = await fs.readFile(file, 'utf8').catch((err: unknown) => {
+          if ((err as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+          throw err;
+        });
         const bytes = Buffer.byteLength(p.content, 'utf8');
         if (!(await ctx.confirmWrite(toPosix(path.relative(root, file)), bytes))) {
           return { ok: false, output: 'The user denied this action.' };
         }
+        if (!(await ctx.previewChange(toPosix(path.relative(root, file)), original ?? '', p.content))) {
+          return { ok: false, output: 'The user cancelled the diff preview.' };
+        }
+        await ctx.checkpoint(toPosix(path.relative(root, file)), original);
         await fs.mkdir(path.dirname(file), { recursive: true });
         await fs.writeFile(file, p.content, 'utf8');
         return { ok: true, output: `Wrote ${toPosix(path.relative(root, file))} (${bytes} bytes).` };
@@ -172,6 +183,10 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
         const updated = replaceAll
           ? original.split(p.old_text).join(p.new_text)
           : original.replace(p.old_text, p.new_text);
+        if (!(await ctx.previewChange(toPosix(path.relative(root, file)), original, updated))) {
+          return { ok: false, output: 'The user cancelled the diff preview.' };
+        }
+        await ctx.checkpoint(toPosix(path.relative(root, file)), original);
         await fs.writeFile(file, updated, 'utf8');
         return {
           ok: true,
@@ -213,6 +228,10 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
       }
       case 'get_editor_context':
         return { ok: true, output: await ctx.getEditorContext() };
+      case 'mcp_call':
+        if (!p.server) return missing(call, 'server');
+        if (!p.tool) return missing(call, 'tool');
+        return await ctx.callMcp(p.server, p.tool, p.arguments ?? '{}');
       case 'run_command': {
         if (!p.command) {
           return missing(call, 'command');

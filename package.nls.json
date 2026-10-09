@@ -6,6 +6,7 @@
   "command.newChat": "Sovereign Agent: New Chat",
   "command.selectModel": "Sovereign Agent: Select Model",
   "command.stop": "Sovereign Agent: Stop",
+  "command.undo": "Sovereign Agent: Undo last change",
   "command.addSelectionToChat": "Sovereign Agent: Add Selection to Chat",
   "command.openSettings": "Sovereign Agent: Open Settings",
   "config.title": "Sovereign Agent",
@@ -33,5 +34,6 @@
   "config.requireWriteApproval": "Ask before the agent writes or overwrites a file.",
   "config.requireCommandApproval": "Ask before the agent runs a shell command.",
   "config.tools": "Workspace tools are always available to the local agent. File writes, replacements and shell commands require approval by default.",
+  "config.mcpServers": "JSON map of local STDIO MCP servers. Servers start only after approval. Example: {\"filesystem\":{\"command\":\"npx\",\"args\":[\"-y\",\"@modelcontextprotocol/server-filesystem\",\".\"]}}.",
   "config.allowLanHosts": "Allow servers on private LAN addresses (10.x, 192.168.x, 172.16-31.x, `*.local`). Off by default so nothing leaves your machine."
 }

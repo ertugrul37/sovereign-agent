@@ -6,6 +6,7 @@
   "command.newChat": "Sovereign Agent: Yeni Sohbet",
   "command.selectModel": "Sovereign Agent: Model Seç",
   "command.stop": "Sovereign Agent: Durdur",
+  "command.undo": "Sovereign Agent: Son değişikliği geri al",
   "command.addSelectionToChat": "Sovereign Agent: Seçimi Sohbete Ekle",
   "command.openSettings": "Sovereign Agent: Ayarları Aç",
   "config.title": "Sovereign Agent",
@@ -33,5 +34,6 @@
   "config.requireWriteApproval": "Ajan bir dosyaya yazmadan veya üzerine yazmadan önce sor.",
   "config.requireCommandApproval": "Ajan kabuk komutu çalıştırmadan önce sor.",
   "config.tools": "Çalışma alanı araçları yerel ajana her zaman açıktır. Dosya yazma, değiştirme ve kabuk komutları varsayılan olarak onay ister.",
+  "config.mcpServers": "Yerel STDIO MCP sunucularının JSON haritası. Sunucular yalnızca onaydan sonra başlar. Örnek: {\"filesystem\":{\"command\":\"npx\",\"args\":[\"-y\",\"@modelcontextprotocol/server-filesystem\",\".\"]}}.",
   "config.allowLanHosts": "Özel yerel ağ adreslerindeki (10.x, 192.168.x, 172.16-31.x, `*.local`) sunuculara izin ver. Hiçbir şey makinenden çıkmasın diye varsayılan olarak kapalı."
 }

@@ -118,6 +118,30 @@ guard; LAN addresses require explicit opt-in.
 
 `list_files`, `read_file`, `write_file`, `replace_in_file`, `search_files`, `get_editor_context`, and `run_command`. All paths are confined to the open workspace folder, including through symlinks. File writes, replacements, and shell commands require explicit approval by default. `replace_in_file` is the preferred surgical edit path and `get_editor_context` exposes the active editor and selection when the user asks about highlighted code.
 
+Changes now open in VS Code's native diff editor before they are applied.
+The last approved change can be restored with **Sovereign Agent: Undo last
+change**. Conversation context is persisted in the workspace state and is
+restored when the chat view is reopened.
+
+### Local MCP servers
+
+Local STDIO MCP servers can be configured in `sovereignAgent.mcpServers` as a
+JSON object. The server process is never started automatically: the extension
+asks for approval the first time a model calls one. HTTP MCP endpoints are not
+supported, and MCP output remains local.
+
+```json
+{
+  "filesystem": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+  }
+}
+```
+
+The model calls configured servers with the `mcp_call` tool and must use the
+configured server and tool names.
+
 ## Workspace customization
 
 The repository ships with a modern VS Code agent setup:
@@ -162,11 +186,11 @@ npm test        # compile and run unit tests (Node 22+)
 - [x] `replace_in_file` for surgical edits
 - [x] Add selected editor code to the chat
 - [x] Workspace instructions and custom VS Code agents
-- [ ] Diff preview before applying edits
-- [ ] Per-workspace instructions file
-- [ ] Checkpoints and undo
-- [ ] MCP support
-- [ ] Persistent chat history
+- [x] Diff preview before applying edits
+- [x] Per-workspace instructions file
+- [x] Checkpoints and undo
+- [x] Local STDIO MCP support with approval
+- [x] Persistent chat history
 
 ## License
 

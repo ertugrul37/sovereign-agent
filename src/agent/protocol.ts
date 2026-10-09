@@ -14,7 +14,8 @@ export const TOOL_NAMES = [
   'replace_in_file',
   'search_files',
   'get_editor_context',
-  'run_command'
+  'run_command',
+  'mcp_call'
 ] as const;
 export type ToolName = (typeof TOOL_NAMES)[number];
 
@@ -25,7 +26,8 @@ export const TOOL_PARAMS: Record<ToolName, string[]> = {
   replace_in_file: ['path', 'old_text', 'new_text', 'replace_all'],
   search_files: ['pattern', 'path'],
   get_editor_context: [],
-  run_command: ['command']
+  run_command: ['command'],
+  mcp_call: ['server', 'tool', 'arguments']
 };
 
 export interface ToolCall {
@@ -109,5 +111,7 @@ export function describeCall(call: ToolCall): string {
       return 'get_editor_context';
     case 'run_command':
       return `run_command ${p.command ?? ''}`;
+    case 'mcp_call':
+      return `mcp_call ${p.server ?? ''}/${p.tool ?? ''}`;
   }
 }

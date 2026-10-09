@@ -32,6 +32,7 @@
   "config.maxIterations": "Nombre maximal d’étapes d’outils par message.",
   "config.requireWriteApproval": "Demander avant que l’agent écrive ou écrase un fichier.",
   "config.requireCommandApproval": "Demander avant que l’agent exécute une commande shell.",
+  "config.mcpServers": "Carte JSON des serveurs MCP STDIO locaux. Les serveurs ne démarrent qu’après approbation.",
   "config.tools": "Les outils de l’espace de travail sont disponibles pour l’agent local. Les modifications et commandes nécessitent une approbation par défaut.",
   "config.allowLanHosts": "Autoriser les serveurs sur des adresses privées du réseau local (10.x, 192.168.x, 172.16-31.x, `*.local`). Désactivé par défaut pour que rien ne quitte votre machine."
 }

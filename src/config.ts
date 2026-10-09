@@ -22,6 +22,7 @@ export interface AgentConfig {
   requireWriteApproval: boolean;
   requireCommandApproval: boolean;
   allowLanHosts: boolean;
+  mcpServers: string;
 }
 
 export const DEFAULT_URLS: Record<ProviderKind, string> = {
@@ -50,6 +51,7 @@ export function getConfig(): AgentConfig {
     requireWriteApproval: c.get<boolean>('requireWriteApproval', true),
     requireCommandApproval: c.get<boolean>('requireCommandApproval', true),
     allowLanHosts: c.get<boolean>('allowLanHosts', false)
+    ,mcpServers: c.get<string>('mcpServers', '{}')
   };
 }
 

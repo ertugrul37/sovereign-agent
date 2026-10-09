@@ -27,6 +27,17 @@ export interface RunSettings {
 export class Agent {
   private history: ChatMessage[] = [];
 
+  getHistory(): ChatMessage[] {
+    return this.history.map((message) => ({ ...message }));
+  }
+
+  restoreHistory(history: ChatMessage[]): void {
+    this.history = history
+      .filter((message) => (message.role === 'user' || message.role === 'assistant') && message.content.length <= 40000)
+      .slice(-40)
+      .map((message) => ({ ...message }));
+  }
+
   reset(): void {
     this.history = [];
   }

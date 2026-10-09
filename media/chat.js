@@ -127,6 +127,7 @@
   sendBtn.addEventListener('click', send);
   stopBtn.addEventListener('click', () => vscode.postMessage({ type: 'stop' }));
   $('model').addEventListener('click', () => vscode.postMessage({ type: 'selectModel' }));
+  $('undo').addEventListener('click', () => vscode.postMessage({ type: 'undo' }));
   $('historyToggle').addEventListener('click', () => showHistory(historyPanel.hidden));
   $('historyClose').addEventListener('click', () => showHistory(false));
   input.addEventListener('keydown', (e) => {
@@ -143,6 +144,21 @@
         strings = msg.strings;
         applyStrings();
         $('modelName').textContent = msg.model || s('ui.noModel');
+        break;
+      case 'conversation':
+        messages.querySelectorAll('.msg').forEach((el) => el.remove());
+        (msg.messages || []).forEach((message) => {
+          if (message.role === 'user' && !message.content.startsWith('[')) {
+            add('user', message.content);
+          } else if (message.role === 'assistant') {
+            const el = document.createElement('div');
+            el.className = 'msg assistant';
+            el.innerHTML = render(message.content);
+            messages.appendChild(el);
+          }
+        });
+        $('empty').hidden = messages.querySelectorAll('.msg').length > 0;
+        scrollDown();
         break;
       case 'metrics':
         metrics.hidden = false;

@@ -47,6 +47,7 @@
       { "command": "sovereignAgent.newChat", "title": "%command.newChat%", "icon": "$(add)" },
       { "command": "sovereignAgent.selectModel", "title": "%command.selectModel%", "icon": "$(server)" },
       { "command": "sovereignAgent.stop", "title": "%command.stop%", "icon": "$(debug-stop)" },
+      { "command": "sovereignAgent.undo", "title": "%command.undo%", "icon": "$(discard)" },
       { "command": "sovereignAgent.addSelectionToChat", "title": "%command.addSelectionToChat%", "icon": "$(insert)" },
       { "command": "sovereignAgent.openSettings", "title": "%command.openSettings%", "icon": "$(gear)" }
     ],
@@ -63,6 +64,7 @@
         { "command": "sovereignAgent.selectModel", "when": "view == sovereignAgent.chat", "group": "navigation@2" },
         { "command": "sovereignAgent.addSelectionToChat", "when": "view == sovereignAgent.chat", "group": "navigation@3" },
         { "command": "sovereignAgent.openSettings", "when": "view == sovereignAgent.chat", "group": "navigation@4" }
+        ,{ "command": "sovereignAgent.undo", "when": "view == sovereignAgent.chat", "group": "navigation@5" }
       ]
     },
     "configuration": {
@@ -151,6 +153,11 @@
           "type": "boolean",
           "default": false,
           "markdownDescription": "%config.allowLanHosts%"
+        },
+        "sovereignAgent.mcpServers": {
+          "type": "string",
+          "default": "{}",
+          "markdownDescription": "%config.mcpServers%"
         }
       }
     }

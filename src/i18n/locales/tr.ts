@@ -24,6 +24,7 @@ export const tr: Record<MessageKey, string> = {
   'ui.loadingHistory': 'Yerel Git geçmişi okunuyor…',
   'ui.noHistory': 'Bu çalışma alanında Git geçmişi bulunamadı.',
   'ui.historyHint': 'Özetini görmek için bir commit seçin.',
+  'ui.undo': 'Son değişikliği geri al',
 
   'approval.write': 'Ajanın "{path}" dosyasına yazmasına izin verilsin mi?',
   'approval.writeDetail': '{bytes} bayt yazılacak.',
@@ -32,6 +33,9 @@ export const tr: Record<MessageKey, string> = {
   'approval.replaceDetail': 'Yalnızca tam eşleşen metin değiştirilecek.',
   'approval.allow': 'İzin ver',
   'approval.deny': 'Reddet',
+  'approval.mcp': 'Yerel MCP sunucusunun başlatılmasına izin verilsin mi?',
+  'approval.applyChange': '"{path}" değişikliği uygulansın mı?',
+  'approval.applyChangeDetail': 'Onaylamadan önce diff görünümünü inceleyin.',
 
   'error.notLocal': 'Yerel olmayan bir adrese bağlanılmıyor: {url}. Sovereign Agent yalnızca yerel modellerle konuşur. localhost kullan veya yerel ağdaki bir makine için sovereignAgent.allowLanHosts ayarını aç.',
   'error.connection': '{url} adresindeki model sunucusuna ulaşılamadı. Ollama, llama.cpp veya LM Studio çalışıyor mu?',
@@ -47,5 +51,8 @@ export const tr: Record<MessageKey, string> = {
   'model.set': 'Model {model} olarak ayarlandı.',
   'history.noWorkspace': 'Git geçmişini görmek için bir çalışma alanı açın.',
   'history.unavailable': 'Bu çalışma alanında Git geçmişi kullanılamıyor.',
-  'history.invalidCommit': 'Geçersiz commit kimliği.'
+  'history.invalidCommit': 'Geçersiz commit kimliği.',
+  'checkpoint.none': 'Geri alınacak değişiklik yok.',
+  'checkpoint.restored': '{path} geri yüklendi.',
+  'checkpoint.preview': 'Değişiklik önizlemesi'
 };

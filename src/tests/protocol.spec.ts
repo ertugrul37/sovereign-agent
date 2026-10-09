@@ -35,3 +35,13 @@ test('parses surgical replacements and editor context calls', () => {
   const context = parseToolCall('<get_editor_context></get_editor_context>');
   assert.equal(context?.name, 'get_editor_context');
 });
+
+test('parses local MCP calls', () => {
+  const call = parseToolCall(
+    '<mcp_call><server>filesystem</server><tool>read_file</tool><arguments>{"path":"README.md"}</arguments></mcp_call>'
+  );
+  assert.equal(call?.name, 'mcp_call');
+  assert.equal(call?.params.server, 'filesystem');
+  assert.equal(call?.params.tool, 'read_file');
+  assert.equal(call?.params.arguments, '{"path":"README.md"}');
+});

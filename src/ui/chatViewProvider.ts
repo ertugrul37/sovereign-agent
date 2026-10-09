@@ -8,8 +8,15 @@ import { describeCall } from '../agent/protocol';
 import { AgentConfig, getConfig, activeLocale } from '../config';
 import { createProvider } from '../llm/factory';
 import { setLocale, t, uiStrings } from '../i18n';
+import { McpManager, McpServerConfig } from '../agent/mcp';
+import { ChatMessage } from '../llm/types';
 
 const execFileAsync = promisify(execFile);
+
+interface Checkpoint {
+  path: string;
+  content: string | undefined;
+}
 
 type FromWebview =
   | { type: 'ready' }
@@ -18,7 +25,8 @@ type FromWebview =
   | { type: 'newChat' }
   | { type: 'selectModel' }
   | { type: 'history' }
-  | { type: 'showCommit'; hash: string };
+  | { type: 'showCommit'; hash: string }
+  | { type: 'undo' };
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'sovereignAgent.chat';
@@ -26,8 +34,17 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
   private agent = new Agent();
   private abort?: AbortController;
+  private readonly mcp: McpManager;
+  private historyLoaded = false;
 
-  constructor(private readonly extensionUri: vscode.Uri) {}
+  constructor(
+    private readonly extensionUri: vscode.Uri,
+    private readonly extensionContext: vscode.ExtensionContext
+  ) {
+    this.mcp = new McpManager(this.mcpServers(), (name, command) =>
+      this.confirm(t('approval.mcp'), `${name}: ${command}`)
+    );
+  }
 
   resolveWebviewView(view: vscode.WebviewView): void {
     this.view = view;
@@ -56,6 +73,30 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
   stop(): void {
     this.abort?.abort();
+  }
+
+  dispose(): void {
+    this.mcp.dispose();
+  }
+
+  async undo(): Promise<void> {
+    const checkpoints = this.extensionContext.workspaceState.get<Checkpoint[]>('checkpoints', []);
+    const checkpoint = checkpoints.pop();
+    if (!checkpoint) {
+      void vscode.window.showInformationMessage(t('checkpoint.none'));
+      return;
+    }
+    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!root) return;
+    const file = path.join(root, checkpoint.path);
+    if (checkpoint.content === undefined) {
+      await fs.rm(file, { force: true });
+    } else {
+      await fs.mkdir(path.dirname(file), { recursive: true });
+      await fs.writeFile(file, checkpoint.content, 'utf8');
+    }
+    await this.extensionContext.workspaceState.update('checkpoints', checkpoints);
+    void vscode.window.showInformationMessage(t('checkpoint.restored', { path: checkpoint.path }));
   }
 
   addSelectionToChat(): void {
@@ -106,7 +147,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
   private postInit(): void {
     const cfg = this.prepare();
+    this.restoreHistory();
     this.post({ type: 'init', strings: uiStrings(), model: cfg.model });
+    this.post({ type: 'conversation', messages: this.agent.getHistory() });
   }
 
   private async onMessage(msg: FromWebview): Promise<void> {
@@ -132,6 +175,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case 'showCommit':
         await this.showCommit(msg.hash);
         break;
+      case 'undo':
+        await this.undo();
+        break;
     }
   }
 
@@ -150,6 +196,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
 
     const folder = vscode.workspace.workspaceFolders?.[0];
+    this.restoreHistory();
     const editorContext = this.editorContext();
     const workspaceInstructions = await this.loadWorkspaceInstructions(folder?.uri.fsPath);
     const abort = new AbortController();
@@ -187,7 +234,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
               : Promise.resolve(true),
           confirmCommand: (command) =>
             cfg.requireCommandApproval ? this.confirm(t('approval.command'), command) : Promise.resolve(true),
-          getEditorContext: async () => this.editorContext()
+          getEditorContext: async () => this.editorContext(),
+          checkpoint: async (relPath, content) => this.saveCheckpoint(relPath, content),
+          previewChange: async (relPath, original, updated) => this.previewChange(relPath, original, updated),
+          callMcp: (server, tool, args) => this.mcp.call(server, tool, args)
         },
         {
           onAssistantStart: () => {
@@ -226,6 +276,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         memory: 'unavailable'
       });
       this.abort = undefined;
+      void this.extensionContext.workspaceState.update('agentHistory', this.agent.getHistory());
       this.post({ type: 'busy', value: false });
     }
   }
@@ -291,6 +342,47 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     return choice === allow;
   }
 
+  private mcpServers(): Record<string, McpServerConfig> {
+    try {
+      const parsed = JSON.parse(getConfig().mcpServers) as Record<string, McpServerConfig>;
+      return Object.fromEntries(Object.entries(parsed).filter(([, value]) =>
+        value && typeof value.command === 'string' && value.command.trim().length > 0
+      ));
+    } catch {
+      return {};
+    }
+  }
+
+  private restoreHistory(): void {
+    if (this.historyLoaded) return;
+    this.historyLoaded = true;
+    const history = this.extensionContext.workspaceState.get<ChatMessage[]>('agentHistory', []);
+    this.agent.restoreHistory(history);
+  }
+
+  private async saveCheckpoint(relPath: string, content: string | undefined): Promise<void> {
+    const checkpoints = this.extensionContext.workspaceState.get<Checkpoint[]>('checkpoints', []);
+    checkpoints.push({ path: relPath, content });
+    await this.extensionContext.workspaceState.update('checkpoints', checkpoints.slice(-20));
+  }
+
+  private async previewChange(relPath: string, original: string, updated: string): Promise<boolean> {
+    const dir = path.join(this.extensionContext.globalStorageUri.fsPath, 'diffs');
+    await fs.mkdir(dir, { recursive: true });
+    const stamp = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const originalPath = path.join(dir, `before-${stamp}.txt`);
+    const updatedPath = path.join(dir, `after-${stamp}.txt`);
+    await fs.writeFile(originalPath, original, 'utf8');
+    await fs.writeFile(updatedPath, updated, 'utf8');
+    await vscode.commands.executeCommand(
+      'vscode.diff',
+      vscode.Uri.file(originalPath),
+      vscode.Uri.file(updatedPath),
+      `${relPath} — ${t('checkpoint.preview')}`
+    );
+    return this.confirm(t('approval.applyChange', { path: relPath }), t('approval.applyChangeDetail'));
+  }
+
   private editorContext(): string {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
@@ -342,6 +434,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       <span id="modelName"></span>
     </button>
     <div class="header-actions">
+      <button id="undo" class="icon-button" data-i18n-title="ui.undo" title="" aria-label="">↶</button>
       <button id="historyToggle" class="icon-button" data-i18n-title="ui.history" title="" aria-expanded="false">⌁</button>
     </div>
   </header>

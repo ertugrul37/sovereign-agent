@@ -32,6 +32,7 @@
   "config.maxIterations": "Maximale Anzahl an Werkzeugschritten pro Nachricht.",
   "config.requireWriteApproval": "Vor dem Schreiben oder Überschreiben einer Datei nachfragen.",
   "config.requireCommandApproval": "Vor dem Ausführen eines Shell-Befehls nachfragen.",
+  "config.mcpServers": "JSON-Map lokaler STDIO-MCP-Server. Server werden erst nach Bestätigung gestartet.",
   "config.tools": "Arbeitsbereichswerkzeuge sind für den lokalen Agenten verfügbar. Dateiänderungen und Shell-Befehle erfordern standardmäßig eine Bestätigung.",
   "config.allowLanHosts": "Server in privaten LAN-Adressen erlauben (10.x, 192.168.x, 172.16-31.x, `*.local`). Standardmäßig aus, damit nichts deinen Rechner verlässt."
 }

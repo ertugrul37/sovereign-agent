@@ -24,6 +24,7 @@ export const fr: Record<MessageKey, string> = {
   'ui.loadingHistory': 'Lecture de l’historique Git local…',
   'ui.noHistory': 'Aucun historique Git dans cet espace.',
   'ui.historyHint': 'Sélectionnez un commit pour voir son résumé.',
+  'ui.undo': 'Annuler la dernière modification',
 
   'approval.write': 'Autoriser l’agent à écrire dans « {path} » ?',
   'approval.writeDetail': '{bytes} octets seront écrits.',
@@ -48,4 +49,10 @@ export const fr: Record<MessageKey, string> = {
   'history.noWorkspace': 'Ouvrez un espace pour consulter l’historique Git.',
   'history.unavailable': 'L’historique Git est indisponible.',
   'history.invalidCommit': 'Identifiant de commit invalide.'
+  ,'approval.mcp': 'Autoriser le démarrage du serveur MCP local ?'
+  ,'approval.applyChange': 'Appliquer la modification à « {path} » ?'
+  ,'approval.applyChangeDetail': 'Vérifiez le diff avant de confirmer.'
+  ,'checkpoint.none': 'Aucune modification à annuler.'
+  ,'checkpoint.restored': '{path} restauré.'
+  ,'checkpoint.preview': 'Aperçu de la modification'
 };

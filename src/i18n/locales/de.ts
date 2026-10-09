@@ -24,6 +24,7 @@ export const de: Record<MessageKey, string> = {
   'ui.loadingHistory': 'Lokalen Git-Verlauf lesen…',
   'ui.noHistory': 'Kein Git-Verlauf in diesem Arbeitsbereich.',
   'ui.historyHint': 'Commit für eine Zusammenfassung auswählen.',
+  'ui.undo': 'Letzte Änderung rückgängig machen',
 
   'approval.write': 'Dem Agenten erlauben, "{path}" zu schreiben?',
   'approval.writeDetail': '{bytes} Bytes werden geschrieben.',
@@ -48,4 +49,10 @@ export const de: Record<MessageKey, string> = {
   'history.noWorkspace': 'Arbeitsbereich öffnen, um den Git-Verlauf zu sehen.',
   'history.unavailable': 'Git-Verlauf ist nicht verfügbar.',
   'history.invalidCommit': 'Ungültige Commit-ID.'
+  ,'approval.mcp': 'Starten des lokalen MCP-Servers erlauben?'
+  ,'approval.applyChange': 'Änderung an "{path}" anwenden?'
+  ,'approval.applyChangeDetail': 'Diff vor der Bestätigung prüfen.'
+  ,'checkpoint.none': 'Keine Änderung zum Rückgängigmachen.'
+  ,'checkpoint.restored': '{path} wiederhergestellt.'
+  ,'checkpoint.preview': 'Änderungsvorschau'
 };
