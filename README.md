@@ -49,11 +49,16 @@ update:
 1. Increase `version` in `package.json`.
 2. Commit the change and create a version tag such as `v0.1.1`.
 3. Push the commit and tag. The `publish.yml` workflow runs the tests and
-   publishes the new version to the Marketplace.
+   publishes the new version to the Marketplace and attaches the versioned
+   VSIX to a GitHub Release.
 
 The repository must have a `VSCE_PAT` GitHub Actions secret containing a
 Visual Studio Marketplace publisher token. VS Code users then receive the
 published update through the standard Marketplace update mechanism.
+
+Each release tag must match the version in `package.json`; for example,
+`package.json` version `0.1.1` is published with the `v0.1.1` tag and produces
+`sovereign-agent-0.1.1.vsix`.
 
 ## Language support
 

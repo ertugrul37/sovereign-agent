@@ -2,7 +2,7 @@
   "name": "sovereign-agent",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "ertugrul37",
   "icon": "media/logo.png",
   "license": "GPL-3.0-or-later",
@@ -21,8 +21,21 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["AI", "Chat", "Other"],
-  "keywords": ["ai", "agent", "local", "ollama", "llama.cpp", "lm studio", "privacy", "offline"],
+  "categories": [
+    "AI",
+    "Chat",
+    "Other"
+  ],
+  "keywords": [
+    "ai",
+    "agent",
+    "local",
+    "ollama",
+    "llama.cpp",
+    "lm studio",
+    "privacy",
+    "offline"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -44,12 +57,36 @@
       ]
     },
     "commands": [
-      { "command": "sovereignAgent.newChat", "title": "%command.newChat%", "icon": "$(add)" },
-      { "command": "sovereignAgent.selectModel", "title": "%command.selectModel%", "icon": "$(server)" },
-      { "command": "sovereignAgent.stop", "title": "%command.stop%", "icon": "$(debug-stop)" },
-      { "command": "sovereignAgent.undo", "title": "%command.undo%", "icon": "$(discard)" },
-      { "command": "sovereignAgent.addSelectionToChat", "title": "%command.addSelectionToChat%", "icon": "$(insert)" },
-      { "command": "sovereignAgent.openSettings", "title": "%command.openSettings%", "icon": "$(gear)" }
+      {
+        "command": "sovereignAgent.newChat",
+        "title": "%command.newChat%",
+        "icon": "$(add)"
+      },
+      {
+        "command": "sovereignAgent.selectModel",
+        "title": "%command.selectModel%",
+        "icon": "$(server)"
+      },
+      {
+        "command": "sovereignAgent.stop",
+        "title": "%command.stop%",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "sovereignAgent.undo",
+        "title": "%command.undo%",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "sovereignAgent.addSelectionToChat",
+        "title": "%command.addSelectionToChat%",
+        "icon": "$(insert)"
+      },
+      {
+        "command": "sovereignAgent.openSettings",
+        "title": "%command.openSettings%",
+        "icon": "$(gear)"
+      }
     ],
     "menus": {
       "editor/context": [
@@ -60,11 +97,31 @@
         }
       ],
       "view/title": [
-        { "command": "sovereignAgent.newChat", "when": "view == sovereignAgent.chat", "group": "navigation@1" },
-        { "command": "sovereignAgent.selectModel", "when": "view == sovereignAgent.chat", "group": "navigation@2" },
-        { "command": "sovereignAgent.addSelectionToChat", "when": "view == sovereignAgent.chat", "group": "navigation@3" },
-        { "command": "sovereignAgent.openSettings", "when": "view == sovereignAgent.chat", "group": "navigation@4" }
-        ,{ "command": "sovereignAgent.undo", "when": "view == sovereignAgent.chat", "group": "navigation@5" }
+        {
+          "command": "sovereignAgent.newChat",
+          "when": "view == sovereignAgent.chat",
+          "group": "navigation@1"
+        },
+        {
+          "command": "sovereignAgent.selectModel",
+          "when": "view == sovereignAgent.chat",
+          "group": "navigation@2"
+        },
+        {
+          "command": "sovereignAgent.addSelectionToChat",
+          "when": "view == sovereignAgent.chat",
+          "group": "navigation@3"
+        },
+        {
+          "command": "sovereignAgent.openSettings",
+          "when": "view == sovereignAgent.chat",
+          "group": "navigation@4"
+        },
+        {
+          "command": "sovereignAgent.undo",
+          "when": "view == sovereignAgent.chat",
+          "group": "navigation@5"
+        }
       ]
     },
     "configuration": {
@@ -107,7 +164,14 @@
         },
         "sovereignAgent.language": {
           "type": "string",
-          "enum": ["auto", "en", "tr", "de", "es", "fr"],
+          "enum": [
+            "auto",
+            "en",
+            "tr",
+            "de",
+            "es",
+            "fr"
+          ],
           "markdownEnumDescriptions": [
             "%config.language.auto%",
             "%config.language.en%",
