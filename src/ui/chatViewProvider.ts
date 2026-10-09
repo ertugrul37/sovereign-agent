@@ -439,10 +439,45 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     </div>
   </header>
   <section id="metrics" class="metrics" aria-label="Response metrics" hidden>
-    <div><span data-i18n="ui.response"></span><strong id="metricTime">—</strong></div>
-    <div><span data-i18n="ui.tokens"></span><strong id="metricTokens">—</strong></div>
-    <div><span data-i18n="ui.speed"></span><strong id="metricSpeed">—</strong></div>
-    <div><span data-i18n="ui.memory"></span><strong id="metricMemory">—</strong></div>
+    <div class="metrics-heading">
+      <span class="eyebrow" data-i18n="ui.performance"></span>
+      <span class="metrics-live" data-i18n="ui.live"></span>
+    </div>
+    <div class="metric-grid">
+      <div class="metric-card metric-card-accent">
+        <span data-i18n="ui.response"></span><strong id="metricTime">—</strong>
+        <small data-i18n="ui.durationHint"></small>
+      </div>
+      <div class="metric-card">
+        <span data-i18n="ui.tokens"></span><strong id="metricTokens">—</strong>
+        <small data-i18n="ui.tokenHint"></small>
+      </div>
+      <div class="metric-card">
+        <span data-i18n="ui.speed"></span><strong id="metricSpeed">—</strong>
+        <small data-i18n="ui.speedHint"></small>
+      </div>
+      <div class="metric-card">
+        <span data-i18n="ui.memory"></span><strong id="metricMemory">—</strong>
+        <small data-i18n="ui.memoryHint"></small>
+      </div>
+    </div>
+    <div class="trend">
+      <div class="trend-heading">
+        <span data-i18n="ui.trend"></span>
+        <span id="trendSummary"></span>
+      </div>
+      <svg id="trendChart" class="trend-chart" viewBox="0 0 320 72" role="img" aria-label="Response speed trend">
+        <line class="chart-grid" x1="8" y1="60" x2="312" y2="60"></line>
+        <line class="chart-grid" x1="8" y1="36" x2="312" y2="36"></line>
+        <line class="chart-grid" x1="8" y1="12" x2="312" y2="12"></line>
+        <polyline id="speedLine" class="chart-line" points=""></polyline>
+        <polyline id="durationLine" class="chart-line chart-line-secondary" points=""></polyline>
+      </svg>
+      <div class="chart-legend">
+        <span><i class="legend-dot speed-dot"></i><span data-i18n="ui.chartSpeed"></span></span>
+        <span><i class="legend-dot duration-dot"></i><span data-i18n="ui.chartDuration"></span></span>
+      </div>
+    </div>
   </section>
   <aside id="historyPanel" class="history-panel" hidden>
     <div class="panel-heading">

@@ -17,6 +17,7 @@
   let bubble = null; // current assistant bubble
   let bubbleText = '';
   let lastTool = null;
+  const metricHistory = [];
 
   const s = (key) => strings[key] || '';
 
@@ -78,6 +79,22 @@
 
   function formatDuration(ms) {
     return ms < 1000 ? ms + ' ms' : (ms / 1000).toFixed(1) + ' s';
+  }
+
+  function renderTrend() {
+    const recent = metricHistory.slice(-12);
+    if (!recent.length) return;
+    const maxSpeed = Math.max(...recent.map((item) => item.speed), 1);
+    const maxDuration = Math.max(...recent.map((item) => item.duration), 1);
+    const points = (items, max) => items.map((value, index) => {
+      const x = recent.length === 1 ? 160 : 8 + index * (304 / (recent.length - 1));
+      const y = 60 - (value / max) * 48;
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    $('speedLine').setAttribute('points', points(recent.map((item) => item.speed), maxSpeed));
+    $('durationLine').setAttribute('points', points(recent.map((item) => item.duration), maxDuration));
+    const latest = recent[recent.length - 1];
+    $('trendSummary').textContent = latest.speed.toFixed(1) + ' tok/s · ' + formatDuration(latest.duration);
   }
 
   function showHistory(open) {
@@ -166,6 +183,8 @@
         $('metricTokens').textContent = msg.inputTokens + ' in / ' + msg.outputTokens + ' out';
         $('metricSpeed').textContent = msg.tokensPerSecond.toFixed(1) + ' tok/s';
         $('metricMemory').textContent = msg.memory === 'unavailable' ? s('ui.memoryUnavailable') : msg.memory;
+        metricHistory.push({ speed: msg.tokensPerSecond, duration: msg.durationMs });
+        renderTrend();
         break;
       case 'history':
         if (!historyPanel.hidden) {

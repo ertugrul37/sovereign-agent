@@ -45,17 +45,29 @@ header {
 }
 .icon-button:hover { color: var(--vscode-foreground); background: var(--vscode-toolbar-hoverBackground); }
 .metrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-  padding: 8px 10px;
+  padding: 10px;
   border-bottom: 1px solid var(--vscode-panel-border, transparent);
-  background: color-mix(in srgb, var(--vscode-editor-background) 70%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--vscode-editor-background) 96%, transparent), color-mix(in srgb, var(--vscode-textLink-foreground) 8%, transparent));
 }
-.metrics div { min-width: 0; }
-.metrics span, .metrics strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.metrics-heading, .trend-heading { display: flex; align-items: center; justify-content: space-between; }
+.metrics-live { color: var(--vscode-testing-iconPassed, #73c991); font-size: 0.65em; letter-spacing: 0.08em; text-transform: uppercase; }
+.metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+.metric-card { min-width: 0; padding: 8px; border: 1px solid color-mix(in srgb, var(--vscode-panel-border) 70%, transparent); border-radius: 7px; background: color-mix(in srgb, var(--vscode-editor-background) 70%, transparent); }
+.metric-card-accent { border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 55%, var(--vscode-panel-border)); }
+.metric-card span, .metric-card strong, .metric-card small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .metrics span, .eyebrow { color: var(--vscode-descriptionForeground); font-size: 0.68em; text-transform: uppercase; letter-spacing: 0.08em; }
-.metrics strong { margin-top: 2px; font-family: var(--vscode-editor-font-family, monospace); font-size: 0.8em; font-weight: 500; color: var(--vscode-textLink-foreground); }
+.metric-card strong { margin-top: 5px; font-family: var(--vscode-editor-font-family, monospace); font-size: 0.9em; font-weight: 600; color: var(--vscode-textLink-foreground); }
+.metric-card small { margin-top: 3px; color: var(--vscode-descriptionForeground); font-size: 0.65em; }
+.trend { margin-top: 10px; padding: 8px 8px 5px; border: 1px solid color-mix(in srgb, var(--vscode-panel-border) 65%, transparent); border-radius: 7px; background: color-mix(in srgb, var(--vscode-editor-background) 55%, transparent); }
+.trend-heading { color: var(--vscode-descriptionForeground); font-size: 0.72em; }
+.trend-chart { display: block; width: 100%; height: 72px; margin-top: 4px; overflow: visible; }
+.chart-grid { stroke: color-mix(in srgb, var(--vscode-panel-border) 70%, transparent); stroke-width: 1; stroke-dasharray: 2 4; }
+.chart-line { fill: none; stroke: var(--vscode-textLink-foreground); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.chart-line-secondary { stroke: var(--vscode-charts-orange, #d19a66); stroke-dasharray: 4 3; }
+.chart-legend { display: flex; gap: 12px; color: var(--vscode-descriptionForeground); font-size: 0.65em; }
+.chart-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.legend-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--vscode-textLink-foreground); }
+.duration-dot { background: var(--vscode-charts-orange, #d19a66); }
 .history-panel {
   position: absolute;
   z-index: 3;
@@ -137,6 +149,7 @@ details.tool pre {
   white-space: pre-wrap;
 }
 footer { padding: 8px 10px 10px; border-top: 1px solid var(--vscode-panel-border, transparent); }
+@media (max-width: 330px) { .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 textarea {
   width: 100%;
   resize: none;

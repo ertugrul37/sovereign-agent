@@ -24,6 +24,15 @@ export const en = {
   'ui.noHistory': 'No Git history found in this workspace.',
   'ui.historyHint': 'Select a commit to inspect its summary.',
   'ui.undo': 'Undo last change',
+  'ui.performance': 'Performance',
+  'ui.live': 'Live',
+  'ui.durationHint': 'end to end',
+  'ui.tokenHint': 'prompt / reply',
+  'ui.speedHint': 'generation rate',
+  'ui.memoryHint': 'runtime status',
+  'ui.trend': 'Recent response trend',
+  'ui.chartSpeed': 'speed',
+  'ui.chartDuration': 'duration',
 
   // Approvals
   'approval.write': 'Allow the agent to write to "{path}"?',
