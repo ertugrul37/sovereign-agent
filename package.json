@@ -1,0 +1,153 @@
+{
+  "name": "sovereign-agent",
+  "displayName": "%displayName%",
+  "description": "%description%",
+  "version": "0.1.0",
+  "publisher": "ertugrul37",
+  "icon": "media/logo.png",
+  "license": "GPL-3.0-or-later",
+  "galleryBanner": {
+    "color": "#111827",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ertugrul37/sovereign-agent.git",
+    "directory": "."
+  },
+  "bugs": {
+    "url": "https://github.com/ertugrul37/sovereign-agent/issues"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["AI", "Chat", "Other"],
+  "keywords": ["ai", "agent", "local", "ollama", "llama.cpp", "lm studio", "privacy", "offline"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "sovereignAgent",
+          "title": "%view.container.title%",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "sovereignAgent": [
+        {
+          "type": "webview",
+          "id": "sovereignAgent.chat",
+          "name": "%view.chat.name%"
+        }
+      ]
+    },
+    "commands": [
+      { "command": "sovereignAgent.newChat", "title": "%command.newChat%", "icon": "$(add)" },
+      { "command": "sovereignAgent.selectModel", "title": "%command.selectModel%", "icon": "$(server)" },
+      { "command": "sovereignAgent.stop", "title": "%command.stop%", "icon": "$(debug-stop)" },
+      { "command": "sovereignAgent.addSelectionToChat", "title": "%command.addSelectionToChat%", "icon": "$(insert)" },
+      { "command": "sovereignAgent.openSettings", "title": "%command.openSettings%", "icon": "$(gear)" }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "sovereignAgent.addSelectionToChat",
+          "when": "editorHasSelection",
+          "group": "navigation@9"
+        }
+      ],
+      "view/title": [
+        { "command": "sovereignAgent.newChat", "when": "view == sovereignAgent.chat", "group": "navigation@1" },
+        { "command": "sovereignAgent.selectModel", "when": "view == sovereignAgent.chat", "group": "navigation@2" },
+        { "command": "sovereignAgent.addSelectionToChat", "when": "view == sovereignAgent.chat", "group": "navigation@3" },
+        { "command": "sovereignAgent.openSettings", "when": "view == sovereignAgent.chat", "group": "navigation@4" }
+      ]
+    },
+    "configuration": {
+      "title": "%config.title%",
+      "properties": {
+        "sovereignAgent.provider": {
+          "type": "string",
+          "enum": ["ollama", "openai-compatible"],
+          "markdownEnumDescriptions": ["%config.provider.ollama%", "%config.provider.openaiCompatible%"],
+          "default": "openai-compatible",
+          "markdownDescription": "%config.provider%"
+        },
+        "sovereignAgent.baseUrl": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "%config.baseUrl%"
+        },
+        "sovereignAgent.model": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "%config.model%"
+        },
+        "sovereignAgent.language": {
+          "type": "string",
+          "enum": ["auto", "en", "tr", "de", "es", "fr"],
+          "markdownEnumDescriptions": [
+            "%config.language.auto%",
+            "%config.language.en%",
+            "%config.language.tr%",
+            "%config.language.de%",
+            "%config.language.es%",
+            "%config.language.fr%"
+          ],
+          "default": "auto",
+          "markdownDescription": "%config.language%"
+        },
+        "sovereignAgent.temperature": {
+          "type": "number",
+          "default": 0.2,
+          "minimum": 0,
+          "maximum": 2,
+          "markdownDescription": "%config.temperature%"
+        },
+        "sovereignAgent.contextLength": {
+          "type": "number",
+          "default": 8192,
+          "minimum": 1024,
+          "markdownDescription": "%config.contextLength%"
+        },
+        "sovereignAgent.maxIterations": {
+          "type": "number",
+          "default": 20,
+          "minimum": 1,
+          "maximum": 100,
+          "markdownDescription": "%config.maxIterations%"
+        },
+        "sovereignAgent.requireWriteApproval": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "%config.requireWriteApproval%"
+        },
+        "sovereignAgent.requireCommandApproval": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "%config.requireCommandApproval%"
+        },
+        "sovereignAgent.allowLanHosts": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "%config.allowLanHosts%"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "npm run compile && node --test \"out/tests/*.spec.js\"",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.24.0",
+    "typescript": "^5.4.0"
+  }
+}
