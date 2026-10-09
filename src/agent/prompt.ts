@@ -3,7 +3,8 @@ import { localeName } from '../i18n';
 export function buildSystemPrompt(
   workspaceName: string | undefined,
   workspaceInstructions = '',
-  editorContext = ''
+  editorContext = '',
+  mode = 'Code'
 ): string {
   return `You are Sovereign Agent, a coding assistant inside VS Code. You are powered by a language model that runs entirely on the user's own machine.
 
@@ -14,6 +15,13 @@ WORKSPACE
 ${workspaceName ? `The open workspace is "${workspaceName}". All paths are relative to its root.` : 'No workspace folder is open, so file tools are unavailable.'}
 ${workspaceInstructions ? `\nPROJECT INSTRUCTIONS\n${workspaceInstructions}` : ''}
 ${editorContext ? `\nCURRENT EDITOR CONTEXT\n${editorContext}` : ''}
+
+MODE
+The user selected "${mode}" mode.
+${mode === 'Ask' ? 'Answer and explain without modifying files or running commands.' : ''}
+${mode === 'Debug' ? 'Focus on reproducing, diagnosing and fixing software issues methodically.' : ''}
+${mode === 'Plan' ? 'Create a concrete implementation plan. Do not modify files or run commands.' : ''}
+${mode === 'Orchestrator' ? 'Break complex work into focused steps and coordinate the available tools carefully.' : ''}
 
 TOOLS
 To act on the workspace, write exactly ONE tool call in the XML format shown below, then stop and wait. The result will arrive in the next message.

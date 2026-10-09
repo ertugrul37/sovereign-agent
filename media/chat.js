@@ -12,6 +12,10 @@
   const historyStatus = $('historyStatus');
   const commitDetail = $('commitDetail');
   const comparison = $('comparison');
+  const modelPanel = $('modelPanel');
+  const modePanel = $('modePanel');
+  const approvalPanel = $('approvalPanel');
+  const dictationPanel = $('dictationPanel');
 
   let strings = {};
   let busy = false;
@@ -19,6 +23,10 @@
   let bubbleText = '';
   let lastTool = null;
   let comparisonTexts = {};
+  let selectedMode = 'Code';
+  let recognition = null;
+  let dictating = false;
+  let autoApproveNext = false;
   const metricHistory = [];
 
   const s = (key) => strings[key] || '';
@@ -140,13 +148,137 @@
     if (!text || busy) return;
     add('user', text);
     input.value = '';
-    vscode.postMessage({ type: 'send', text });
+    vscode.postMessage({ type: 'send', text, mode: selectedMode });
+  }
+
+  function closePopovers(except) {
+    [modelPanel, modePanel, approvalPanel].forEach((panel) => {
+      if (panel !== except) panel.hidden = true;
+    });
+  }
+
+  function renderModelOptions(models, selected, error) {
+    const list = $('modelOptions');
+    list.replaceChildren();
+    if (error) {
+      const message = document.createElement('p');
+      message.className = 'popover-error';
+      message.textContent = error;
+      list.appendChild(message);
+      return;
+    }
+    models.forEach((model) => {
+      const option = document.createElement('button');
+      option.type = 'button';
+      option.className = 'model-option' + (model === selected ? ' selected' : '');
+      option.textContent = model;
+      option.addEventListener('click', () => {
+        vscode.postMessage({ type: 'modelPick', model });
+        modelPanel.hidden = true;
+      });
+      list.appendChild(option);
+    });
+    if (!models.length) {
+      const empty = document.createElement('p');
+      empty.className = 'popover-error';
+      empty.textContent = s('ui.noModels');
+      list.appendChild(empty);
+    }
+  }
+
+  function toggleDictation() {
+    dictationPanel.hidden = !dictationPanel.hidden;
+    if (!dictationPanel.hidden) startDictation();
+    else stopDictation();
+  }
+
+  function startDictation() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      $('status').textContent = s('ui.dictationUnavailable');
+      return;
+    }
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = document.documentElement.lang || 'en-US';
+    recognition.onstart = () => {
+      dictating = true;
+      $('mic').classList.add('active');
+      $('status').textContent = s('ui.listening');
+    };
+    recognition.onresult = (event) => {
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        transcript += event.results[i][0].transcript;
+      }
+      if (transcript) input.value = (input.value + ' ' + transcript).trim();
+    };
+    recognition.onerror = () => {
+      $('status').textContent = s('ui.dictationError');
+      stopDictation();
+    };
+    recognition.onend = () => {
+      if (dictating) recognition.start();
+    };
+    recognition.start();
+  }
+
+  function stopDictation() {
+    dictating = false;
+    $('mic').classList.remove('active');
+    if (recognition) {
+      recognition.onend = null;
+      recognition.stop();
+      recognition = null;
+    }
   }
 
   sendBtn.addEventListener('click', send);
   stopBtn.addEventListener('click', () => vscode.postMessage({ type: 'stop' }));
-  $('model').addEventListener('click', () => vscode.postMessage({ type: 'selectModel' }));
+  $('model').addEventListener('click', () => {
+    const open = modelPanel.hidden;
+    closePopovers(modelPanel);
+    modelPanel.hidden = !open;
+    $('model').setAttribute('aria-expanded', String(!modelPanel.hidden));
+    if (open) vscode.postMessage({ type: 'modelMenu' });
+  });
   $('compareModel').addEventListener('click', () => vscode.postMessage({ type: 'selectCompareModel' }));
+  $('compareModelOption').addEventListener('click', () => vscode.postMessage({ type: 'selectCompareModel' }));
+  $('mode').addEventListener('click', () => {
+    const open = modePanel.hidden;
+    closePopovers(modePanel);
+    modePanel.hidden = !open;
+    $('mode').setAttribute('aria-expanded', String(!modePanel.hidden));
+  });
+  $('approval').addEventListener('click', () => {
+    const open = approvalPanel.hidden;
+    closePopovers(approvalPanel);
+    approvalPanel.hidden = !open;
+  });
+  $('approvalToggle').addEventListener('click', () => {
+    autoApproveNext = !autoApproveNext;
+    vscode.postMessage({ type: 'setAutoApprove', value: autoApproveNext });
+    $('approvalToggle').textContent = autoApproveNext ? s('ui.approvalEnabled') : s('ui.approveNext');
+  });
+  document.querySelectorAll('#modePanel [data-mode]').forEach((button) => {
+    button.addEventListener('click', () => {
+      selectedMode = button.dataset.mode;
+      $('modeName').textContent = selectedMode;
+      modePanel.hidden = true;
+    });
+  });
+  $('mic').addEventListener('click', toggleDictation);
+  $('dictationClose').addEventListener('click', () => {
+    dictationPanel.hidden = true;
+    stopDictation();
+  });
+  $('modelSearch').addEventListener('input', () => {
+    const query = $('modelSearch').value.toLowerCase();
+    document.querySelectorAll('.model-option').forEach((option) => {
+      option.hidden = !option.textContent.toLowerCase().includes(query);
+    });
+  });
   $('undo').addEventListener('click', () => vscode.postMessage({ type: 'undo' }));
   $('historyToggle').addEventListener('click', () => showHistory(historyPanel.hidden));
   $('historyClose').addEventListener('click', () => showHistory(false));
@@ -166,6 +298,9 @@
         $('modelName').textContent = msg.compareModel
           ? (msg.model || s('ui.noModel')) + ' + ' + msg.compareModel
           : (msg.model || s('ui.noModel'));
+        break;
+      case 'modelOptions':
+        renderModelOptions(msg.models || [], msg.selected, msg.error);
         break;
       case 'conversation':
         messages.querySelectorAll('.msg').forEach((el) => el.remove());

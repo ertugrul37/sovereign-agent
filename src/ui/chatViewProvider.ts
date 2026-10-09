@@ -28,7 +28,10 @@ interface ComparisonCandidate {
 
 type FromWebview =
   | { type: 'ready' }
-  | { type: 'send'; text: string }
+  | { type: 'send'; text: string; mode?: string }
+  | { type: 'modelMenu' }
+  | { type: 'modelPick'; model: string }
+  | { type: 'setAutoApprove'; value: boolean }
   | { type: 'stop' }
   | { type: 'newChat' }
   | { type: 'selectModel' }
@@ -47,6 +50,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly mcp: McpManager;
   private historyLoaded = false;
   private comparison?: Map<string, ComparisonCandidate>;
+  private autoApprove = false;
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -195,7 +199,16 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.postInit();
         break;
       case 'send':
-        await this.handleSend(msg.text);
+        await this.handleSend(msg.text, msg.mode || 'Code');
+        break;
+      case 'modelMenu':
+        await this.sendModelOptions();
+        break;
+      case 'modelPick':
+        await this.pickModel(msg.model);
+        break;
+      case 'setAutoApprove':
+        this.autoApprove = msg.value;
         break;
       case 'stop':
         this.stop();
@@ -224,7 +237,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private async handleSend(text: string): Promise<void> {
+  private async handleSend(text: string, mode: string): Promise<void> {
     if (this.abort || this.comparison || !text.trim()) {
       return;
     }
@@ -238,7 +251,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       }
     }
     if (cfg.compareModel) {
-      await this.handleCompareSend(text, cfg);
+      await this.handleCompareSend(text, cfg, mode);
       return;
     }
 
@@ -266,21 +279,22 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           maxIterations: cfg.maxIterations,
           workspaceName: folder?.name,
           workspaceInstructions,
-          editorContext
+          editorContext,
+          mode
         },
         {
           root: folder?.uri.fsPath,
           signal: abort.signal,
           confirmWrite: (relPath, bytes) =>
-            cfg.requireWriteApproval
+            cfg.requireWriteApproval && !this.autoApprove
               ? this.confirm(t('approval.write', { path: relPath }), t('approval.writeDetail', { bytes }))
               : Promise.resolve(true),
           confirmReplace: (relPath) =>
-            cfg.requireWriteApproval
+            cfg.requireWriteApproval && !this.autoApprove
               ? this.confirm(t('approval.replace', { path: relPath }), t('approval.replaceDetail'))
               : Promise.resolve(true),
           confirmCommand: (command) =>
-            cfg.requireCommandApproval ? this.confirm(t('approval.command'), command) : Promise.resolve(true),
+            cfg.requireCommandApproval && !this.autoApprove ? this.confirm(t('approval.command'), command) : Promise.resolve(true),
           getEditorContext: async () => this.editorContext(),
           checkpoint: async (relPath, content) => this.saveCheckpoint(relPath, content),
           previewChange: async (relPath, original, updated) => this.previewChange(relPath, original, updated),
@@ -328,7 +342,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private async handleCompareSend(text: string, cfg: AgentConfig): Promise<void> {
+  private async handleCompareSend(text: string, cfg: AgentConfig, mode: string): Promise<void> {
       const folder = vscode.workspace.workspaceFolders?.[0];
       this.restoreHistory();
       const baseHistory = this.agent.getHistory();
@@ -362,7 +376,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           await candidateAgent.run(
             text,
             createProvider({ provider: cfg.provider, baseUrl: cfg.baseUrl, allowLanHosts: cfg.allowLanHosts }),
-            this.runSettings(cfg, folder?.name, workspaceInstructions, editorContext, model),
+            this.runSettings(cfg, folder?.name, workspaceInstructions, editorContext, model, mode),
             this.toolContext(cfg, folder?.uri.fsPath, abort),
             hooks,
             abort.signal
@@ -406,7 +420,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       workspaceName: string | undefined,
       workspaceInstructions: string,
       editorContext: string,
-      model: string
+      model: string,
+      mode: string
     ): RunSettings {
       return {
         model,
@@ -416,7 +431,26 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         workspaceName,
         workspaceInstructions,
         editorContext
+        ,mode
       };
+    }
+
+    private async sendModelOptions(): Promise<void> {
+      const cfg = this.prepare();
+      try {
+        const models = await createProvider(cfg).listModels();
+        this.post({ type: 'modelOptions', models, selected: cfg.model });
+      } catch (err) {
+        this.post({ type: 'modelOptions', models: [], error: err instanceof Error ? err.message : String(err) });
+      }
+    }
+
+    private async pickModel(model: string): Promise<void> {
+      if (!model.trim()) return;
+      await vscode.workspace
+        .getConfiguration('sovereignAgent')
+        .update('model', model.trim(), vscode.ConfigurationTarget.Global);
+      this.postInit();
     }
 
     private toolContext(cfg: AgentConfig, root: string | undefined, abort: AbortController): ToolContext {
@@ -424,15 +458,15 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         root,
         signal: abort.signal,
         confirmWrite: (relPath: string, bytes: number) =>
-          cfg.requireWriteApproval
+          cfg.requireWriteApproval && !this.autoApprove
             ? this.confirm(t('approval.write', { path: relPath }), t('approval.writeDetail', { bytes }))
             : Promise.resolve(true),
         confirmReplace: (relPath: string) =>
-          cfg.requireWriteApproval
+          cfg.requireWriteApproval && !this.autoApprove
             ? this.confirm(t('approval.replace', { path: relPath }), t('approval.replaceDetail'))
             : Promise.resolve(true),
         confirmCommand: (command: string) =>
-          cfg.requireCommandApproval ? this.confirm(t('approval.command'), command) : Promise.resolve(true),
+          cfg.requireCommandApproval && !this.autoApprove ? this.confirm(t('approval.command'), command) : Promise.resolve(true),
         getEditorContext: async () => this.editorContext(),
         checkpoint: async (relPath: string, content: string | undefined) => this.saveCheckpoint(relPath, content),
         previewChange: async (relPath: string, original: string, updated: string) =>
@@ -600,8 +634,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
   <header>
-    <button id="model" class="model" data-i18n-title="ui.changeModel" title="">
+    <button id="model" class="model model-trigger" data-i18n-title="ui.changeModel" title="" aria-haspopup="true" aria-expanded="false">
       <span id="modelName"></span>
+      <span class="chevron">⌄</span>
     </button>
     <div class="header-actions">
       <button id="compareModel" class="icon-button" data-i18n-title="ui.compareModel" title="" aria-label="">⇆</button>
@@ -609,6 +644,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       <button id="historyToggle" class="icon-button" data-i18n-title="ui.history" title="" aria-expanded="false">⌁</button>
     </div>
   </header>
+  <section id="modelPanel" class="popover model-panel" hidden>
+    <div class="popover-search">
+      <span>⌕</span>
+      <input id="modelSearch" type="search" data-i18n-placeholder="ui.searchModels" />
+    </div>
+    <div id="modelOptions" class="model-options"></div>
+    <button id="compareModelOption" class="popover-link" data-i18n="ui.configureCompare"></button>
+  </section>
   <section id="metrics" class="metrics" aria-label="Response metrics" hidden>
     <div class="metrics-heading">
       <span class="eyebrow" data-i18n="ui.performance"></span>
@@ -687,11 +730,40 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     </section>
   </main>
   <footer>
-    <textarea id="input" rows="2" data-i18n-placeholder="ui.placeholder"></textarea>
+    <div id="dictationPanel" class="dictation-panel" hidden>
+      <div class="dictation-heading">
+        <strong data-i18n="ui.dictation"></strong>
+        <button id="dictationClose" class="icon-button" data-i18n-title="ui.close" title="">×</button>
+      </div>
+      <p data-i18n="ui.dictationHint"></p>
+      <button id="microphoneSelect" class="microphone-select" type="button">◉ <span data-i18n="ui.defaultMicrophone"></span><span>⌄</span></button>
+      <div class="waveform" aria-hidden="true"></div>
+    </div>
+    <div class="composer">
+      <textarea id="input" rows="3" data-i18n-placeholder="ui.placeholder"></textarea>
+      <div class="composer-toolbar">
+        <button id="attach" class="toolbar-button" data-i18n-title="ui.attach" title="">＋</button>
+        <button id="mode" class="mode-button" aria-haspopup="true" aria-expanded="false"><span id="modeName">Code</span><span>⌃</span></button>
+        <button id="approval" class="mode-button approval-button" aria-haspopup="true" aria-expanded="false"><span data-i18n="ui.autoApprove"></span><span>⌃</span></button>
+        <span class="composer-spacer"></span>
+        <button id="mic" class="toolbar-button" data-i18n-title="ui.dictation" title="">♩</button>
+        <button id="send" class="send-button" data-i18n-title="ui.send" title="">↑</button>
+      </div>
+    </div>
+    <div id="modePanel" class="popover mode-panel" hidden>
+      <button data-mode="Code"><strong>Code</strong><small data-i18n="ui.modeCode"></small></button>
+      <button data-mode="Ask"><strong>Ask</strong><small data-i18n="ui.modeAsk"></small></button>
+      <button data-mode="Debug"><strong>Debug</strong><small data-i18n="ui.modeDebug"></small></button>
+      <button data-mode="Orchestrator"><strong>Orchestrator</strong><small data-i18n="ui.modeOrchestrator"></small><em data-i18n="ui.deprecated"></em></button>
+      <button data-mode="Plan"><strong>Plan</strong><small data-i18n="ui.modePlan"></small></button>
+    </div>
+    <div id="approvalPanel" class="popover approval-panel" hidden>
+      <p data-i18n="ui.approvalHint"></p>
+      <button id="approvalToggle" type="button" data-i18n="ui.approveNext"></button>
+    </div>
     <div class="actions">
       <span id="status" class="status"></span>
       <button id="stop" class="secondary" data-i18n="ui.stop" hidden></button>
-      <button id="send" data-i18n="ui.send"></button>
     </div>
   </footer>
   <script nonce="${nonce}" src="${media('chat.js')}"></script>

@@ -139,6 +139,13 @@ The last approved change can be restored with **Sovereign Agent: Undo last
 change**. Conversation context is persisted in the workspace state and is
 restored when the chat view is reopened.
 
+The composer includes a searchable local model menu, optional two-model
+comparison, microphone dictation when the webview speech API is available,
+and Code, Ask, Debug, Orchestrator and Plan modes. Ask and Plan communicate
+read-only intent to the local model; write and command approvals remain
+enabled by default. The approval menu can temporarily enable automatic
+approval for the current extension session.
+
 ### Local MCP servers
 
 Local STDIO MCP servers can be configured in `sovereignAgent.mcpServers` as a

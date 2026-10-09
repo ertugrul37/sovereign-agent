@@ -22,6 +22,7 @@ export interface RunSettings {
   workspaceName: string | undefined;
   workspaceInstructions?: string;
   editorContext?: string;
+  mode?: string;
 }
 
 export class Agent {
@@ -62,7 +63,7 @@ export class Agent {
       }
       const system: ChatMessage = {
         role: 'system',
-        content: buildSystemPrompt(settings.workspaceName, settings.workspaceInstructions, settings.editorContext)
+        content: buildSystemPrompt(settings.workspaceName, settings.workspaceInstructions, settings.editorContext, settings.mode)
       };
       this.trimHistory(system, settings.contextLength);
 
