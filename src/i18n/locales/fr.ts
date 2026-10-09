@@ -61,6 +61,9 @@ export const fr: Record<MessageKey, string> = {
   'ui.modePlan': 'Mode plan. Modifier uniquement les fichiers de plan; autres mutations interdites.',
   'ui.deprecated': 'obsolète',
   'ui.noModels': 'Aucun modèle local trouvé.',
+  'ui.asrSettings': 'Paramètres ASR',
+  'ui.transcribing': 'Transcription avec l’ASR local…',
+  'ui.recording': 'Enregistrement… cliquez à nouveau pour transcrire',
 
   'approval.write': 'Autoriser l’agent à écrire dans « {path} » ?',
   'approval.writeDetail': '{bytes} octets seront écrits.',
@@ -75,6 +78,8 @@ export const fr: Record<MessageKey, string> = {
   'error.http': 'Le serveur de modèles a renvoyé une erreur ({status}) : {detail}',
   'error.noModel': 'Aucun modèle sélectionné. Choisissez d’abord un modèle local.',
   'error.emptyResponse': 'Le modèle a renvoyé une réponse vide.',
+  'error.emptyTranscription': 'Le serveur ASR n’a renvoyé aucune transcription.',
+  'error.invalidAudio': 'Enregistrement microphone invalide.',
   'error.maxIterations': 'Arrêté après {count} étapes. Envoyez un message pour continuer.',
   'error.invalidUrl': 'Adresse de serveur invalide : {url}',
   'editor.noSelection': 'Sélectionnez d’abord du code dans l’éditeur actif.',

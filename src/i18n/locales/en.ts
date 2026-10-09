@@ -60,6 +60,9 @@ export const en = {
   'ui.modePlan': 'Plan mode. Only edit plan files; other mutations are denied.',
   'ui.deprecated': 'deprecated',
   'ui.noModels': 'No local models found.',
+  'ui.asrSettings': 'ASR settings',
+  'ui.transcribing': 'Transcribing with local ASR…',
+  'ui.recording': 'Recording… click again to transcribe',
 
   // Approvals
   'approval.write': 'Allow the agent to write to "{path}"?',
@@ -79,6 +82,8 @@ export const en = {
   'error.http': 'The model server returned an error ({status}): {detail}',
   'error.noModel': 'No model selected. Choose a local model first.',
   'error.emptyResponse': 'The model returned an empty response.',
+  'error.emptyTranscription': 'The ASR server returned no transcription.',
+  'error.invalidAudio': 'Invalid microphone recording.',
   'error.maxIterations': 'Stopped after {count} steps. Send a message to continue.',
   'error.invalidUrl': 'Invalid server address: {url}',
   'editor.noSelection': 'Select code in the active editor first.',

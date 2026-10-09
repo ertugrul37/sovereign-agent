@@ -2,7 +2,7 @@
   "name": "sovereign-agent",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "publisher": "ertugrul37",
   "icon": "media/logo.png",
   "license": "GPL-3.0-or-later",
@@ -171,6 +171,16 @@
           "type": "string",
           "default": "",
           "markdownDescription": "%config.compareModel%"
+        },
+        "sovereignAgent.asrBaseUrl": {
+          "type": "string",
+          "default": "http://localhost:8000/v1",
+          "markdownDescription": "%config.asrBaseUrl%"
+        },
+        "sovereignAgent.asrModel": {
+          "type": "string",
+          "default": "nemotron-3.5-asr",
+          "markdownDescription": "%config.asrModel%"
         },
         "sovereignAgent.language": {
           "type": "string",

@@ -146,6 +146,25 @@ read-only intent to the local model; write and command approvals remain
 enabled by default. The approval menu can temporarily enable automatic
 approval for the current extension session.
 
+### Local microphone ASR
+
+The microphone button records audio locally and sends it to an
+OpenAI-compatible `/v1/audio/transcriptions` endpoint. Configure the ASR
+server and model in Settings:
+
+```json
+{
+  "sovereignAgent.asrBaseUrl": "http://localhost:8000/v1",
+  "sovereignAgent.asrModel": "nemotron-3.5-asr"
+}
+```
+
+The default model name is `nemotron-3.5-asr`; use the exact model identifier
+exposed by your Nemotron ASR server if it differs. The ASR URL is subject to
+the same localhost/LAN guard as the chat model. Audio is sent only to that
+local endpoint, then the returned transcript is placed in the composer for
+review before sending.
+
 ### Local MCP servers
 
 Local STDIO MCP servers can be configured in `sovereignAgent.mcpServers` as a

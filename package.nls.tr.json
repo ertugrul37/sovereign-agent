@@ -29,6 +29,8 @@
   "config.baseUrl": "Sunucu adresi. Seçilen sağlayıcının varsayılanını kullanmak için boş bırakın. Yerel bir adres olmalı.",
   "config.model": "Model adı, örneğin `qwen2.5-coder:7b`. Sunucudan seçmek için **Model Seç** komutunu kullan.",
   "config.compareModel": "İsteğe bağlı ikinci yerel model. Ayarlandığında her istek iki modele paralel gönderilir ve daha iyi yanıtı seçebilirsiniz.",
+  "config.asrBaseUrl": "Yerel OpenAI uyumlu ASR sunucusunun adresi. Nemotron ASR sunucuları genellikle http://localhost:8000/v1 kullanır.",
+  "config.asrModel": "ASR model kimliği. Varsayılan nemotron-3.5-asr'dir; yerel sunucunuzun gösterdiği tam model kimliğini kullanın.",
   "config.language": "Arayüz dili. `auto` VS Code'un görüntüleme dilini izler. Mesajın dili belirsizse ajan da bu dilde yanıt verir.",
   "config.temperature": "Örnekleme sıcaklığı. Düşük değerler daha öngörülebilirdir.",
   "config.contextLength": "Bağlam penceresi (token). Modelin yüklendiği değerle eşleştir.",

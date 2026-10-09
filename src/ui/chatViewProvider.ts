@@ -11,6 +11,7 @@ import { setLocale, t, uiStrings } from '../i18n';
 import { McpManager, McpServerConfig } from '../agent/mcp';
 import { ChatMessage } from '../llm/types';
 import { ToolContext } from '../agent/tools';
+import { transcribeAudio } from '../llm/asr';
 
 const execFileAsync = promisify(execFile);
 
@@ -32,6 +33,8 @@ type FromWebview =
   | { type: 'modelMenu' }
   | { type: 'modelPick'; model: string }
   | { type: 'setAutoApprove'; value: boolean }
+  | { type: 'transcribe'; audio: string; mimeType: string }
+  | { type: 'openSettings' }
   | { type: 'stop' }
   | { type: 'newChat' }
   | { type: 'selectModel' }
@@ -215,6 +218,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         break;
       case 'setAutoApprove':
         this.autoApprove = msg.value;
+        break;
+      case 'transcribe':
+        await this.transcribe(msg.audio, msg.mimeType);
+        break;
+      case 'openSettings':
+        await vscode.commands.executeCommand('workbench.action.openSettings', '@ext:ertugrul37.sovereign-agent');
         break;
       case 'stop':
         this.stop();
@@ -457,6 +466,26 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         .getConfiguration('sovereignAgent')
         .update('model', model.trim(), vscode.ConfigurationTarget.Global);
       this.postInit();
+    }
+
+    private async transcribe(audioDataUrl: string, mimeType: string): Promise<void> {
+      const match = /^data:[^;]+;base64,(.+)$/.exec(audioDataUrl);
+      if (!match) {
+        this.post({ type: 'transcriptionError', text: t('error.invalidAudio') });
+        return;
+      }
+      try {
+        const audio = Uint8Array.from(Buffer.from(match[1], 'base64'));
+        const cfg = this.prepare();
+        const text = await transcribeAudio(audio, mimeType, {
+          baseUrl: cfg.asrBaseUrl,
+          model: cfg.asrModel,
+          allowLanHosts: cfg.allowLanHosts
+        });
+        this.post({ type: 'transcription', text });
+      } catch (err) {
+        this.post({ type: 'transcriptionError', text: err instanceof Error ? err.message : String(err) });
+      }
     }
 
     private toolContext(cfg: AgentConfig, root: string | undefined, abort: AbortController): ToolContext {
@@ -743,6 +772,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       </div>
       <p data-i18n="ui.dictationHint"></p>
       <button id="microphoneSelect" class="microphone-select" type="button">◉ <span data-i18n="ui.defaultMicrophone"></span><span>⌄</span></button>
+      <button id="asrSettings" class="asr-settings" type="button" data-i18n="ui.asrSettings"></button>
       <div class="waveform" aria-hidden="true"></div>
     </div>
     <div class="composer">

@@ -24,7 +24,9 @@
   let lastTool = null;
   let comparisonTexts = {};
   let selectedMode = 'Code';
-  let recognition = null;
+  let mediaRecorder = null;
+  let microphoneStream = null;
+  let recordedChunks = [];
   let dictating = false;
   let autoApproveNext = false;
   const metricHistory = [];
@@ -192,46 +194,53 @@
     else stopDictation();
   }
 
-  function startDictation() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
+  async function startDictation() {
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
       $('status').textContent = s('ui.dictationUnavailable');
       return;
     }
-    recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = document.documentElement.lang || 'en-US';
-    recognition.onstart = () => {
+    try {
+      microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : 'audio/webm';
+      recordedChunks = [];
+      mediaRecorder = new MediaRecorder(microphoneStream, { mimeType });
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) recordedChunks.push(event.data);
+      };
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(recordedChunks, { type: mimeType });
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        $('status').textContent = s('ui.transcribing');
+        vscode.postMessage({ type: 'transcribe', audio: dataUrl, mimeType });
+      };
+      mediaRecorder.start();
       dictating = true;
       $('mic').classList.add('active');
-      $('status').textContent = s('ui.listening');
-    };
-    recognition.onresult = (event) => {
-      let transcript = '';
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        transcript += event.results[i][0].transcript;
-      }
-      if (transcript) input.value = (input.value + ' ' + transcript).trim();
-    };
-    recognition.onerror = () => {
+      $('status').textContent = s('ui.recording');
+    } catch (error) {
       $('status').textContent = s('ui.dictationError');
       stopDictation();
-    };
-    recognition.onend = () => {
-      if (dictating) recognition.start();
-    };
-    recognition.start();
+    }
   }
 
   function stopDictation() {
     dictating = false;
     $('mic').classList.remove('active');
-    if (recognition) {
-      recognition.onend = null;
-      recognition.stop();
-      recognition = null;
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
     }
+    if (microphoneStream) {
+      microphoneStream.getTracks().forEach((track) => track.stop());
+      microphoneStream = null;
+    }
+    mediaRecorder = null;
   }
 
   sendBtn.addEventListener('click', send);
@@ -269,6 +278,7 @@
     });
   });
   $('mic').addEventListener('click', toggleDictation);
+  $('asrSettings').addEventListener('click', () => vscode.postMessage({ type: 'openSettings' }));
   $('dictationClose').addEventListener('click', () => {
     dictationPanel.hidden = true;
     stopDictation();
@@ -301,6 +311,14 @@
         break;
       case 'modelOptions':
         renderModelOptions(msg.models || [], msg.selected, msg.error);
+        break;
+      case 'transcription':
+        input.value = (input.value + ' ' + msg.text).trim();
+        input.focus();
+        statusEl.textContent = '';
+        break;
+      case 'transcriptionError':
+        statusEl.textContent = msg.text;
         break;
       case 'conversation':
         messages.querySelectorAll('.msg').forEach((el) => el.remove());

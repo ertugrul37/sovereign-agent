@@ -29,6 +29,8 @@
   "config.baseUrl": "Server address. Leave empty to use the selected provider's default. Must be a local address.",
   "config.model": "Model name, for example `qwen2.5-coder:7b`. Use the **Select Model** command to pick from the server.",
   "config.compareModel": "Optional second local model. When set, every prompt is sent to both models in parallel so you can choose the better response.",
+  "config.asrBaseUrl": "Local OpenAI-compatible ASR server address. Nemotron ASR servers commonly expose http://localhost:8000/v1.",
+  "config.asrModel": "ASR model identifier, defaulting to nemotron-3.5-asr. Use the exact model id exposed by your local server.",
   "config.language": "Interface language. `auto` follows VS Code's display language. The agent also replies in this language when the message language is unclear.",
   "config.temperature": "Sampling temperature. Lower values are more predictable.",
   "config.contextLength": "Context window in tokens. Match this to the value your model was loaded with.",

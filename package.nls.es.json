@@ -28,6 +28,8 @@
   "config.baseUrl": "Dirección del servidor. Déjala vacía para usar el valor predeterminado del proveedor seleccionado. Debe ser local.",
   "config.model": "Nombre del modelo, por ejemplo `qwen2.5-coder:7b`. Usa el comando **Seleccionar modelo** para elegir uno del servidor.",
   "config.compareModel": "Segundo modelo local opcional. Cada solicitud se envía a ambos modelos en paralelo para elegir la mejor respuesta.",
+  "config.asrBaseUrl": "Dirección del servidor ASR local compatible con OpenAI.",
+  "config.asrModel": "Identificador del modelo ASR; por defecto nemotron-3.5-asr. Usa el identificador exacto de tu servidor local.",
   "config.language": "Idioma de la interfaz. `auto` sigue el idioma de VS Code. El agente también responde en este idioma cuando el idioma del mensaje no está claro.",
   "config.temperature": "Temperatura de muestreo. Los valores bajos son más predecibles.",
   "config.contextLength": "Ventana de contexto en tokens. Debe coincidir con el valor con el que cargaste el modelo.",

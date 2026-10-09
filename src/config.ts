@@ -16,6 +16,8 @@ export interface AgentConfig {
   baseUrl: string;
   model: string;
   compareModel: string;
+  asrBaseUrl: string;
+  asrModel: string;
   language: string;
   temperature: number;
   contextLength: number;
@@ -46,6 +48,8 @@ export function getConfig(): AgentConfig {
     baseUrl: baseUrl || DEFAULT_URLS[provider],
     model: c.get<string>('model', '').trim(),
     compareModel: c.get<string>('compareModel', '').trim(),
+    asrBaseUrl: c.get<string>('asrBaseUrl', 'http://localhost:8000/v1').trim(),
+    asrModel: c.get<string>('asrModel', 'nemotron-3.5-asr').trim(),
     language: c.get<string>('language', 'auto'),
     temperature: c.get<number>('temperature', 0.2),
     contextLength: c.get<number>('contextLength', 8192),

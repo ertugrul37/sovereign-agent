@@ -61,6 +61,9 @@ export const es: Record<MessageKey, string> = {
   'ui.modePlan': 'Modo plan. Solo edita archivos de plan; se bloquean otros cambios.',
   'ui.deprecated': 'obsoleto',
   'ui.noModels': 'No se encontraron modelos locales.',
+  'ui.asrSettings': 'Ajustes de ASR',
+  'ui.transcribing': 'Transcribiendo con ASR local…',
+  'ui.recording': 'Grabando… pulsa de nuevo para transcribir',
 
   'approval.write': '¿Permitir que el agente escriba en "{path}"?',
   'approval.writeDetail': 'Se escribirán {bytes} bytes.',
@@ -75,6 +78,8 @@ export const es: Record<MessageKey, string> = {
   'error.http': 'El servidor de modelos devolvió un error ({status}): {detail}',
   'error.noModel': 'Ningún modelo seleccionado. Elige primero un modelo local.',
   'error.emptyResponse': 'El modelo devolvió una respuesta vacía.',
+  'error.emptyTranscription': 'El servidor ASR no devolvió ninguna transcripción.',
+  'error.invalidAudio': 'Grabación de micrófono no válida.',
   'error.maxIterations': 'Detenido tras {count} pasos. Envía un mensaje para continuar.',
   'error.invalidUrl': 'Dirección de servidor no válida: {url}',
   'editor.noSelection': 'Selecciona primero código en el editor activo.',

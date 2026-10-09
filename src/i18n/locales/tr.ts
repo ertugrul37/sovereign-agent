@@ -61,6 +61,9 @@ export const tr: Record<MessageKey, string> = {
   'ui.modePlan': 'Plan modu. Yalnızca plan dosyalarını düzenler; diğer değişiklikler engellenir.',
   'ui.deprecated': 'kullanımdan kaldırıldı',
   'ui.noModels': 'Yerel model bulunamadı.',
+  'ui.asrSettings': 'ASR ayarları',
+  'ui.transcribing': 'Yerel ASR ile yazıya çevriliyor…',
+  'ui.recording': 'Kaydediliyor… yazıya çevirmek için tekrar tıklayın',
 
   'approval.write': 'Ajanın "{path}" dosyasına yazmasına izin verilsin mi?',
   'approval.writeDetail': '{bytes} bayt yazılacak.',
@@ -78,6 +81,8 @@ export const tr: Record<MessageKey, string> = {
   'error.http': 'Model sunucusu hata döndürdü ({status}): {detail}',
   'error.noModel': 'Model seçilmedi. Önce yerel bir model seç.',
   'error.emptyResponse': 'Model boş yanıt döndürdü.',
+  'error.emptyTranscription': 'ASR sunucusu metin döndürmedi.',
+  'error.invalidAudio': 'Geçersiz mikrofon kaydı.',
   'error.maxIterations': '{count} adımdan sonra durduruldu. Devam etmek için bir mesaj gönder.',
   'error.invalidUrl': 'Geçersiz sunucu adresi: {url}',
   'editor.noSelection': 'Önce aktif editörde kod seç.',

@@ -207,6 +207,7 @@ footer { padding: 8px 10px 10px; border-top: 1px solid var(--vscode-panel-border
 .dictation-heading { display: flex; justify-content: space-between; align-items: center; }
 .dictation-panel p { margin: 5px 0 8px; color: var(--vscode-descriptionForeground); font-size: 0.78em; }
 .microphone-select { display: flex; justify-content: space-between; width: 100%; padding: 6px 8px; border: 1px solid var(--vscode-input-border); border-radius: 4px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); text-align: left; cursor: pointer; }
+.asr-settings { margin-top: 7px; padding: 0; border: 0; background: transparent; color: var(--vscode-textLink-foreground); cursor: pointer; font-size: 0.78em; }
 .waveform { height: 18px; margin-top: 8px; opacity: 0.65; background: repeating-linear-gradient(90deg, var(--vscode-textLink-foreground) 0 1px, transparent 1px 4px); clip-path: polygon(0 48%, 3% 48%, 4% 10%, 5% 90%, 6% 48%, 9% 48%, 10% 25%, 11% 75%, 12% 48%, 100% 48%, 100% 52%, 12% 52%, 11% 75%, 10% 25%, 9% 52%, 6% 52%, 5% 90%, 4% 10%, 3% 52%, 0 52%); }
 .actions { margin-top: 4px; }
 .comparison {
