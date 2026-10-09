@@ -11,6 +11,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand('sovereignAgent.newChat', () => provider.newChat()),
     vscode.commands.registerCommand('sovereignAgent.selectModel', () => provider.selectModel()),
+    vscode.commands.registerCommand('sovereignAgent.selectCompareModel', () => provider.selectCompareModel()),
     vscode.commands.registerCommand('sovereignAgent.stop', () => provider.stop()),
     vscode.commands.registerCommand('sovereignAgent.undo', () => provider.undo()),
     vscode.commands.registerCommand('sovereignAgent.openSettings', () =>

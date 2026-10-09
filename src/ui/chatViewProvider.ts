@@ -3,13 +3,14 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { Agent } from '../agent/agent';
+import { Agent, AgentHooks, RunSettings } from '../agent/agent';
 import { describeCall } from '../agent/protocol';
 import { AgentConfig, getConfig, activeLocale } from '../config';
 import { createProvider } from '../llm/factory';
 import { setLocale, t, uiStrings } from '../i18n';
 import { McpManager, McpServerConfig } from '../agent/mcp';
 import { ChatMessage } from '../llm/types';
+import { ToolContext } from '../agent/tools';
 
 const execFileAsync = promisify(execFile);
 
@@ -18,12 +19,21 @@ interface Checkpoint {
   content: string | undefined;
 }
 
+interface ComparisonCandidate {
+  agent: Agent;
+  model: string;
+  text: string;
+  done: boolean;
+}
+
 type FromWebview =
   | { type: 'ready' }
   | { type: 'send'; text: string }
   | { type: 'stop' }
   | { type: 'newChat' }
   | { type: 'selectModel' }
+  | { type: 'selectCompareModel' }
+  | { type: 'compareSelect'; id: string }
   | { type: 'history' }
   | { type: 'showCommit'; hash: string }
   | { type: 'undo' };
@@ -36,6 +46,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private abort?: AbortController;
   private readonly mcp: McpManager;
   private historyLoaded = false;
+  private comparison?: Map<string, ComparisonCandidate>;
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -68,6 +79,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   newChat(): void {
     this.abort?.abort();
     this.agent.reset();
+    this.comparison = undefined;
     this.post({ type: 'cleared' });
   }
 
@@ -118,6 +130,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         vscode.window.showWarningMessage(t('model.noneFound'));
         return;
       }
+
       const picked = await vscode.window.showQuickPick(models, {
         placeHolder: t('model.pickPlaceholder')
       });
@@ -128,6 +141,30 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         vscode.window.showInformationMessage(t('model.set', { model: picked }));
         this.postInit();
       }
+
+    } catch (err) {
+      vscode.window.showErrorMessage(err instanceof Error ? err.message : String(err));
+    }
+
+  }
+
+  async selectCompareModel(): Promise<void> {
+    const cfg = this.prepare();
+    try {
+      const provider = createProvider(cfg);
+      const models = await provider.listModels();
+      const picked = await vscode.window.showQuickPick(['(disabled)', ...models], {
+        placeHolder: t('model.comparePickPlaceholder')
+      });
+      if (!picked) return;
+      const compareModel = picked === '(disabled)' ? '' : picked;
+      await vscode.workspace
+        .getConfiguration('sovereignAgent')
+        .update('compareModel', compareModel, vscode.ConfigurationTarget.Global);
+      vscode.window.showInformationMessage(
+        compareModel ? t('model.compareSet', { model: compareModel }) : t('model.compareDisabled')
+      );
+      this.postInit();
     } catch (err) {
       vscode.window.showErrorMessage(err instanceof Error ? err.message : String(err));
     }
@@ -148,7 +185,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private postInit(): void {
     const cfg = this.prepare();
     this.restoreHistory();
-    this.post({ type: 'init', strings: uiStrings(), model: cfg.model });
+    this.post({ type: 'init', strings: uiStrings(), model: cfg.model, compareModel: cfg.compareModel });
     this.post({ type: 'conversation', messages: this.agent.getHistory() });
   }
 
@@ -169,6 +206,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case 'selectModel':
         await this.selectModel();
         break;
+      case 'selectCompareModel':
+        await this.selectCompareModel();
+        break;
+      case 'compareSelect':
+        this.selectComparison(msg.id);
+        break;
       case 'history':
         await this.sendHistory();
         break;
@@ -182,7 +225,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   private async handleSend(text: string): Promise<void> {
-    if (this.abort || !text.trim()) {
+    if (this.abort || this.comparison || !text.trim()) {
       return;
     }
     let cfg = this.prepare();
@@ -193,6 +236,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.post({ type: 'error', text: t('error.noModel') });
         return;
       }
+    }
+    if (cfg.compareModel) {
+      await this.handleCompareSend(text, cfg);
+      return;
     }
 
     const folder = vscode.workspace.workspaceFolders?.[0];
@@ -279,6 +326,129 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       void this.extensionContext.workspaceState.update('agentHistory', this.agent.getHistory());
       this.post({ type: 'busy', value: false });
     }
+  }
+
+  private async handleCompareSend(text: string, cfg: AgentConfig): Promise<void> {
+      const folder = vscode.workspace.workspaceFolders?.[0];
+      this.restoreHistory();
+      const baseHistory = this.agent.getHistory();
+      const editorContext = this.editorContext();
+      const workspaceInstructions = await this.loadWorkspaceInstructions(folder?.uri.fsPath);
+      const abort = new AbortController();
+      this.abort = abort;
+      this.post({ type: 'compareStart', models: [cfg.model, cfg.compareModel] });
+      this.post({ type: 'busy', value: true });
+      const startedAt = performance.now();
+      const candidates = new Map<string, ComparisonCandidate>();
+      this.comparison = candidates;
+
+      const runCandidate = async (id: string, model: string): Promise<void> => {
+        const candidateAgent = new Agent();
+        candidateAgent.restoreHistory(baseHistory);
+        const candidate: ComparisonCandidate = { agent: candidateAgent, model, text: '', done: false };
+        candidates.set(id, candidate);
+        const hooks: AgentHooks = {
+          onAssistantStart: () => this.post({ type: 'compareAssistantStart', id }),
+          onAssistantText: (visible) => {
+            candidate.text = visible;
+            this.post({ type: 'compareText', id, text: visible });
+          },
+          onAssistantEnd: () => this.post({ type: 'compareAssistantEnd', id }),
+          onToolCall: (call) => this.post({ type: 'compareToolCall', id, summary: describeCall(call) }),
+          onToolResult: () => undefined,
+          onError: (message) => this.post({ type: 'compareError', id, text: message })
+        };
+        try {
+          await candidateAgent.run(
+            text,
+            createProvider({ provider: cfg.provider, baseUrl: cfg.baseUrl, allowLanHosts: cfg.allowLanHosts }),
+            this.runSettings(cfg, folder?.name, workspaceInstructions, editorContext, model),
+            this.toolContext(cfg, folder?.uri.fsPath, abort),
+            hooks,
+            abort.signal
+          );
+        } catch (err) {
+          this.post({ type: 'compareError', id, text: err instanceof Error ? err.message : String(err) });
+        } finally {
+          candidate.done = true;
+          this.post({ type: 'compareCandidateDone', id });
+        }
+      };
+
+      try {
+        await Promise.all([runCandidate('primary', cfg.model), runCandidate('secondary', cfg.compareModel)]);
+        if (!abort.signal.aborted) this.post({ type: 'compareFinished' });
+      } finally {
+        const durationMs = Math.max(1, performance.now() - startedAt);
+        const outputTokens = Math.max(
+          0,
+          Math.round([...candidates.values()].reduce((total, candidate) => total + candidate.text.length, 0) / 4)
+        );
+        this.post({
+          type: 'metrics',
+          durationMs: Math.round(durationMs),
+          inputTokens: Math.max(1, Math.round(text.length / 4)),
+          outputTokens,
+          tokensPerSecond: Math.round((outputTokens / durationMs) * 1000 * 10) / 10,
+          replies: candidates.size,
+          memory: 'unavailable'
+        });
+        this.abort = undefined;
+        if (abort.signal.aborted) {
+          this.comparison = undefined;
+          this.post({ type: 'busy', value: false });
+        }
+      }
+    }
+
+    private runSettings(
+      cfg: AgentConfig,
+      workspaceName: string | undefined,
+      workspaceInstructions: string,
+      editorContext: string,
+      model: string
+    ): RunSettings {
+      return {
+        model,
+        temperature: cfg.temperature,
+        contextLength: cfg.contextLength,
+        maxIterations: cfg.maxIterations,
+        workspaceName,
+        workspaceInstructions,
+        editorContext
+      };
+    }
+
+    private toolContext(cfg: AgentConfig, root: string | undefined, abort: AbortController): ToolContext {
+      return {
+        root,
+        signal: abort.signal,
+        confirmWrite: (relPath: string, bytes: number) =>
+          cfg.requireWriteApproval
+            ? this.confirm(t('approval.write', { path: relPath }), t('approval.writeDetail', { bytes }))
+            : Promise.resolve(true),
+        confirmReplace: (relPath: string) =>
+          cfg.requireWriteApproval
+            ? this.confirm(t('approval.replace', { path: relPath }), t('approval.replaceDetail'))
+            : Promise.resolve(true),
+        confirmCommand: (command: string) =>
+          cfg.requireCommandApproval ? this.confirm(t('approval.command'), command) : Promise.resolve(true),
+        getEditorContext: async () => this.editorContext(),
+        checkpoint: async (relPath: string, content: string | undefined) => this.saveCheckpoint(relPath, content),
+        previewChange: async (relPath: string, original: string, updated: string) =>
+          this.previewChange(relPath, original, updated),
+        callMcp: (server: string, tool: string, argsJson: string) => this.mcp.call(server, tool, argsJson)
+      };
+    }
+
+  private selectComparison(id: string): void {
+      const candidate = this.comparison?.get(id);
+      if (!candidate?.done || !candidate.text.trim()) return;
+      this.agent.adoptHistory(candidate.agent.getHistory());
+      this.comparison = undefined;
+      void this.extensionContext.workspaceState.update('agentHistory', this.agent.getHistory());
+      this.post({ type: 'compareChosen', id, model: candidate.model, text: candidate.text });
+      this.post({ type: 'busy', value: false });
   }
 
   private async sendHistory(): Promise<void> {
@@ -434,6 +604,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       <span id="modelName"></span>
     </button>
     <div class="header-actions">
+      <button id="compareModel" class="icon-button" data-i18n-title="ui.compareModel" title="" aria-label="">⇆</button>
       <button id="undo" class="icon-button" data-i18n-title="ui.undo" title="" aria-label="">↶</button>
       <button id="historyToggle" class="icon-button" data-i18n-title="ui.history" title="" aria-expanded="false">⌁</button>
     </div>
@@ -495,6 +666,24 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     <section id="empty" class="empty">
       <h2 data-i18n="ui.emptyTitle"></h2>
       <p data-i18n="ui.emptyBody"></p>
+    </section>
+    <section id="comparison" class="comparison" hidden aria-live="polite">
+      <div class="comparison-heading">
+        <span class="eyebrow" data-i18n="ui.compareTitle"></span>
+        <span id="comparisonStatus"></span>
+      </div>
+      <div class="comparison-grid">
+        <article class="comparison-card" data-id="primary">
+          <header><strong id="compareModelPrimary"></strong><span id="compareStatePrimary"></span></header>
+          <div id="compareTextPrimary" class="comparison-text"></div>
+          <button class="compare-choice" data-id="primary" disabled data-i18n="ui.chooseAnswer"></button>
+        </article>
+        <article class="comparison-card" data-id="secondary">
+          <header><strong id="compareModelSecondary"></strong><span id="compareStateSecondary"></span></header>
+          <div id="compareTextSecondary" class="comparison-text"></div>
+          <button class="compare-choice" data-id="secondary" disabled data-i18n="ui.chooseAnswer"></button>
+        </article>
+      </div>
     </section>
   </main>
   <footer>

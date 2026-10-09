@@ -33,6 +33,13 @@ export const en = {
   'ui.trend': 'Recent response trend',
   'ui.chartSpeed': 'speed',
   'ui.chartDuration': 'duration',
+  'ui.compareModel': 'Choose the second comparison model',
+  'ui.compareTitle': 'Compare responses',
+  'ui.compareRunning': 'Both models are responding…',
+  'ui.compareChoose': 'Choose the response to keep',
+  'ui.compareReady': 'Ready',
+  'ui.compareError': 'Failed',
+  'ui.chooseAnswer': 'Use this response',
 
   // Approvals
   'approval.write': 'Allow the agent to write to "{path}"?',
@@ -58,6 +65,9 @@ export const en = {
 
   // Model picker
   'model.pickPlaceholder': 'Select a local model',
+  'model.comparePickPlaceholder': 'Select the second comparison model',
+  'model.compareSet': 'Comparison model set to {model}.',
+  'model.compareDisabled': 'Model comparison disabled.',
   'model.noneFound': 'No models found on the server. Pull or load a model first.',
   'model.set': 'Model set to {model}.'
   ,

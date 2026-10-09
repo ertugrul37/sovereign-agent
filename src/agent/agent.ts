@@ -38,6 +38,10 @@ export class Agent {
       .map((message) => ({ ...message }));
   }
 
+  adoptHistory(history: ChatMessage[]): void {
+    this.restoreHistory(history);
+  }
+
   reset(): void {
     this.history = [];
   }

@@ -34,6 +34,13 @@ export const tr: Record<MessageKey, string> = {
   'ui.trend': 'Son yanıt eğilimi',
   'ui.chartSpeed': 'hız',
   'ui.chartDuration': 'süre',
+  'ui.compareModel': 'İkinci karşılaştırma modelini seç',
+  'ui.compareTitle': 'Yanıtları karşılaştır',
+  'ui.compareRunning': 'İki model de yanıtlıyor…',
+  'ui.compareChoose': 'Saklamak istediğiniz yanıtı seçin',
+  'ui.compareReady': 'Hazır',
+  'ui.compareError': 'Başarısız',
+  'ui.chooseAnswer': 'Bu yanıtı kullan',
 
   'approval.write': 'Ajanın "{path}" dosyasına yazmasına izin verilsin mi?',
   'approval.writeDetail': '{bytes} bayt yazılacak.',
@@ -56,6 +63,9 @@ export const tr: Record<MessageKey, string> = {
   'editor.noSelection': 'Önce aktif editörde kod seç.',
 
   'model.pickPlaceholder': 'Yerel bir model seç',
+  'model.comparePickPlaceholder': 'İkinci karşılaştırma modelini seç',
+  'model.compareSet': 'Karşılaştırma modeli {model} olarak ayarlandı.',
+  'model.compareDisabled': 'Model karşılaştırma kapatıldı.',
   'model.noneFound': 'Sunucuda model bulunamadı. Önce bir model indir veya yükle.',
   'model.set': 'Model {model} olarak ayarlandı.',
   'history.noWorkspace': 'Git geçmişini görmek için bir çalışma alanı açın.',

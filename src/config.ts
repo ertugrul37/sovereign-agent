@@ -15,6 +15,7 @@ export interface AgentConfig {
   provider: ProviderKind;
   baseUrl: string;
   model: string;
+  compareModel: string;
   language: string;
   temperature: number;
   contextLength: number;
@@ -44,6 +45,7 @@ export function getConfig(): AgentConfig {
     provider,
     baseUrl: baseUrl || DEFAULT_URLS[provider],
     model: c.get<string>('model', '').trim(),
+    compareModel: c.get<string>('compareModel', '').trim(),
     language: c.get<string>('language', 'auto'),
     temperature: c.get<number>('temperature', 0.2),
     contextLength: c.get<number>('contextLength', 8192),

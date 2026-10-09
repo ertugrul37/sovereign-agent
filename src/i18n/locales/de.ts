@@ -34,6 +34,13 @@ export const de: Record<MessageKey, string> = {
   'ui.trend': 'Letzter Antworttrend',
   'ui.chartSpeed': 'Geschwindigkeit',
   'ui.chartDuration': 'Dauer',
+  'ui.compareModel': 'Zweites Vergleichsmodell auswählen',
+  'ui.compareTitle': 'Antworten vergleichen',
+  'ui.compareRunning': 'Beide Modelle antworten…',
+  'ui.compareChoose': 'Antwort zum Behalten auswählen',
+  'ui.compareReady': 'Bereit',
+  'ui.compareError': 'Fehlgeschlagen',
+  'ui.chooseAnswer': 'Diese Antwort verwenden',
 
   'approval.write': 'Dem Agenten erlauben, "{path}" zu schreiben?',
   'approval.writeDetail': '{bytes} Bytes werden geschrieben.',
@@ -53,6 +60,9 @@ export const de: Record<MessageKey, string> = {
   'editor.noSelection': 'Wähle zuerst Code im aktiven Editor aus.',
 
   'model.pickPlaceholder': 'Lokales Modell auswählen',
+  'model.comparePickPlaceholder': 'Zweites Vergleichsmodell auswählen',
+  'model.compareSet': 'Vergleichsmodell auf {model} gesetzt.',
+  'model.compareDisabled': 'Modellvergleich deaktiviert.',
   'model.noneFound': 'Keine Modelle auf dem Server gefunden. Lade zuerst ein Modell.',
   'model.set': 'Modell auf {model} gesetzt.',
   'history.noWorkspace': 'Arbeitsbereich öffnen, um den Git-Verlauf zu sehen.',

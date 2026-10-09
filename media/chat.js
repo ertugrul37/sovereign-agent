@@ -11,12 +11,14 @@
   const historyList = $('historyList');
   const historyStatus = $('historyStatus');
   const commitDetail = $('commitDetail');
+  const comparison = $('comparison');
 
   let strings = {};
   let busy = false;
   let bubble = null; // current assistant bubble
   let bubbleText = '';
   let lastTool = null;
+  let comparisonTexts = {};
   const metricHistory = [];
 
   const s = (key) => strings[key] || '';
@@ -144,6 +146,7 @@
   sendBtn.addEventListener('click', send);
   stopBtn.addEventListener('click', () => vscode.postMessage({ type: 'stop' }));
   $('model').addEventListener('click', () => vscode.postMessage({ type: 'selectModel' }));
+  $('compareModel').addEventListener('click', () => vscode.postMessage({ type: 'selectCompareModel' }));
   $('undo').addEventListener('click', () => vscode.postMessage({ type: 'undo' }));
   $('historyToggle').addEventListener('click', () => showHistory(historyPanel.hidden));
   $('historyClose').addEventListener('click', () => showHistory(false));
@@ -160,7 +163,9 @@
       case 'init':
         strings = msg.strings;
         applyStrings();
-        $('modelName').textContent = msg.model || s('ui.noModel');
+        $('modelName').textContent = msg.compareModel
+          ? (msg.model || s('ui.noModel')) + ' + ' + msg.compareModel
+          : (msg.model || s('ui.noModel'));
         break;
       case 'conversation':
         messages.querySelectorAll('.msg').forEach((el) => el.remove());
@@ -203,6 +208,55 @@
       case 'busy':
         setBusy(msg.value);
         break;
+      case 'compareStart':
+        comparison.hidden = false;
+        comparisonTexts = { primary: '', secondary: '' };
+        $('compareModelPrimary').textContent = msg.models[0];
+        $('compareModelSecondary').textContent = msg.models[1];
+        ['primary', 'secondary'].forEach((id) => {
+          $('compareText' + id[0].toUpperCase() + id.slice(1)).textContent = '';
+          $('compareState' + id[0].toUpperCase() + id.slice(1)).textContent = s('ui.working');
+          const button = document.querySelector('.compare-choice[data-id="' + id + '"]');
+          button.disabled = true;
+        });
+        $('comparisonStatus').textContent = s('ui.compareRunning');
+        $('empty').hidden = true;
+        break;
+      case 'compareText': {
+        comparisonTexts[msg.id] = msg.text;
+        const suffix = msg.id[0].toUpperCase() + msg.id.slice(1);
+        $('compareText' + suffix).innerHTML = render(msg.text);
+        scrollDown();
+        break;
+      }
+      case 'compareCandidateDone': {
+        const suffix = msg.id[0].toUpperCase() + msg.id.slice(1);
+        $('compareState' + suffix).textContent = s('ui.compareReady');
+        const button = document.querySelector('.compare-choice[data-id="' + msg.id + '"]');
+        button.disabled = !comparisonTexts[msg.id]?.trim();
+        break;
+      }
+      case 'compareError': {
+        const suffix = msg.id[0].toUpperCase() + msg.id.slice(1);
+        $('compareState' + suffix).textContent = s('ui.compareError');
+        const error = document.createElement('div');
+        error.className = 'comparison-error';
+        error.textContent = msg.text;
+        $('compareText' + suffix).appendChild(error);
+        break;
+      }
+      case 'compareFinished':
+        $('comparisonStatus').textContent = s('ui.compareChoose');
+        break;
+      case 'compareChosen': {
+        comparison.hidden = true;
+        const selected = document.createElement('div');
+        selected.className = 'msg assistant';
+        selected.innerHTML = render(msg.text);
+        messages.appendChild(selected);
+        scrollDown();
+        break;
+      }
       case 'assistantStart':
         $('empty').hidden = true;
         bubble = document.createElement('div');
@@ -249,8 +303,15 @@
         $('empty').hidden = false;
         bubble = null;
         lastTool = null;
+        comparison.hidden = true;
         break;
     }
+  });
+
+  document.querySelectorAll('.compare-choice').forEach((button) => {
+    button.addEventListener('click', () => {
+      vscode.postMessage({ type: 'compareSelect', id: button.dataset.id });
+    });
   });
 
   vscode.postMessage({ type: 'ready' });

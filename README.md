@@ -90,6 +90,7 @@ The interface, approval dialogs, error messages and the extension's settings and
 | `sovereignAgent.provider` | `openai-compatible` | `openai-compatible` (LM Studio, llama.cpp, vLLM) or `ollama` |
 | `sovereignAgent.baseUrl` | *(empty)* | Empty uses `http://localhost:1234/v1` (LM Studio) or `http://localhost:11434` (Ollama) |
 | `sovereignAgent.model` | *(empty)* | Model name. Use **Sovereign Agent: Select Model** to pick one |
+| `sovereignAgent.compareModel` | *(empty)* | Optional second model. Set it with **Sovereign Agent: Select Comparison Model** to run both models in parallel and choose the response to keep |
 | `sovereignAgent.language` | `auto` | Interface language |
 | `sovereignAgent.temperature` | `0.2` | Sampling temperature |
 | `sovereignAgent.contextLength` | `8192` | Context window in tokens |
@@ -118,6 +119,16 @@ The generic **OpenAI-compatible API** option can be used for other local
 servers. Change `sovereignAgent.baseUrl` only when your server uses a
 different port or path. All providers remain subject to the local-address
 guard; LAN addresses require explicit opt-in.
+
+### Compare two local models
+
+Choose **Sovereign Agent: Select Comparison Model** or set
+`sovereignAgent.compareModel`. Each new prompt is then sent to the primary
+model and comparison model concurrently. The webview displays both streaming
+answers side by side; select **Use this response** on the answer you want to
+continue with. Only the selected conversation is added to persistent history.
+The existing write, command, diff-preview and MCP approvals remain enabled for
+both agents.
 
 ## Tools the agent can use
 
