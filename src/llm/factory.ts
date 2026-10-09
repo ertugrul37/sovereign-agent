@@ -1,11 +1,12 @@
 import { checkLocalUrl } from '../localGuard';
 import { t } from '../i18n';
+import type { ProviderKind } from '../config';
 import { LlmProvider } from './types';
 import { OllamaProvider } from './ollama';
 import { OpenAiCompatibleProvider } from './openaiCompatible';
 
 export interface ProviderSettings {
-  provider: 'ollama' | 'openai-compatible';
+  provider: ProviderKind;
   baseUrl: string;
   allowLanHosts: boolean;
 }

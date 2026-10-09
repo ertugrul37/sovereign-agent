@@ -1,7 +1,15 @@
 import * as vscode from 'vscode';
 import { resolveLocale } from './i18n';
 
-export type ProviderKind = 'ollama' | 'openai-compatible';
+export type ProviderKind =
+  | 'ollama'
+  | 'lm-studio'
+  | 'llama-cpp'
+  | 'localai'
+  | 'vllm'
+  | 'jan'
+  | 'gpt4all'
+  | 'openai-compatible';
 
 export interface AgentConfig {
   provider: ProviderKind;
@@ -18,6 +26,12 @@ export interface AgentConfig {
 
 export const DEFAULT_URLS: Record<ProviderKind, string> = {
   ollama: 'http://localhost:11434',
+  'lm-studio': 'http://localhost:1234/v1',
+  'llama-cpp': 'http://localhost:8080/v1',
+  localai: 'http://localhost:8080/v1',
+  vllm: 'http://localhost:8000/v1',
+  jan: 'http://localhost:1337/v1',
+  gpt4all: 'http://localhost:4891/v1',
   'openai-compatible': 'http://localhost:1234/v1'
 };
 

@@ -95,9 +95,28 @@ The interface, approval dialogs, error messages and the extension's settings and
 
 LM Studio works out of the box. For llama.cpp set `sovereignAgent.baseUrl` to `http://localhost:8080/v1`.
 
+### Local provider presets
+
+The provider setting includes ready-to-use local presets:
+
+| Provider | Default address | API |
+| -------- | --------------- | --- |
+| Ollama | `http://localhost:11434` | Ollama native API |
+| LM Studio | `http://localhost:1234/v1` | OpenAI-compatible |
+| llama.cpp / llama-server | `http://localhost:8080/v1` | OpenAI-compatible |
+| LocalAI | `http://localhost:8080/v1` | OpenAI-compatible |
+| vLLM | `http://localhost:8000/v1` | OpenAI-compatible |
+| Jan | `http://localhost:1337/v1` | OpenAI-compatible |
+| GPT4All | `http://localhost:4891/v1` | OpenAI-compatible |
+
+The generic **OpenAI-compatible API** option can be used for other local
+servers. Change `sovereignAgent.baseUrl` only when your server uses a
+different port or path. All providers remain subject to the local-address
+guard; LAN addresses require explicit opt-in.
+
 ## Tools the agent can use
 
-`list_files`, `read_file`, `write_file`, `replace_in_file`, `search_files`, `get_editor_context`, `run_command`. All paths are confined to the open workspace folder, including through symlinks. `replace_in_file` is the preferred surgical edit path and `get_editor_context` exposes the active editor and selection when the user asks about highlighted code.
+`list_files`, `read_file`, `write_file`, `replace_in_file`, `search_files`, `get_editor_context`, and `run_command`. All paths are confined to the open workspace folder, including through symlinks. File writes, replacements, and shell commands require explicit approval by default. `replace_in_file` is the preferred surgical edit path and `get_editor_context` exposes the active editor and selection when the user asks about highlighted code.
 
 ## Workspace customization
 

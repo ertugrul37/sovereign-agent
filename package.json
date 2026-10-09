@@ -70,8 +70,26 @@
       "properties": {
         "sovereignAgent.provider": {
           "type": "string",
-          "enum": ["ollama", "openai-compatible"],
-          "markdownEnumDescriptions": ["%config.provider.ollama%", "%config.provider.openaiCompatible%"],
+          "enum": [
+            "ollama",
+            "lm-studio",
+            "llama-cpp",
+            "localai",
+            "vllm",
+            "jan",
+            "gpt4all",
+            "openai-compatible"
+          ],
+          "markdownEnumDescriptions": [
+            "%config.provider.ollama%",
+            "%config.provider.lmStudio%",
+            "%config.provider.llamaCpp%",
+            "%config.provider.localai%",
+            "%config.provider.vllm%",
+            "%config.provider.jan%",
+            "%config.provider.gpt4all%",
+            "%config.provider.openaiCompatible%"
+          ],
           "default": "openai-compatible",
           "markdownDescription": "%config.provider%"
         },
