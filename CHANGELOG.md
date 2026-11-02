@@ -2,6 +2,11 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.20] - 2026-11-03
+
+### Fixed
+- **Resilient XML Tool Parser for Local Models (`src/agent/protocol.ts`, `src/agent/tools.ts`, `src/agent/prompt.ts`):** Fixed `Missing parameter <content> for write_file.` errors on smaller local models (`gemma-4-e4b`, `llama`, `qwen`, `mistral`) by supporting alternative tag names (`<code>`, `<file_content>`, `<text>`), unclosed `<content>` tags, XML attributes (`<write_file path="...">`), raw or fenced code blocks placed directly inside or right before `<write_file>`, automatic outer code-fence unwrapping, and self-correcting XML template hints on missing parameter errors.
+
 ## [0.1.19] - 2026-11-03
 
 ### Added

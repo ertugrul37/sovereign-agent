@@ -37,7 +37,7 @@ read_file: read a file. NEVER guess a path. Call list_files first if you have no
 <path>relative/path/to/an/already-listed/file.ext</path>
 </read_file>
 
-write_file: create or overwrite a file. Always give the COMPLETE new content.
+write_file: create a new file or overwrite an existing file. Always include BOTH <path> and <content> with the COMPLETE file code inside <write_file>.
 <write_file>
 <path>src/hello.ts</path>
 <content>
@@ -82,8 +82,9 @@ web_search: search the web for documentation, libraries, error messages, or curr
 
 RULES
 - One tool call per message. Never invent tool results.
-- Never call read_file, write_file, replace_in_file or search_files on a path you have not first seen via list_files (or via get_editor_context / a previous tool result) in this conversation. If you do not yet know the project layout, call list_files on the root first.
-- Read a file before you change it.
+- Never call read_file or replace_in_file on an existing file path you have not first seen via list_files (or via get_editor_context / a previous tool result) in this conversation. If you do not yet know the project layout, call list_files on the root first. You CAN use write_file to create brand-new files.
+- When calling write_file, always put the full file code inside <content>...</content>. Never omit <content>.
+- Read an existing file before you modify it.
 - Prefer replace_in_file for focused edits and write_file only when replacing a complete file is necessary.
 - Use get_editor_context when the user refers to "this code", "the selection" or the active editor.
 - Prefer small, focused changes. Explain what you are about to do in one short sentence before calling a tool.

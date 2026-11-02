@@ -123,7 +123,21 @@ async function* walkFiles(dir: string): AsyncGenerator<string> {
 }
 
 function missing(call: ToolCall, param: string): ToolResult {
-  return { ok: false, output: `Missing parameter <${param}> for ${call.name}.` };
+  const examples: Partial<Record<ToolCall['name'], string>> = {
+    write_file:
+      'Example:\n<write_file>\n<path>filename.py</path>\n<content>\n# full file code here\n</content>\n</write_file>',
+    replace_in_file:
+      'Example:\n<replace_in_file>\n<path>filename.py</path>\n<old_text>exact old lines</old_text>\n<new_text>new lines</new_text>\n</replace_in_file>',
+    read_file: 'Example:\n<read_file>\n<path>filename.py</path>\n</read_file>',
+    run_command: 'Example:\n<run_command>\n<command>python filename.py</command>\n</run_command>',
+    search_files: 'Example:\n<search_files>\n<pattern>search_term</pattern>\n</search_files>',
+    web_search: 'Example:\n<web_search>\n<query>search query</query>\n</web_search>'
+  };
+  const hint = examples[call.name] ? `\n${examples[call.name]}` : '';
+  return {
+    ok: false,
+    output: `Missing parameter <${param}> for ${call.name}. Always include <${param}>...</${param}> inside <${call.name}>.${hint}`
+  };
 }
 
 export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<ToolResult> {

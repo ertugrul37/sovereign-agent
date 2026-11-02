@@ -51,3 +51,29 @@ test('parses web_search calls', () => {
   assert.equal(call?.name, 'web_search');
   assert.equal(call?.params.query, 'python 3.13 new features');
 });
+
+test('write_file recovers content when <content> tag is omitted or fenced or preceding', () => {
+  // 1. Raw/fenced code directly after <path> inside <write_file>
+  const direct = parseToolCall(
+    '<write_file>\n<path>calculator.py</path>\n```python\ndef add(a, b):\n    return a + b\n```\n</write_file>'
+  );
+  assert.equal(direct?.name, 'write_file');
+  assert.equal(direct?.params.path, 'calculator.py');
+  assert.equal(direct?.params.content, 'def add(a, b):\n    return a + b');
+
+  // 2. Alternative tag name <code> or unclosed <content>
+  const unclosed = parseToolCall('<write_file>\n<path>calculator.py</path>\n<content>\nprint("ok")\n</write_file>');
+  assert.equal(unclosed?.params.content, 'print("ok")');
+
+  // 3. XML attribute syntax <write_file path="calculator.py">
+  const attrCall = parseToolCall('<write_file path="calculator.py">\nprint(42)\n</write_file>');
+  assert.equal(attrCall?.params.path, 'calculator.py');
+  assert.equal(attrCall?.params.content, 'print(42)');
+
+  // 4. Preceding markdown code block before <write_file><path>calculator.py</path></write_file>
+  const preceding = parseToolCall(
+    'Here is the code:\n```python\ndef sub(a, b):\n    return a - b\n```\n<write_file>\n<path>calculator.py</path>\n</write_file>'
+  );
+  assert.equal(preceding?.params.path, 'calculator.py');
+  assert.equal(preceding?.params.content, 'def sub(a, b):\n    return a - b');
+});

@@ -43,37 +43,141 @@ export interface ToolCall {
 
 const NAMES_PATTERN = TOOL_NAMES.join('|');
 
-function extractParam(body: string, param: string): string | undefined {
-  // "content" is greedy so code that mentions tags inside it survives.
-  const re =
-    param === 'content'
-      ? new RegExp(`<content>([\\s\\S]*)</content>`)
-      : new RegExp(`<${param}>([\\s\\S]*?)</${param}>`);
-  const m = re.exec(body);
-  if (!m) {
+const PARAM_ALIASES: Record<string, string[]> = {
+  path: ['path', 'file', 'filepath', 'filename', 'file_path', 'directory', 'dir', 'target'],
+  recursive: ['recursive'],
+  content: ['content', 'code', 'file_content', 'text', 'body', 'source', 'data'],
+  old_text: ['old_text', 'old', 'search', 'find', 'original'],
+  new_text: ['new_text', 'new', 'replace', 'replacement', 'updated'],
+  replace_all: ['replace_all', 'all'],
+  pattern: ['pattern', 'query', 'search', 'regex', 'text'],
+  command: ['command', 'cmd', 'shell', 'bash', 'script'],
+  server: ['server', 'name'],
+  tool: ['tool', ' tool_name', 'method'],
+  arguments: ['arguments', 'args', 'params', 'input'],
+  query: ['query', 'q', 'search', 'pattern', 'text']
+};
+
+function stripOuterCodeFence(code: string, filePath?: string): string {
+  const trimmed = code.trim();
+  if (filePath && /\.(md|markdown|mdx)$/i.test(filePath.trim())) {
+    return code;
+  }
+  const m = /^```[a-zA-Z0-9_+-]*[ \t]*\r?\n([\s\S]*?)\r?\n?```$/.exec(trimmed);
+  return m ? m[1].replace(/\r?\n$/, '') : code;
+}
+
+function extractAttr(attrs: string | undefined, param: string): string | undefined {
+  if (!attrs) {
     return undefined;
   }
-  if (param === 'content') {
-    return m[1].replace(/^\r?\n/, '').replace(/\r?\n$/, '');
+  const names = PARAM_ALIASES[param] ?? [param];
+  for (const name of names) {
+    const clean = name.trim();
+    const re = new RegExp(`\\b${clean}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'=<>` + '`' + `]+))`, 'i');
+    const m = re.exec(attrs);
+    if (m) {
+      return (m[1] ?? m[2] ?? m[3] ?? '').trim();
+    }
   }
-  return m[1].trim();
+  return undefined;
+}
+
+function extractParam(body: string, param: string): string | undefined {
+  const names = PARAM_ALIASES[param] ?? [param];
+  for (const rawName of names) {
+    const tag = rawName.trim();
+    // "content" is greedy so code that mentions tags inside it survives.
+    const re =
+      param === 'content'
+        ? new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*)</${tag}>`, 'i')
+        : new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`, 'i');
+    const m = re.exec(body);
+    if (m) {
+      if (param === 'content') {
+        return m[1].replace(/^\r?\n/, '').replace(/\r?\n$/, '');
+      }
+      return m[1].trim();
+    }
+  }
+  // Fallback for unclosed <content> (or alias) tag right before </write_file>
+  if (param === 'content') {
+    for (const rawName of names) {
+      const tag = rawName.trim();
+      const unclosed = new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]+)$`, 'i').exec(body);
+      if (unclosed) {
+        return unclosed[1].replace(/^\r?\n/, '').replace(/\r?\n$/, '');
+      }
+    }
+  }
+  return undefined;
+}
+
+function extractFallbackWriteContent(body: string, fullText: string, callStart: number, callEnd: number): string | undefined {
+  // 1. Strip any <path>...</path> (or file/filename alias) from the tool body and check what remains.
+  let remainder = body;
+  for (const alias of PARAM_ALIASES.path) {
+    remainder = remainder.replace(new RegExp(`<${alias}\\b[^>]*>[\\s\\S]*?</${alias}>`, 'gi'), '');
+  }
+  remainder = remainder.replace(/^\s*\r?\n?/, '').replace(/\r?\n?\s*$/, '');
+  if (remainder.length > 0) {
+    return remainder;
+  }
+
+  // 2. Some local models write a ```lang ... ``` block right before (or after) <write_file><path>...</path></write_file>.
+  const outside = `${fullText.slice(0, callStart)}\n${fullText.slice(callEnd)}`;
+  const fenceRe = /```[a-zA-Z0-9_+-]*[ \t]*\r?\n([\s\S]*?)```/g;
+  let lastBlock: string | undefined;
+  let match: RegExpExecArray | null;
+  while ((match = fenceRe.exec(outside)) !== null) {
+    const candidate = match[1].replace(/\r?\n$/, '');
+    if (candidate.trim().length > 0 && !new RegExp(`<(${NAMES_PATTERN})\\b`).test(candidate)) {
+      lastBlock = candidate;
+    }
+  }
+  return lastBlock;
 }
 
 /** Returns the first complete tool call in the text, if any. */
 export function parseToolCall(text: string): ToolCall | null {
-  const re = new RegExp(`<(${NAMES_PATTERN})>([\\s\\S]*?)</\\1>`);
+  const re = new RegExp(`<(${NAMES_PATTERN})(?:\\s+([^>]*?))?>([\\s\\S]*?)</\\1>|<(${NAMES_PATTERN})(?:\\s+([^>]*?))?\\s*/>`);
   const m = re.exec(text);
   if (!m) {
     return null;
   }
-  const name = m[1] as ToolName;
+  const name = (m[1] ?? m[4]) as ToolName;
+  const attrs = m[2] ?? m[5];
+  const body = m[3] ?? '';
   const params: Record<string, string> = {};
   for (const p of TOOL_PARAMS[name]) {
-    const value = extractParam(m[2], p);
+    const value = extractParam(body, p) ?? extractAttr(attrs, p);
     if (value !== undefined) {
       params[p] = value;
     }
   }
+
+  // Resilient fallbacks for small local models that omit inner parameter tags
+  const bareBody = body.trim();
+  if (name === 'write_file') {
+    if (params.content === undefined) {
+      const fallback = extractFallbackWriteContent(body, text, m.index, m.index + m[0].length);
+      if (fallback !== undefined) {
+        params.content = fallback;
+      }
+    }
+    if (params.content !== undefined) {
+      params.content = stripOuterCodeFence(params.content, params.path);
+    }
+  } else if (name === 'run_command' && !params.command && bareBody && !bareBody.startsWith('<')) {
+    params.command = stripOuterCodeFence(bareBody).trim();
+  } else if (name === 'web_search' && !params.query && bareBody && !bareBody.startsWith('<')) {
+    params.query = bareBody;
+  } else if (name === 'search_files' && !params.pattern && bareBody && !bareBody.startsWith('<')) {
+    params.pattern = bareBody;
+  } else if ((name === 'read_file' || name === 'list_files') && !params.path && bareBody && !bareBody.includes('<') && !bareBody.includes('\n')) {
+    params.path = bareBody;
+  }
+
   return { name, params, startIndex: m.index, endIndex: m.index + m[0].length };
 }
 
@@ -83,14 +187,14 @@ export function parseToolCall(text: string): ToolCall | null {
  * such as "<read_f" is held back so it never flashes on screen.
  */
 export function visibleText(full: string): string {
-  const open = new RegExp(`<(${NAMES_PATTERN})>`).exec(full);
+  const open = new RegExp(`<(${NAMES_PATTERN})(?=\\s|>|/)`).exec(full);
   if (open) {
     return full.slice(0, open.index);
   }
   const lt = full.lastIndexOf('<');
   if (lt >= 0) {
     const tail = full.slice(lt);
-    if (TOOL_NAMES.some((n) => `<${n}>`.startsWith(tail))) {
+    if (TOOL_NAMES.some((n) => `<${n}>`.startsWith(tail) || `<${n} `.startsWith(tail))) {
       return full.slice(0, lt);
     }
   }
