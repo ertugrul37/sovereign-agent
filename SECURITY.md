@@ -28,3 +28,4 @@ If you discover a security issue (such as a bypass of `localGuard.ts`, `safePath
 - **Email:** [destekai.sovereign.ai@gmail.com](mailto:destekai.sovereign.ai@gmail.com)
 
 We respond to all security reports within 48 hours.
+

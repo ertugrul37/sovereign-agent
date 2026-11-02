@@ -59,3 +59,4 @@ body:
       placeholder: "1. Opened Sovereign Agent\n2. Asked the agent to...\n3. Saw error..."
     validations:
       required: true
+

@@ -27,3 +27,4 @@ npm test
 ## Contact
 
 For questions or feature discussions, open a GitHub Issue or email **[destekai.sovereign.ai@gmail.com](mailto:destekai.sovereign.ai@gmail.com)**.
+

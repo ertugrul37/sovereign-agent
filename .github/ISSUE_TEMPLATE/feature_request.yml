@@ -29,3 +29,4 @@ body:
       placeholder: "Explain how this feature should work while keeping Sovereign Agent 100% local and privacy-first..."
     validations:
       required: true
+
