@@ -320,7 +320,10 @@
     list: '<path d="m3 17 2 2 4-4M3 7l2 2 4-4M13 6h8M13 12h8M13 18h8"/>',
     alertCircle: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
     copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
-    mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>'
+    mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+    folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+    file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
+    terminal: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>'
   };
 
   function icon(name, size) {
@@ -821,10 +824,56 @@
         bubble = null;
         break;
       case 'toolCall': {
+        const raw = msg.summary || '';
+        const spaceIdx = raw.indexOf(' ');
+        const toolName = spaceIdx >= 0 ? raw.slice(0, spaceIdx) : (raw || 'tool');
+        const toolArg = spaceIdx >= 0 ? raw.slice(spaceIdx + 1).trim() : '';
+        const iconMap = {
+          list_files: 'folder',
+          read_file: 'file',
+          write_file: 'pencil',
+          replace_in_file: 'pencil',
+          search_files: 'search',
+          run_command: 'terminal',
+          mcp_call: 'plug',
+          get_editor_context: 'code'
+        };
         lastTool = document.createElement('details');
-        lastTool.className = 'msg tool';
+        lastTool.className = 'msg tool running';
+        lastTool.dataset.tool = toolName;
+        lastTool.open = true;
+
         const summary = document.createElement('summary');
-        summary.textContent = msg.summary;
+        summary.className = 'tool-summary';
+
+        const iconWrap = document.createElement('span');
+        iconWrap.className = 'tool-icon';
+        iconWrap.innerHTML = icon(iconMap[toolName] || 'code', 14);
+        summary.appendChild(iconWrap);
+
+        const badge = document.createElement('span');
+        badge.className = 'tool-badge';
+        badge.textContent = toolName;
+        summary.appendChild(badge);
+
+        if (toolArg) {
+          const target = document.createElement('code');
+          target.className = 'tool-target';
+          target.textContent = toolArg;
+          summary.appendChild(target);
+        }
+
+        const meta = document.createElement('span');
+        meta.className = 'tool-meta';
+        const status = document.createElement('span');
+        status.className = 'tool-status';
+        meta.appendChild(status);
+        const chev = document.createElement('span');
+        chev.className = 'tool-chevron';
+        chev.innerHTML = icon('chevronRight', 14);
+        meta.appendChild(chev);
+        summary.appendChild(meta);
+
         lastTool.appendChild(summary);
         messages.appendChild(lastTool);
         scrollDown();
@@ -832,10 +881,46 @@
       }
       case 'toolResult':
         if (lastTool) {
-          if (!msg.ok) lastTool.classList.add('failed');
-          const pre = document.createElement('pre');
-          pre.textContent = msg.output;
-          lastTool.appendChild(pre);
+          lastTool.classList.remove('running');
+          lastTool.classList.add(msg.ok ? 'succeeded' : 'failed');
+          const status = lastTool.querySelector('.tool-status');
+          const toolName = lastTool.dataset.tool || '';
+          const bodyWrap = document.createElement('div');
+          bodyWrap.className = 'tool-body';
+
+          if (toolName === 'list_files' && msg.ok && msg.output && msg.output.trim() !== '(empty)') {
+            const entries = msg.output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+            if (status) {
+              status.textContent = entries.length + ' ✓';
+            }
+            const grid = document.createElement('div');
+            grid.className = 'tool-file-grid';
+            entries.forEach((entry) => {
+              const isDir = entry.endsWith('/');
+              const chip = document.createElement('span');
+              chip.className = 'tool-file-chip' + (isDir ? ' is-dir' : '');
+              const chipIcon = document.createElement('span');
+              chipIcon.className = 'tool-file-icon';
+              chipIcon.innerHTML = icon(isDir ? 'folder' : 'file', 13);
+              const chipName = document.createElement('span');
+              chipName.className = 'tool-file-name';
+              chipName.textContent = entry;
+              chip.appendChild(chipIcon);
+              chip.appendChild(chipName);
+              grid.appendChild(chip);
+            });
+            bodyWrap.appendChild(grid);
+          } else {
+            if (status) {
+              status.textContent = msg.ok ? '✓' : '✕';
+            }
+            const pre = document.createElement('pre');
+            pre.className = 'tool-output';
+            pre.textContent = msg.output;
+            bodyWrap.appendChild(pre);
+          }
+
+          lastTool.appendChild(bodyWrap);
           lastTool = null;
           scrollDown();
         }

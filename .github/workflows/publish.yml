@@ -20,7 +20,9 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run package
-      - run: npx vsce publish --pat "$VSCE_PAT"
+      - name: Publish to VS Code Marketplace
+        if: env.VSCE_PAT != ''
+        run: npx vsce publish --pat "$VSCE_PAT"
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
       - name: Create GitHub release

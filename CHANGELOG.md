@@ -2,6 +2,11 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.17] - 2026-11-02
+
+### Changed
+- **Modernized Tool Execution Cards & File Chips (`media/chat.js`, `media/chat.css`):** Redesigned `.msg.tool` blocks (`list_files`, `read_file`, `write_file`, `run_command`, `search_files`) with dedicated tool icons, target path badges, live status pills (`•••` / `✓` / `✕`), rotating chevrons, and interactive file/folder chip grids for directory listings.
+
 ## [0.1.16] - 2026-11-02
 
 ### Added

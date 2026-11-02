@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📧 Direct Support Email (destekai.sovereign.ai@gmail.com)
+    url: mailto:destekai.sovereign.ai@gmail.com
+    about: Send direct feedback, feature requests, or questions to the Sovereign Agent team.
+  - name: 🧩 VS Code Marketplace Page
+    url: https://marketplace.visualstudio.com/items?itemName=ertugrul37.sovereign-agent
+    about: Install Sovereign Agent or leave a 5-star review on the VS Code Marketplace.

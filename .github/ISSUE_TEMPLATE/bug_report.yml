@@ -1,0 +1,61 @@
+name: 🐛 Bug Report / Hata Bildirimi
+description: Report a bug, connection issue, or unexpected behavior in Sovereign Agent.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve **Sovereign Agent**! You can also send reports directly from inside VS Code via the **`(!)` Support & Feedback** button (`destekai.sovereign.ai@gmail.com`).
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Local AI Provider
+      description: Which local model server are you using?
+      options:
+        - Ollama (localhost:11434)
+        - LM Studio (localhost:1234)
+        - llama.cpp / llama-server (localhost:8080)
+        - vLLM (localhost:8000)
+        - LocalAI
+        - Jan
+        - GPT4All
+        - Other OpenAI-Compatible Local Server
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: Local Model Name
+      description: What model were you running?
+      placeholder: "e.g. qwen2.5-coder:7b, deepseek-coder-v2, gemma-4-e4b"
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Sovereign Agent Version
+      placeholder: "e.g. 0.1.17"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the issue and the steps to reproduce it.
+      placeholder: "1. Opened Sovereign Agent\n2. Asked the agent to...\n3. Saw error..."
+    validations:
+      required: true

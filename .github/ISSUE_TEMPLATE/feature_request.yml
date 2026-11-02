@@ -1,0 +1,31 @@
+name: ✨ Feature Request / Özellik İsteği
+description: Suggest a new capability, local provider integration, or UI improvement.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea to make **Sovereign Agent** better? Share it below or email us at `destekai.sovereign.ai@gmail.com`.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature Area
+      options:
+        - Agent Tools (File edits, terminal, search, MCP)
+        - Local LLM Providers (Ollama, LM Studio, llama.cpp, vLLM)
+        - Side-by-Side Model Arena
+        - LAN Peer Discovery & Sharing
+        - UI / Design / Localization (16 Languages)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Describe the feature you would like to see
+      placeholder: "Explain how this feature should work while keeping Sovereign Agent 100% local and privacy-first..."
+    validations:
+      required: true
