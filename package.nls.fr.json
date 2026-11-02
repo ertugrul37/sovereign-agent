@@ -12,6 +12,7 @@
   "command.openSettings": "Sovereign Agent : Ouvrir les paramètres",
   "command.showNetworkPeers": "Sovereign Agent : Afficher les pairs du réseau",
   "command.openFeedback": "Sovereign Agent : Support et retours (destekai.sovereign.ai@gmail.com)",
+  "command.rateExtension": "Sovereign Agent : ⭐ Noter 5 étoiles sur le Marketplace",
   "command.selectLanguage": "Sovereign Agent : Choisir la langue",
   "config.title": "Sovereign Agent",
   "config.provider.ollama": "API native Ollama",

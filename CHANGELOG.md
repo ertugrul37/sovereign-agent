@@ -2,6 +2,12 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.21] - 2026-11-03
+
+### Added
+- **In-App 5-Star Rating & GitHub Star Banner (`src/ui/chatViewProvider.ts`, `media/chat.js`, `media/chat.css`):** Added a gold `★` Star button in the header, an interactive 5-star Marketplace rating & GitHub Star card in the Support panel, a `Sovereign Agent: ⭐ Rate 5 Stars on Marketplace` command, and milestone-based review prompts (at 3, 10, and 25 runs).
+- **1-Click `vscode:extension/` Install Links & Marketplace Badges (`package.json`, `README.md`):** Added `vscode:extension/ertugrul37.sovereign-agent` direct VS Code install CTAs, Marketplace sidebar `badges`, `homepage`, `qna`, and expanded model search descriptions (`DeepSeek`, `Qwen`, `Gemma`, `Web Search`, `MCP`).
+
 ## [0.1.20] - 2026-11-03
 
 ### Fixed

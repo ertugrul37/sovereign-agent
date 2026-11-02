@@ -1,13 +1,17 @@
 # Sovereign Agent — 100% Local AI & Ollama Coding Assistant for VS Code
 
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/ertugrul37.sovereign-agent?label=VS%20Code%20Marketplace&color=22c55e)](https://marketplace.visualstudio.com/items?itemName=ertugrul37.sovereign-agent)
+[![Install in VS Code](https://img.shields.io/badge/VS%20Code-Install%20Extension-007ACC?logo=visualstudiocode&logoColor=white)](vscode:extension/ertugrul37.sovereign-agent)
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/ertugrul37.sovereign-agent?label=Marketplace&color=22c55e)](https://marketplace.visualstudio.com/items?itemName=ertugrul37.sovereign-agent)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/ertugrul37.sovereign-agent?color=3b82f6)](https://marketplace.visualstudio.com/items?itemName=ertugrul37.sovereign-agent)
-[![Tests: 12 Passing](https://img.shields.io/badge/Tests-12%20Passing-22c55e)](#development)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-amber.svg)](LICENSE)
-[![Privacy: 100% Local](https://img.shields.io/badge/Privacy-100%25%20Local%20%7C%20Zero%20Telemetry-10b981)](#privacy--security-guarantee)
-[![Languages: 16](https://img.shields.io/badge/Languages-16%20Supported-8b5cf6)](#16-supported-languages)
+[![Rate 5 Stars](https://img.shields.io/visual-studio-marketplace/r/ertugrul37.sovereign-agent?label=%E2%AD%90%20Rate%205%20Stars&color=f59e0b)](https://marketplace.visualstudio.com/items?itemName=ertugrul37.sovereign-agent&ssr=false#review-details)
+[![GitHub Stars](https://img.shields.io/github/stars/ertugrul37/sovereign-agent?style=flat&label=GitHub%20%E2%98%85&color=eab308)](https://github.com/ertugrul37/sovereign-agent)
+[![Tests: 14 Passing](https://img.shields.io/badge/Tests-14%20Passing-22c55e)](#)
+[![Privacy: 100% Local](https://img.shields.io/badge/Privacy-100%25%20Local%20%7C%20Zero%20Telemetry-10b981)](#key-features)
+[![Languages: 16](https://img.shields.io/badge/Languages-16%20Supported-8b5cf6)](#-5-16-supported-languages)
 
-**Sovereign Agent** is an autonomous, privacy-first local AI coding agent for Visual Studio Code. Run **Ollama**, **LM Studio**, **llama.cpp**, **vLLM**, **LocalAI**, **Jan**, or **GPT4All** directly inside your editor — with **zero cloud calls, zero API keys, and zero telemetry**.
+> 🚀 **[1-Click Install in VS Code (`vscode:extension/ertugrul37.sovereign-agent`)](vscode:extension/ertugrul37.sovereign-agent)** · ⭐ **[Leave a 5-Star Review on Marketplace](https://marketplace.visualstudio.com/items?itemName=ertugrul37.sovereign-agent&ssr=false#review-details)** · ★ **[Star on GitHub](https://github.com/ertugrul37/sovereign-agent)**
+
+**Sovereign Agent** is an autonomous, privacy-first local AI coding agent for Visual Studio Code. Run **Ollama**, **LM Studio**, **DeepSeek**, **Qwen**, **Gemma**, **Llama**, **llama.cpp**, **vLLM**, **LocalAI**, **Jan**, or **GPT4All** directly inside your editor — with **zero cloud calls, zero API keys, and zero telemetry**.
 
 ![Sovereign Agent Showcase](media/showcase.png)
 

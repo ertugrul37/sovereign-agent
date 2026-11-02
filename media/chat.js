@@ -324,7 +324,8 @@
     mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
     folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
     file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
-    terminal: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>'
+    terminal: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
+    star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor"/>'
   };
 
   function icon(name, size) {
@@ -599,7 +600,7 @@
 
   document.addEventListener('click', (event) => {
     const path = event.composedPath();
-    const inside = path.some((node) => node.classList && (node.classList.contains('popover') || ['plus', 'model', 'approval', 'feedbackToggle', 'langToggle'].includes(node.id)));
+    const inside = path.some((node) => node.classList && (node.classList.contains('popover') || ['plus', 'model', 'approval', 'feedbackToggle', 'rateBtn', 'langToggle'].includes(node.id)));
     if (!inside) closePopovers();
   });
   document.addEventListener('keydown', (event) => {
@@ -660,6 +661,38 @@
   $('undo').addEventListener('click', () => vscode.postMessage({ type: 'undo' }));
   $('historyToggle').addEventListener('click', () => showHistory(historyPanel.hidden));
   $('langToggle').addEventListener('click', () => vscode.postMessage({ type: 'selectLanguage' }));
+  if ($('rateBtn')) {
+    $('rateBtn').addEventListener('click', () => {
+      const open = feedbackPanel.hidden;
+      closePopovers(feedbackPanel);
+      feedbackPanel.hidden = !open;
+      $('feedbackToggle').setAttribute('aria-expanded', String(open));
+    });
+  }
+  if ($('rateMarketplaceBtn')) {
+    $('rateMarketplaceBtn').addEventListener('click', () => {
+      vscode.postMessage({
+        type: 'openExternal',
+        url: 'https://marketplace.visualstudio.com/items?itemName=ertugrul37.sovereign-agent&ssr=false#review-details'
+      });
+    });
+  }
+  if ($('starGithubBtn')) {
+    $('starGithubBtn').addEventListener('click', () => {
+      vscode.postMessage({
+        type: 'openExternal',
+        url: 'https://github.com/ertugrul37/sovereign-agent'
+      });
+    });
+  }
+  document.querySelectorAll('.star-pick').forEach((starBtn) => {
+    starBtn.addEventListener('click', () => {
+      vscode.postMessage({
+        type: 'openExternal',
+        url: 'https://marketplace.visualstudio.com/items?itemName=ertugrul37.sovereign-agent&ssr=false#review-details'
+      });
+    });
+  });
   $('feedbackToggle').addEventListener('click', () => {
     const open = feedbackPanel.hidden;
     closePopovers(feedbackPanel);

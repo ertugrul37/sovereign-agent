@@ -123,6 +123,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.post({ type: 'openFeedback' });
   }
 
+  async rateExtension(): Promise<void> {
+    await this.extensionContext.globalState.update('reviewPrompted', true);
+    await vscode.env.openExternal(
+      vscode.Uri.parse('https://marketplace.visualstudio.com/items?itemName=ertugrul37.sovereign-agent&ssr=false#review-details')
+    );
+  }
+
   async selectLanguage(): Promise<void> {
     const cfg = this.prepare();
     const items = [
@@ -614,14 +621,20 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     if (prompted) return;
     const count = (this.extensionContext.globalState.get<number>('completedRuns', 0) || 0) + 1;
     await this.extensionContext.globalState.update('completedRuns', count);
-    if (count < 15) return;
-    await this.extensionContext.globalState.update('reviewPrompted', true);
+    if (count !== 3 && count !== 10 && count !== 25) return;
     const rateBtn = t('review.rateNow');
+    const githubBtn = t('review.starGithub');
     const laterBtn = t('review.later');
-    const choice = await vscode.window.showInformationMessage(t('review.prompt'), rateBtn, laterBtn);
+    const choice = await vscode.window.showInformationMessage(t('review.prompt'), rateBtn, githubBtn, laterBtn);
     if (choice === rateBtn) {
+      await this.extensionContext.globalState.update('reviewPrompted', true);
       await vscode.env.openExternal(
         vscode.Uri.parse('https://marketplace.visualstudio.com/items?itemName=ertugrul37.sovereign-agent&ssr=false#review-details')
+      );
+    } else if (choice === githubBtn) {
+      await this.extensionContext.globalState.update('reviewPrompted', true);
+      await vscode.env.openExternal(
+        vscode.Uri.parse('https://github.com/ertugrul37/sovereign-agent')
       );
     }
   }
@@ -1020,6 +1033,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       <button id="undo" class="icon-button" data-icon="undo" data-i18n-title="ui.undo" title="" aria-label="Undo"></button>
       <button id="historyToggle" class="icon-button" data-icon="history" data-i18n-title="ui.history" title="" aria-label="History" aria-expanded="false"></button>
       <button id="langToggle" class="icon-button" data-icon="globe" data-i18n-title="ui.menuLanguage" title="" aria-label="Language"></button>
+      <button id="rateBtn" class="icon-button rate-star-btn" data-icon="star" data-i18n-title="ui.rateExtension" title="" aria-label="Rate 5 Stars"></button>
       <button id="feedbackToggle" class="icon-button" data-icon="alertCircle" data-i18n-title="ui.feedback" title="" aria-label="Support & Feedback" aria-expanded="false"></button>
     </div>
   </header>
@@ -1034,6 +1048,20 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         <span data-i18n="ui.feedbackTitle"></span>
       </div>
       <button id="feedbackClose" class="icon-button close-button" data-icon="x" title="Close" aria-label="Close"></button>
+    </div>
+    <div class="rate-banner">
+      <div class="rate-stars" id="rateStarsRow" role="group" aria-label="5 Star Rating">
+        <button type="button" class="star-pick" data-star="1">★</button>
+        <button type="button" class="star-pick" data-star="2">★</button>
+        <button type="button" class="star-pick" data-star="3">★</button>
+        <button type="button" class="star-pick" data-star="4">★</button>
+        <button type="button" class="star-pick" data-star="5">★</button>
+      </div>
+      <p class="rate-desc" data-i18n="ui.rateDesc"></p>
+      <div class="rate-actions">
+        <button id="rateMarketplaceBtn" type="button" class="rate-cta-btn" data-i18n="ui.rateExtension"></button>
+        <button id="starGithubBtn" type="button" class="rate-gh-btn" data-i18n="ui.starGithub"></button>
+      </div>
     </div>
     <p class="feedback-desc" data-i18n="ui.feedbackDesc"></p>
     <div class="feedback-email-card">

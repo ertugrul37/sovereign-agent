@@ -1,6 +1,6 @@
 {
   "displayName": "Sovereign Agent — Local AI & Ollama Coding Assistant",
-  "description": "100% local, offline AI coding agent for VS Code (Ollama, LM Studio, llama.cpp, vLLM). Side-by-side model arena, LAN sharing, 16 languages, zero cloud & zero telemetry.",
+  "description": "100% local, offline AI coding agent for VS Code (Ollama, LM Studio, DeepSeek, Qwen, Gemma, llama.cpp, vLLM). Autonomous file edit, terminal, Web Search, MCP, Model Arena, 16 languages, zero telemetry.",
   "view.container.title": "Sovereign Agent",
   "view.chat.name": "Chat",
   "command.newChat": "Sovereign Agent: New Chat",
@@ -12,6 +12,7 @@
   "command.openSettings": "Sovereign Agent: Open Settings",
   "command.showNetworkPeers": "Sovereign Agent: Show Network Peers",
   "command.openFeedback": "Sovereign Agent: Support & Feedback (destekai.sovereign.ai@gmail.com)",
+  "command.rateExtension": "Sovereign Agent: ⭐ Rate 5 Stars on Marketplace",
   "command.selectLanguage": "Sovereign Agent: Select Language",
   "config.title": "Sovereign Agent",
   "config.provider.ollama": "Ollama native API",

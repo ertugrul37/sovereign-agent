@@ -151,7 +151,11 @@ export const fr: Record<MessageKey, string> = {
   ,'ui.insertCode': 'Insérer'
   ,'ui.runCode': 'Exécuter'
   ,'ui.webSearch': 'Recherche web'
+  ,'ui.rateExtension': 'Noter 5 étoiles sur le Marketplace ⭐'
+  ,'ui.starGithub': 'Étoile sur GitHub ★'
+  ,'ui.rateDesc': 'Vous aimez la confidentialité 100 % locale ? Une note de 5 étoiles aide d’autres développeurs à découvrir Sovereign Agent !'
   ,'review.prompt': 'Vous appréciez Sovereign Agent ? Laisser un avis sur le VS Code Marketplace aide d’autres développeurs soucieux de leur vie privée !'
-  ,'review.rateNow': 'Noter sur le Marketplace ⭐'
+  ,'review.rateNow': 'Noter 5 étoiles ⭐'
+  ,'review.starGithub': 'Étoile sur GitHub ★'
   ,'review.later': 'Plus tard'
 };

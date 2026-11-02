@@ -1,6 +1,6 @@
 {
   "displayName": "Sovereign Agent — Yerel Yapay Zekâ & Ollama Kodlama Ajanı",
-  "description": "VS Code için %100 yerel, çevrimdışı yapay zekâ kodlama ajanı (Ollama, LM Studio, llama.cpp, vLLM). Yan yana model karşılaştırma, LAN paylaşımı, 16 dil, sıfır bulut ve sıfır telemetri.",
+  "description": "VS Code için %100 yerel, çevrimdışı yapay zekâ kodlama ajanı (Ollama, LM Studio, DeepSeek, Qwen, Gemma, llama.cpp, vLLM). Otonom kod yazma, terminal, Web Araması, MCP, 16 dil, sıfır telemetri.",
   "view.container.title": "Sovereign Agent",
   "view.chat.name": "Sohbet",
   "command.newChat": "Sovereign Agent: Yeni Sohbet",
@@ -12,6 +12,7 @@
   "command.openSettings": "Sovereign Agent: Ayarları Aç",
   "command.showNetworkPeers": "Sovereign Agent: Ağdaki Eşleri Göster",
   "command.openFeedback": "Sovereign Agent: Destek ve İstek Bildirimi (destekai.sovereign.ai@gmail.com)",
+  "command.rateExtension": "Sovereign Agent: ⭐ Marketplace'te 5 Yıldız Ver",
   "command.selectLanguage": "Sovereign Agent: Dil Seç",
   "config.title": "Sovereign Agent",
   "config.provider.ollama": "Ollama yerel API'si",

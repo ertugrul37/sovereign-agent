@@ -154,8 +154,12 @@ export const en = {
   ,'ui.insertCode': 'Insert'
   ,'ui.runCode': 'Run'
   ,'ui.webSearch': 'Web Search'
+  ,'ui.rateExtension': 'Rate 5 Stars on Marketplace ⭐'
+  ,'ui.starGithub': 'Star on GitHub ★'
+  ,'ui.rateDesc': 'Love 100% local privacy? A quick 5-star rating helps more developers discover Sovereign Agent!'
   ,'review.prompt': 'Enjoying Sovereign Agent? Leaving a quick 5-star review on the VS Code Marketplace helps other privacy-focused developers find it!'
-  ,'review.rateNow': 'Rate on Marketplace ⭐'
+  ,'review.rateNow': 'Rate 5 Stars ⭐'
+  ,'review.starGithub': 'Star on GitHub ★'
   ,'review.later': 'Maybe Later'
 };
 

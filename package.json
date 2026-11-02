@@ -2,14 +2,33 @@
   "name": "sovereign-agent",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "publisher": "ertugrul37",
   "icon": "media/logo.png",
   "license": "GPL-3.0-or-later",
+  "homepage": "https://github.com/ertugrul37/sovereign-agent#readme",
+  "qna": "marketplace",
   "galleryBanner": {
     "color": "#111827",
     "theme": "dark"
   },
+  "badges": [
+    {
+      "url": "https://img.shields.io/visual-studio-marketplace/r/ertugrul37.sovereign-agent?label=Rating&color=f59e0b",
+      "href": "https://marketplace.visualstudio.com/items?itemName=ertugrul37.sovereign-agent&ssr=false#review-details",
+      "description": "Rate Sovereign Agent 5 Stars on VS Code Marketplace"
+    },
+    {
+      "url": "https://img.shields.io/visual-studio-marketplace/i/ertugrul37.sovereign-agent?label=Installs&color=3b82f6",
+      "href": "https://marketplace.visualstudio.com/items?itemName=ertugrul37.sovereign-agent",
+      "description": "VS Code Marketplace Installs"
+    },
+    {
+      "url": "https://img.shields.io/badge/Privacy-100%25%20Local%20%7C%20Zero%20Telemetry-10b981",
+      "href": "https://github.com/ertugrul37/sovereign-agent",
+      "description": "100% Local AI & Zero Telemetry"
+    }
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/ertugrul37/sovereign-agent.git",
@@ -125,6 +144,11 @@
         "command": "sovereignAgent.openFeedback",
         "title": "%command.openFeedback%",
         "icon": "$(info)"
+      },
+      {
+        "command": "sovereignAgent.rateExtension",
+        "title": "%command.rateExtension%",
+        "icon": "$(star-full)"
       },
       {
         "command": "sovereignAgent.selectLanguage",

@@ -122,3 +122,4 @@ function formatSearchResults(query: string, items: WebSearchItem[]): ToolResult 
     .join('\n\n');
   return { ok: true, output: formatted };
 }
+
