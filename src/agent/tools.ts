@@ -13,6 +13,8 @@ export interface ToolContext {
   callMcp(server: string, tool: string, argsJson: string): Promise<ToolResult>;
   /** Runs a shell command in the visible agent terminal; see src/agent/terminal.ts. */
   runCommand(command: string): Promise<ToolResult>;
+  /** Searches the web for documentation or current information; see src/agent/webSearch.ts. */
+  webSearch(query: string): Promise<ToolResult>;
   signal: AbortSignal;
 }
 
@@ -125,11 +127,17 @@ function missing(call: ToolCall, param: string): ToolResult {
 }
 
 export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<ToolResult> {
+  const p = call.params;
+  if (call.name === 'web_search') {
+    if (!p.query) {
+      return missing(call, 'query');
+    }
+    return await ctx.webSearch(p.query);
+  }
   if (!ctx.root) {
     return { ok: false, output: 'No workspace folder is open.' };
   }
   const root = ctx.root;
-  const p = call.params;
   try {
     switch (call.name) {
       case 'list_files': {

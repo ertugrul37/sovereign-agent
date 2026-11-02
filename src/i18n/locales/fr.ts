@@ -150,6 +150,7 @@ export const fr: Record<MessageKey, string> = {
   ,'ui.copyCode': 'Copier'
   ,'ui.insertCode': 'Insérer'
   ,'ui.runCode': 'Exécuter'
+  ,'ui.webSearch': 'Recherche web'
   ,'review.prompt': 'Vous appréciez Sovereign Agent ? Laisser un avis sur le VS Code Marketplace aide d’autres développeurs soucieux de leur vie privée !'
   ,'review.rateNow': 'Noter sur le Marketplace ⭐'
   ,'review.later': 'Plus tard'

@@ -150,6 +150,7 @@ export const tr: Record<MessageKey, string> = {
   ,'ui.copyCode': 'Kopyala'
   ,'ui.insertCode': 'Editöre Ekle'
   ,'ui.runCode': 'Çalıştır'
+  ,'ui.webSearch': 'Web Araması'
   ,'review.prompt': 'Sovereign Agent işinize yarıyor mu? VS Code Marketplace üzerinde yıldız vererek gizlilik odaklı diğer geliştiricilerin de keşfetmesine destek olabilirsiniz!'
   ,'review.rateNow': 'Marketplace’te Değerlendir ⭐'
   ,'review.later': 'Daha Sonra'

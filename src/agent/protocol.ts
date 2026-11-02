@@ -15,7 +15,8 @@ export const TOOL_NAMES = [
   'search_files',
   'get_editor_context',
   'run_command',
-  'mcp_call'
+  'mcp_call',
+  'web_search'
 ] as const;
 export type ToolName = (typeof TOOL_NAMES)[number];
 
@@ -27,7 +28,8 @@ export const TOOL_PARAMS: Record<ToolName, string[]> = {
   search_files: ['pattern', 'path'],
   get_editor_context: [],
   run_command: ['command'],
-  mcp_call: ['server', 'tool', 'arguments']
+  mcp_call: ['server', 'tool', 'arguments'],
+  web_search: ['query']
 };
 
 export interface ToolCall {
@@ -113,5 +115,7 @@ export function describeCall(call: ToolCall): string {
       return `run_command ${p.command ?? ''}`;
     case 'mcp_call':
       return `mcp_call ${p.server ?? ''}/${p.tool ?? ''}`;
+    case 'web_search':
+      return `web_search ${p.query ?? ''}`;
   }
 }

@@ -45,3 +45,9 @@ test('parses local MCP calls', () => {
   assert.equal(call?.params.tool, 'read_file');
   assert.equal(call?.params.arguments, '{"path":"README.md"}');
 });
+
+test('parses web_search calls', () => {
+  const call = parseToolCall('<web_search>\n<query>python 3.13 new features</query>\n</web_search>');
+  assert.equal(call?.name, 'web_search');
+  assert.equal(call?.params.query, 'python 3.13 new features');
+});

@@ -2,6 +2,11 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.19] - 2026-11-03
+
+### Added
+- **Built-in Web Search (`web_search` Tool & `🌐` Composer Toggle):** Added privacy-preserving zero-config Web Search (`src/agent/webSearch.ts`), a quick `🌐` Web Search toggle button in the composer bar and `+` menu, and clickable Web Search result cards in the chat UI.
+
 ## [0.1.18] - 2026-11-03
 
 ### Fixed

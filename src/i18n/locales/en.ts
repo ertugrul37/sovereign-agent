@@ -153,6 +153,7 @@ export const en = {
   ,'ui.copyCode': 'Copy'
   ,'ui.insertCode': 'Insert'
   ,'ui.runCode': 'Run'
+  ,'ui.webSearch': 'Web Search'
   ,'review.prompt': 'Enjoying Sovereign Agent? Leaving a quick 5-star review on the VS Code Marketplace helps other privacy-focused developers find it!'
   ,'review.rateNow': 'Rate on Marketplace ⭐'
   ,'review.later': 'Maybe Later'

@@ -75,6 +75,11 @@ mcp_call: call a tool exposed by a configured local STDIO MCP server. The user m
 <arguments>{"key":"value"}</arguments>
 </mcp_call>
 
+web_search: search the web for documentation, libraries, error messages, or current information.
+<web_search>
+<query>python 3.13 new features</query>
+</web_search>
+
 RULES
 - One tool call per message. Never invent tool results.
 - Never call read_file, write_file, replace_in_file or search_files on a path you have not first seen via list_files (or via get_editor_context / a previous tool result) in this conversation. If you do not yet know the project layout, call list_files on the root first.

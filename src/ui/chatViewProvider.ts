@@ -15,6 +15,7 @@ import { ChatMessage } from '../llm/types';
 import { ToolContext } from '../agent/tools';
 import { transcribeAudio } from '../llm/asr';
 import { AgentTerminal } from '../agent/terminal';
+import { performWebSearch } from '../agent/webSearch';
 
 const execFileAsync = promisify(execFile);
 
@@ -32,7 +33,7 @@ interface ComparisonCandidate {
 
 type FromWebview =
   | { type: 'ready' }
-  | { type: 'send'; text: string; mode?: string }
+  | { type: 'send'; text: string; mode?: string; webSearch?: boolean }
   | { type: 'modelMenu' }
   | { type: 'modelPick'; model: string }
   | { type: 'setAutoApprove'; value: boolean }
@@ -293,7 +294,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.postInit();
         break;
       case 'send':
-        await this.handleSend(msg.text, msg.mode || 'Code');
+        await this.handleSend(msg.text, msg.mode || 'Code', Boolean(msg.webSearch));
         break;
       case 'modelMenu':
         await this.sendModelOptions();
@@ -514,7 +515,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private async handleSend(text: string, mode: string): Promise<void> {
+  private async handleSend(text: string, mode: string, webSearch = false): Promise<void> {
     if (this.abort || this.comparison || !text.trim()) {
       return;
     }
@@ -535,7 +536,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const folder = vscode.workspace.workspaceFolders?.[0];
     this.restoreHistory();
     const editorContext = this.editorContext();
-    const workspaceInstructions = await this.loadWorkspaceInstructions(folder?.uri.fsPath);
+    const baseInstructions = await this.loadWorkspaceInstructions(folder?.uri.fsPath);
+    const workspaceInstructions = webSearch
+      ? `${baseInstructions}\n\nWEB SEARCH ACTIVE: The user enabled Web Search for this request. Call <web_search><query>...</query></web_search> first to retrieve current web results before answering.`.trim()
+      : baseInstructions;
     const abort = new AbortController();
     this.abort = abort;
     const startedAt = performance.now();
@@ -832,7 +836,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         previewChange: async (relPath: string, original: string, updated: string) =>
           this.previewChange(relPath, original, updated),
         callMcp: (server: string, tool: string, argsJson: string) => this.mcp.call(server, tool, argsJson),
-        runCommand: (command: string) => this.terminal.run(command, root ?? process.cwd(), abort.signal)
+        runCommand: (command: string) => this.terminal.run(command, root ?? process.cwd(), abort.signal),
+        webSearch: (query: string) => performWebSearch(query, abort.signal)
       };
     }
 
@@ -1147,6 +1152,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         <textarea id="input" rows="2" data-i18n-placeholder="ui.placeholder"></textarea>
         <div class="composer-toolbar">
           <button id="plus" class="toolbar-button" data-icon="plus" data-i18n-title="ui.attach" title="" aria-haspopup="true" aria-expanded="false" aria-label="Add"></button>
+          <button id="webSearchToggle" type="button" class="toolbar-button web-toggle" data-icon="globe" data-i18n-title="ui.webSearch" title="" aria-pressed="false" aria-label="Web Search"></button>
           <div class="segmented" role="group">
             <button id="segChat" type="button" data-mode="Ask" data-i18n="ui.modeChat"></button>
             <button id="segAgent" type="button" data-mode="Code" data-i18n="ui.modeAgent"></button>

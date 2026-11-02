@@ -110,6 +110,11 @@ textarea::placeholder { color: var(--faint); }
   background: transparent; color: var(--muted); cursor: pointer;
 }
 .toolbar-button:hover, .toolbar-button[aria-expanded="true"] { background: var(--surface-2); color: var(--text); }
+.toolbar-button.web-toggle.active {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface-2));
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+}
 .composer-spacer { flex: 1; min-width: 0; }
 
 .segmented {
@@ -594,6 +599,61 @@ details.tool[open] .tool-chevron {
 }
 .tool-file-chip.is-dir .tool-file-icon {
   color: var(--accent);
+}
+.tool-web-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tool-web-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 7px 10px;
+  text-align: left;
+  border-radius: 7px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.tool-web-card:hover {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+.tool-web-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tool-web-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tool-web-domain {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.tool-web-snippet {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* Metrics */

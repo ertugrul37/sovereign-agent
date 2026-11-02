@@ -54,6 +54,7 @@
   };
   let theme = (vscode.getState() || {}).theme || 'auto';
   let autoApproveNext = false;
+  let webSearchEnabled = false;
   const metricHistory = [];
 
   const s = (key) => strings[key] || '';
@@ -236,7 +237,7 @@
     renderAttachments();
     autosize();
     updateSend();
-    vscode.postMessage({ type: 'send', text: text + blocks, mode: selectedMode });
+    vscode.postMessage({ type: 'send', text: text + blocks, mode: selectedMode, webSearch: webSearchEnabled });
   }
 
   // Opens upward by default; flips below the composer when there is no room above (e.g. the centred empty state).
@@ -368,12 +369,37 @@
     vscode.setState({ ...(vscode.getState() || {}), theme });
   }
 
+  function setWebSearch(value) {
+    webSearchEnabled = Boolean(value);
+    const btn = $('webSearchToggle');
+    if (btn) {
+      btn.classList.toggle('active', webSearchEnabled);
+      btn.setAttribute('aria-pressed', String(webSearchEnabled));
+    }
+    renderAttachments();
+  }
+
   // ---- Attachments ----
   function renderAttachments() {
     const box = $('attachments');
     box.replaceChildren();
     const extraMode = selectedMode !== 'Ask' && selectedMode !== 'Code';
-    box.hidden = attachments.length === 0 && !extraMode;
+    box.hidden = attachments.length === 0 && !extraMode && !webSearchEnabled;
+    if (webSearchEnabled) {
+      const chip = document.createElement('span');
+      chip.className = 'attachment mode-chip web-chip';
+      chip.insertAdjacentHTML('beforeend', icon('globe', 13));
+      const name = document.createElement('span');
+      name.textContent = s('ui.webSearch') || s('ui.menuWebSearch') || 'Web Search';
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.title = s('ui.removeAttachment');
+      remove.setAttribute('aria-label', s('ui.removeAttachment'));
+      remove.innerHTML = icon('x', 12);
+      remove.addEventListener('click', () => setWebSearch(false));
+      chip.append(name, remove);
+      box.appendChild(chip);
+    }
     if (extraMode) {
       const chip = document.createElement('span');
       chip.className = 'attachment mode-chip';
@@ -472,8 +498,15 @@
       } }),
       menuRow({ icon: 'plug', label: s('ui.menuExtension'), onClick: () => { closePopovers(); vscode.postMessage({ type: 'openExtensions' }); } }),
       menuSep(),
-      // Web search stays off on purpose: the extension promises to only talk to local servers.
-      menuRow({ icon: 'globe', label: s('ui.menuWebSearch'), badge: s('ui.soon'), disabled: true })
+      menuRow({
+        icon: 'globe',
+        label: s('ui.menuWebSearch') || s('ui.webSearch') || 'Web Search',
+        end: webSearchEnabled ? 'check' : '',
+        onClick: () => {
+          setWebSearch(!webSearchEnabled);
+          closePopovers();
+        }
+      })
     );
     main.hidden = false;
     $('plusSub').hidden = true;
@@ -560,6 +593,9 @@
     }
     $('plus').setAttribute('aria-expanded', String(open));
   });
+  if ($('webSearchToggle')) {
+    $('webSearchToggle').addEventListener('click', () => setWebSearch(!webSearchEnabled));
+  }
 
   document.addEventListener('click', (event) => {
     const path = event.composedPath();
@@ -836,7 +872,8 @@
           search_files: 'search',
           run_command: 'terminal',
           mcp_call: 'plug',
-          get_editor_context: 'code'
+          get_editor_context: 'code',
+          web_search: 'globe'
         };
         lastTool = document.createElement('details');
         lastTool.className = 'msg tool running';
@@ -910,6 +947,47 @@
               grid.appendChild(chip);
             });
             bodyWrap.appendChild(grid);
+          } else if (toolName === 'web_search' && msg.ok && msg.output && msg.output.includes('URL: ')) {
+            const blocks = msg.output.split(/\n\n+/).map((b) => b.trim()).filter(Boolean);
+            if (status) {
+              status.textContent = blocks.length + ' ✓';
+            }
+            const list = document.createElement('div');
+            list.className = 'tool-web-list';
+            blocks.forEach((b) => {
+              const lines = b.split(/\r?\n/);
+              const titleLine = (lines[0] || '').replace(/^\[\d+\]\s*/, '').trim();
+              const urlLine = (lines.find((l) => l.startsWith('URL: ')) || '').slice(5).trim();
+              const snippetLine = (lines.find((l) => l.startsWith('Snippet: ')) || '').slice(9).trim();
+              const card = document.createElement('button');
+              card.type = 'button';
+              card.className = 'tool-web-card';
+              const top = document.createElement('div');
+              top.className = 'tool-web-top';
+              const titleEl = document.createElement('strong');
+              titleEl.className = 'tool-web-title';
+              titleEl.textContent = titleLine || urlLine;
+              const domainEl = document.createElement('span');
+              domainEl.className = 'tool-web-domain';
+              try {
+                domainEl.textContent = new URL(urlLine).hostname.replace(/^www\./, '');
+              } catch {
+                domainEl.textContent = urlLine;
+              }
+              top.append(titleEl, domainEl);
+              card.appendChild(top);
+              if (snippetLine && snippetLine !== '(no snippet)') {
+                const snip = document.createElement('p');
+                snip.className = 'tool-web-snippet';
+                snip.textContent = snippetLine;
+                card.appendChild(snip);
+              }
+              if (urlLine.startsWith('http://') || urlLine.startsWith('https://')) {
+                card.addEventListener('click', () => vscode.postMessage({ type: 'openExternal', url: urlLine }));
+              }
+              list.appendChild(card);
+            });
+            bodyWrap.appendChild(list);
           } else {
             if (status) {
               status.textContent = msg.ok ? '✓' : '✕';
