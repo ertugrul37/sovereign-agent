@@ -6,7 +6,9 @@ test('resolves language tags', () => {
   assert.equal(resolveLocale('tr'), 'tr');
   assert.equal(resolveLocale('tr-TR'), 'tr');
   assert.equal(resolveLocale('de_DE'), 'de');
-  assert.equal(resolveLocale('ja'), 'en');
+  assert.equal(resolveLocale('ja'), 'ja');
+  assert.equal(resolveLocale('zh-CN'), 'zh');
+  assert.equal(resolveLocale('xx-unknown'), 'en');
   assert.equal(resolveLocale(undefined), 'en');
 });
 

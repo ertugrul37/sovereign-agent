@@ -3,15 +3,17 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { randomUUID } from 'crypto';
 import { Agent, AgentHooks, RunSettings } from '../agent/agent';
 import { describeCall } from '../agent/protocol';
 import { AgentConfig, getConfig, activeLocale } from '../config';
 import { createProvider } from '../llm/factory';
-import { setLocale, t, uiStrings } from '../i18n';
+import { setLocale, t, uiStrings, LOCALE_NAMES } from '../i18n';
 import { McpManager, McpServerConfig } from '../agent/mcp';
 import { ChatMessage } from '../llm/types';
 import { ToolContext } from '../agent/tools';
 import { transcribeAudio } from '../llm/asr';
+import { AgentTerminal } from '../agent/terminal';
 
 const execFileAsync = promisify(execFile);
 
@@ -42,7 +44,20 @@ type FromWebview =
   | { type: 'compareSelect'; id: string }
   | { type: 'history' }
   | { type: 'showCommit'; hash: string }
-  | { type: 'undo' };
+  | { type: 'undo' }
+  | { type: 'attachFile' }
+  | { type: 'attachActive' }
+  | { type: 'attachPick' }
+  | { type: 'attachSelection' }
+  | { type: 'listSkills' }
+  | { type: 'useSkill'; file: string }
+  | { type: 'openMcpSettings' }
+  | { type: 'openExtensions' }
+  | { type: 'openExternal'; url: string }
+  | { type: 'copyText'; text: string }
+  | { type: 'setLanguage'; language: string }
+  | { type: 'selectLanguage' }
+  | { type: 'confirmResponse'; id: string; allow: boolean };
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'sovereignAgent.chat';
@@ -54,6 +69,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private historyLoaded = false;
   private comparison?: Map<string, ComparisonCandidate>;
   private autoApprove = false;
+  private readonly pendingConfirms = new Map<string, (allow: boolean) => void>();
+  private readonly terminal = new AgentTerminal();
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -75,6 +92,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     view.onDidDispose(() => {
       this.abort?.abort();
       this.view = undefined;
+      // Any action still waiting on an approval the user can no longer see
+      // must not hang forever: treat it as denied.
+      for (const resolve of this.pendingConfirms.values()) resolve(false);
+      this.pendingConfirms.clear();
     });
   }
 
@@ -94,8 +115,34 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.abort?.abort();
   }
 
+  openFeedback(): void {
+    this.post({ type: 'openFeedback' });
+  }
+
+  async selectLanguage(): Promise<void> {
+    const cfg = this.prepare();
+    const items = [
+      { label: `$(globe) ${t('ui.languageAuto')}`, description: 'auto', code: 'auto' },
+      ...Object.entries(LOCALE_NAMES).map(([code, name]) => ({
+        label: name,
+        description: code === cfg.language ? '✓' : code,
+        code
+      }))
+    ];
+    const picked = await vscode.window.showQuickPick(items, {
+      placeHolder: t('ui.menuLanguage')
+    });
+    if (picked) {
+      await vscode.workspace
+        .getConfiguration('sovereignAgent')
+        .update('language', picked.code, vscode.ConfigurationTarget.Global);
+      this.postInit();
+    }
+  }
+
   dispose(): void {
     this.mcp.dispose();
+    this.terminal.dispose();
   }
 
   async undo(): Promise<void> {
@@ -198,7 +245,15 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private postInit(): void {
     const cfg = this.prepare();
     this.restoreHistory();
-    this.post({ type: 'init', strings: uiStrings(), model: cfg.model, compareModel: cfg.compareModel });
+    this.post({
+      type: 'init',
+      strings: uiStrings(),
+      model: cfg.model,
+      compareModel: cfg.compareModel,
+      userName: cfg.userName,
+      language: cfg.language,
+      locales: LOCALE_NAMES
+    });
     this.post({ type: 'conversation', messages: this.agent.getHistory() });
   }
 
@@ -249,6 +304,177 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case 'undo':
         await this.undo();
         break;
+      case 'attachFile':
+        await this.attachFromDialog();
+        break;
+      case 'attachActive':
+        this.attachActive();
+        break;
+      case 'attachPick':
+        await this.attachPick();
+        break;
+      case 'attachSelection':
+        this.addSelectionToChat();
+        break;
+      case 'listSkills':
+        await this.sendSkills();
+        break;
+      case 'useSkill':
+        await this.useSkill(msg.file);
+        break;
+      case 'openMcpSettings':
+        await vscode.commands.executeCommand('workbench.action.openSettings', 'sovereignAgent.mcpServers');
+        break;
+      case 'openExtensions':
+        await vscode.commands.executeCommand('workbench.view.extensions');
+        break;
+      case 'openExternal':
+        if (msg.url.startsWith('mailto:') || msg.url.startsWith('https://')) {
+          void vscode.env.openExternal(vscode.Uri.parse(msg.url));
+        }
+        break;
+      case 'copyText':
+        await vscode.env.clipboard.writeText(msg.text);
+        break;
+      case 'selectLanguage':
+        await this.selectLanguage();
+        break;
+      case 'setLanguage':
+        await vscode.workspace
+          .getConfiguration('sovereignAgent')
+          .update('language', msg.language, vscode.ConfigurationTarget.Global);
+        this.postInit();
+        break;
+      case 'confirmResponse': {
+        const resolve = this.pendingConfirms.get(msg.id);
+        if (resolve) {
+          this.pendingConfirms.delete(msg.id);
+          resolve(msg.allow);
+        }
+        break;
+      }
+    }
+  }
+
+  private static readonly IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.ico', '.tiff']);
+  private static readonly MAX_ATTACHMENT_BYTES = 512 * 1024;
+  private static readonly MAX_ATTACHMENT_CHARS = 30000;
+
+  private clipAttachment(text: string): string {
+    const max = ChatViewProvider.MAX_ATTACHMENT_CHARS;
+    return text.length > max ? text.slice(0, max) + '\n… (truncated)' : text;
+  }
+
+  private async readAttachment(uri: vscode.Uri): Promise<{ name: string; language: string; content: string } | undefined> {
+    const ext = path.extname(uri.fsPath).toLowerCase();
+    if (ChatViewProvider.IMAGE_EXTENSIONS.has(ext)) {
+      this.post({ type: 'error', text: t('ui.imageUnsupported') });
+      return undefined;
+    }
+    const bytes = await vscode.workspace.fs.readFile(uri);
+    if (bytes.length > ChatViewProvider.MAX_ATTACHMENT_BYTES || bytes.subarray(0, 8000).includes(0)) {
+      this.post({ type: 'error', text: t('ui.attachUnsupported', { name: path.basename(uri.fsPath) }) });
+      return undefined;
+    }
+    return {
+      name: vscode.workspace.asRelativePath(uri, false),
+      language: ext.replace('.', ''),
+      content: this.clipAttachment(Buffer.from(bytes).toString('utf8'))
+    };
+  }
+
+  private async postAttachments(uris: vscode.Uri[]): Promise<void> {
+    const items: { name: string; language: string; content: string }[] = [];
+    for (const uri of uris) {
+      try {
+        const item = await this.readAttachment(uri);
+        if (item) {
+          items.push(item);
+        }
+      } catch (err) {
+        this.post({ type: 'error', text: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    if (items.length) {
+      this.post({ type: 'attachments', items });
+    }
+  }
+
+  private async attachFromDialog(): Promise<void> {
+    const uris = await vscode.window.showOpenDialog({
+      canSelectMany: true,
+      defaultUri: vscode.workspace.workspaceFolders?.[0]?.uri,
+      openLabel: t('ui.menuAttach')
+    });
+    await this.postAttachments(uris ?? []);
+  }
+
+  private attachActive(): void {
+    const doc = vscode.window.activeTextEditor?.document;
+    if (!doc) {
+      this.post({ type: 'error', text: t('ui.noActiveFile') });
+      return;
+    }
+    this.post({
+      type: 'attachments',
+      items: [
+        {
+          name: doc.isUntitled ? doc.fileName : vscode.workspace.asRelativePath(doc.uri, false),
+          language: doc.languageId,
+          content: this.clipAttachment(doc.getText())
+        }
+      ]
+    });
+  }
+
+  private async attachPick(): Promise<void> {
+    const files = await vscode.workspace.findFiles('**/*', '**/{node_modules,.git,out,dist,build}/**', 500);
+    const picks = files
+      .map((uri) => ({ label: vscode.workspace.asRelativePath(uri, false), uri }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    const chosen = await vscode.window.showQuickPick(picks, {
+      canPickMany: true,
+      placeHolder: t('ui.projectPickFile')
+    });
+    if (chosen?.length) {
+      await this.postAttachments(chosen.map((item) => item.uri));
+    }
+  }
+
+  private promptsDir(): vscode.Uri | undefined {
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    return folder ? vscode.Uri.joinPath(folder.uri, '.github', 'prompts') : undefined;
+  }
+
+  private async sendSkills(): Promise<void> {
+    const dir = this.promptsDir();
+    let items: { name: string }[] = [];
+    if (dir) {
+      try {
+        const entries = await vscode.workspace.fs.readDirectory(dir);
+        items = entries
+          .filter(([name, kind]) => kind === vscode.FileType.File && name.endsWith('.prompt.md'))
+          .map(([name]) => ({ name: name.replace(/\.prompt\.md$/, '') }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+      } catch {
+        items = [];
+      }
+    }
+    this.post({ type: 'skills', items });
+  }
+
+  private async useSkill(file: string): Promise<void> {
+    const dir = this.promptsDir();
+    if (!dir) {
+      return;
+    }
+    const safeName = path.basename(file);
+    try {
+      const bytes = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(dir, safeName + '.prompt.md'));
+      const body = Buffer.from(bytes).toString('utf8').replace(/^---[\s\S]*?---\s*/, '').trim();
+      this.post({ type: 'insertText', text: body });
+    } catch (err) {
+      this.post({ type: 'error', text: err instanceof Error ? err.message : String(err) });
     }
   }
 
@@ -297,24 +523,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           editorContext,
           mode
         },
-        {
-          root: folder?.uri.fsPath,
-          signal: abort.signal,
-          confirmWrite: (relPath, bytes) =>
-            cfg.requireWriteApproval && !this.autoApprove
-              ? this.confirm(t('approval.write', { path: relPath }), t('approval.writeDetail', { bytes }))
-              : Promise.resolve(true),
-          confirmReplace: (relPath) =>
-            cfg.requireWriteApproval && !this.autoApprove
-              ? this.confirm(t('approval.replace', { path: relPath }), t('approval.replaceDetail'))
-              : Promise.resolve(true),
-          confirmCommand: (command) =>
-            cfg.requireCommandApproval && !this.autoApprove ? this.confirm(t('approval.command'), command) : Promise.resolve(true),
-          getEditorContext: async () => this.editorContext(),
-          checkpoint: async (relPath, content) => this.saveCheckpoint(relPath, content),
-          previewChange: async (relPath, original, updated) => this.previewChange(relPath, original, updated),
-          callMcp: (server, tool, args) => this.mcp.call(server, tool, args)
-        },
+        this.toolContext(cfg, folder?.uri.fsPath, abort),
         {
           onAssistantStart: () => {
             currentReply = '';
@@ -354,6 +563,26 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       this.abort = undefined;
       void this.extensionContext.workspaceState.update('agentHistory', this.agent.getHistory());
       this.post({ type: 'busy', value: false });
+      if (assistantReplies > 0) {
+        void this.maybePromptReview();
+      }
+    }
+  }
+
+  private async maybePromptReview(): Promise<void> {
+    const prompted = this.extensionContext.globalState.get<boolean>('reviewPrompted', false);
+    if (prompted) return;
+    const count = (this.extensionContext.globalState.get<number>('completedRuns', 0) || 0) + 1;
+    await this.extensionContext.globalState.update('completedRuns', count);
+    if (count < 15) return;
+    await this.extensionContext.globalState.update('reviewPrompted', true);
+    const rateBtn = t('review.rateNow');
+    const laterBtn = t('review.later');
+    const choice = await vscode.window.showInformationMessage(t('review.prompt'), rateBtn, laterBtn);
+    if (choice === rateBtn) {
+      await vscode.env.openExternal(
+        vscode.Uri.parse('https://marketplace.visualstudio.com/items?itemName=ertugrul37.sovereign-agent&ssr=false#review-details')
+      );
     }
   }
 
@@ -506,7 +735,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         checkpoint: async (relPath: string, content: string | undefined) => this.saveCheckpoint(relPath, content),
         previewChange: async (relPath: string, original: string, updated: string) =>
           this.previewChange(relPath, original, updated),
-        callMcp: (server: string, tool: string, argsJson: string) => this.mcp.call(server, tool, argsJson)
+        callMcp: (server: string, tool: string, argsJson: string) => this.mcp.call(server, tool, argsJson),
+        runCommand: (command: string) => this.terminal.run(command, root ?? process.cwd(), abort.signal)
       };
     }
 
@@ -575,10 +805,24 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
   }
 
+  /**
+   * Asks the user to approve an agent action. Rendered inline in the chat
+   * (right under the tool call it belongs to) instead of a native modal
+   * dialog, so approving doesn't interrupt whatever else the user is doing
+   * in the editor. Falls back to a native modal only if the webview isn't
+   * currently visible to receive it.
+   */
   private async confirm(message: string, detail: string): Promise<boolean> {
-    const allow = t('approval.allow');
-    const choice = await vscode.window.showWarningMessage(message, { modal: true, detail }, allow);
-    return choice === allow;
+    if (!this.view) {
+      const allow = t('approval.allow');
+      const choice = await vscode.window.showWarningMessage(message, { modal: true, detail }, allow);
+      return choice === allow;
+    }
+    const id = randomUUID();
+    return new Promise<boolean>((resolve) => {
+      this.pendingConfirms.set(id, resolve);
+      this.post({ type: 'confirmRequest', id, message, detail });
+    });
   }
 
   private mcpServers(): Record<string, McpServerConfig> {
@@ -663,35 +907,58 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; img-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="${media('chat.css')}">
 </head>
-<body>
+<body class="empty">
   <header>
-    <button id="model" class="model model-trigger" data-i18n-title="ui.changeModel" title="" aria-haspopup="true" aria-expanded="false">
-      <span id="modelName"></span>
-      <span class="chevron">⌄</span>
-    </button>
     <div class="header-actions">
-      <button id="compareModel" class="icon-button" data-i18n-title="ui.compareModel" title="" aria-label="">⇆</button>
-      <button id="undo" class="icon-button" data-i18n-title="ui.undo" title="" aria-label="">↶</button>
-      <button id="historyToggle" class="icon-button" data-i18n-title="ui.history" title="" aria-expanded="false">⌁</button>
+      <button id="compareModel" class="icon-button" data-icon="columns" data-i18n-title="ui.compareModel" title="" aria-label="Compare models"></button>
+      <button id="approval" class="icon-button" data-icon="shield" data-i18n-title="ui.autoApprove" title="" aria-haspopup="true" aria-label="Approvals"></button>
+      <button id="undo" class="icon-button" data-icon="undo" data-i18n-title="ui.undo" title="" aria-label="Undo"></button>
+      <button id="historyToggle" class="icon-button" data-icon="history" data-i18n-title="ui.history" title="" aria-label="History" aria-expanded="false"></button>
+      <button id="langToggle" class="icon-button" data-icon="globe" data-i18n-title="ui.menuLanguage" title="" aria-label="Language"></button>
+      <button id="feedbackToggle" class="icon-button" data-icon="alertCircle" data-i18n-title="ui.feedback" title="" aria-label="Support & Feedback" aria-expanded="false"></button>
     </div>
   </header>
-  <section id="modelPanel" class="popover model-panel" hidden>
-    <div class="popover-search">
-      <span>⌕</span>
-      <input id="modelSearch" type="search" data-i18n-placeholder="ui.searchModels" />
+  <div id="approvalPanel" class="popover approval-panel" hidden>
+    <p data-i18n="ui.approvalHint"></p>
+    <button id="approvalToggle" type="button" data-i18n="ui.approveNext"></button>
+  </div>
+  <div id="feedbackPanel" class="popover feedback-panel" hidden>
+    <div class="feedback-header">
+      <div class="feedback-title">
+        <span class="feedback-icon" data-icon="alertCircle"></span>
+        <span data-i18n="ui.feedbackTitle"></span>
+      </div>
+      <button id="feedbackClose" class="icon-button close-button" data-icon="x" title="Close" aria-label="Close"></button>
     </div>
-    <div id="modelOptions" class="model-options"></div>
-    <button id="compareModelOption" class="popover-link" data-i18n="ui.configureCompare"></button>
-  </section>
-  <section id="metrics" class="metrics" aria-label="Response metrics" hidden>
-    <div class="metrics-heading">
+    <p class="feedback-desc" data-i18n="ui.feedbackDesc"></p>
+    <div class="feedback-email-card">
+      <div class="feedback-email-meta">
+        <span class="feedback-email-badge">E-mail</span>
+        <span class="feedback-email-addr">destekai.sovereign.ai@gmail.com</span>
+      </div>
+      <button id="copyEmailBtn" class="icon-button feedback-copy-btn" data-icon="copy" data-i18n-title="ui.copyEmail" title="Copy Email" aria-label="Copy Email"></button>
+    </div>
+    <div class="feedback-form">
+      <textarea id="feedbackText" rows="4" data-i18n-placeholder="ui.feedbackPlaceholder"></textarea>
+      <div class="feedback-footer">
+        <button id="sendEmailBtn" type="button" class="feedback-send-btn">
+          <span class="feedback-btn-icon" data-icon="mail"></span>
+          <span data-i18n="ui.sendEmail"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+  <section id="metrics" class="metrics collapsed" aria-label="Response metrics" hidden>
+    <button id="metricsToggle" type="button" class="metrics-heading" aria-expanded="false" aria-controls="metricsBody">
       <span class="eyebrow" data-i18n="ui.performance"></span>
       <span class="metrics-live" data-i18n="ui.live"></span>
-    </div>
+      <span class="metrics-chevron" data-icon="chevronRight"></span>
+    </button>
+    <div id="metricsBody" class="metrics-body">
     <div class="metric-grid">
       <div class="metric-card metric-card-accent">
         <span data-i18n="ui.response"></span><strong id="metricTime">—</strong>
@@ -727,6 +994,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         <span><i class="legend-dot duration-dot"></i><span data-i18n="ui.chartDuration"></span></span>
       </div>
     </div>
+    </div>
   </section>
   <aside id="historyPanel" class="history-panel" hidden>
     <div class="panel-heading">
@@ -741,10 +1009,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     <pre id="commitDetail" class="commit-detail" hidden></pre>
   </aside>
   <main id="messages" aria-live="polite">
-    <section id="empty" class="empty">
-      <h2 data-i18n="ui.emptyTitle"></h2>
-      <p data-i18n="ui.emptyBody"></p>
-    </section>
     <section id="comparison" class="comparison" hidden aria-live="polite">
       <div class="comparison-heading">
         <span class="eyebrow" data-i18n="ui.compareTitle"></span>
@@ -765,42 +1029,49 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     </section>
   </main>
   <footer>
-    <div id="dictationPanel" class="dictation-panel" hidden>
-      <div class="dictation-heading">
-        <strong data-i18n="ui.dictation"></strong>
-        <button id="dictationClose" class="icon-button" data-i18n-title="ui.close" title="">×</button>
+    <div id="hero" class="hero">
+      <img class="hero-mark" src="${media('logo.svg')}" alt="" />
+      <h1 id="greeting"></h1>
+    </div>
+    <div class="composer-wrap">
+      <div id="plusMenu" class="popover plus-menu" role="menu" hidden>
+        <div id="plusMain"></div>
+        <div id="plusSub" hidden></div>
       </div>
-      <p data-i18n="ui.dictationHint"></p>
-      <button id="microphoneSelect" class="microphone-select" type="button">◉ <span data-i18n="ui.defaultMicrophone"></span><span>⌄</span></button>
-      <button id="asrSettings" class="asr-settings" type="button" data-i18n="ui.asrSettings"></button>
-      <div class="waveform" aria-hidden="true"></div>
-    </div>
-    <div class="composer">
-      <textarea id="input" rows="3" data-i18n-placeholder="ui.placeholder"></textarea>
-      <div class="composer-toolbar">
-        <button id="attach" class="toolbar-button" data-i18n-title="ui.attach" title="">＋</button>
-        <button id="mode" class="mode-button" aria-haspopup="true" aria-expanded="false"><span id="modeName">Code</span><span>⌃</span></button>
-        <button id="approval" class="mode-button approval-button" aria-haspopup="true" aria-expanded="false"><span data-i18n="ui.autoApprove"></span><span>⌃</span></button>
-        <span class="composer-spacer"></span>
-        <button id="mic" class="toolbar-button" data-i18n-title="ui.dictation" title="">♩</button>
-        <button id="send" class="send-button" data-i18n-title="ui.send" title="">↑</button>
+      <section id="modelPanel" class="popover model-panel" hidden>
+        <div class="popover-search">
+          <span data-icon="search"></span>
+          <input id="modelSearch" type="search" data-i18n-placeholder="ui.searchModels" />
+        </div>
+        <div id="modelOptions" class="model-options"></div>
+        <button id="compareModelOption" class="popover-link" data-i18n="ui.configureCompare"></button>
+      </section>
+      <div class="composer">
+        <div id="attachments" class="attachments" hidden></div>
+        <textarea id="input" rows="2" data-i18n-placeholder="ui.placeholder"></textarea>
+        <div class="composer-toolbar">
+          <button id="plus" class="toolbar-button" data-icon="plus" data-i18n-title="ui.attach" title="" aria-haspopup="true" aria-expanded="false" aria-label="Add"></button>
+          <div class="segmented" role="group">
+            <button id="segChat" type="button" data-mode="Ask" data-i18n="ui.modeChat"></button>
+            <button id="segAgent" type="button" data-mode="Code" data-i18n="ui.modeAgent"></button>
+          </div>
+          <span class="composer-spacer"></span>
+          <button id="model" class="model-trigger" data-i18n-title="ui.changeModel" title="" aria-haspopup="true" aria-expanded="false">
+            <span id="modelName"></span>
+          </button>
+          <button id="send" class="send-button" data-icon="arrowUp" data-i18n-title="ui.send" title="" aria-label="Send" disabled></button>
+          <button id="stop" class="send-button stop-button" data-icon="stop" data-i18n-title="ui.stop" title="" aria-label="Stop" hidden></button>
+        </div>
       </div>
     </div>
-    <div id="modePanel" class="popover mode-panel" hidden>
-      <button data-mode="Code"><strong>Code</strong><small data-i18n="ui.modeCode"></small></button>
-      <button data-mode="Ask"><strong>Ask</strong><small data-i18n="ui.modeAsk"></small></button>
-      <button data-mode="Debug"><strong>Debug</strong><small data-i18n="ui.modeDebug"></small></button>
-      <button data-mode="Orchestrator"><strong>Orchestrator</strong><small data-i18n="ui.modeOrchestrator"></small><em data-i18n="ui.deprecated"></em></button>
-      <button data-mode="Plan"><strong>Plan</strong><small data-i18n="ui.modePlan"></small></button>
+    <div id="chips" class="chips">
+      <button type="button" class="chip" data-mode="Code" data-starter="ui.starterCode" data-icon="code"><span data-i18n="ui.chipCode"></span></button>
+      <button type="button" class="chip" data-mode="Ask" data-starter="ui.starterLearn" data-icon="cap"><span data-i18n="ui.chipLearn"></span></button>
+      <button type="button" class="chip" data-mode="Code" data-starter="ui.starterWrite" data-icon="pencil"><span data-i18n="ui.chipWrite"></span></button>
+      <button type="button" class="chip" data-mode="Debug" data-starter="ui.starterDebug" data-icon="bug"><span data-i18n="ui.chipDebug"></span></button>
+      <button type="button" class="chip" data-mode="Plan" data-starter="ui.starterPlan" data-icon="list"><span data-i18n="ui.chipPlan"></span></button>
     </div>
-    <div id="approvalPanel" class="popover approval-panel" hidden>
-      <p data-i18n="ui.approvalHint"></p>
-      <button id="approvalToggle" type="button" data-i18n="ui.approveNext"></button>
-    </div>
-    <div class="actions">
-      <span id="status" class="status"></span>
-      <button id="stop" class="secondary" data-i18n="ui.stop" hidden></button>
-    </div>
+    <div class="actions"><span id="status" class="status"></span></div>
   </footer>
   <script nonce="${nonce}" src="${media('chat.js')}"></script>
 </body>

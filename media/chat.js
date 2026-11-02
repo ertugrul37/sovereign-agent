@@ -13,9 +13,14 @@
   const commitDetail = $('commitDetail');
   const comparison = $('comparison');
   const modelPanel = $('modelPanel');
-  const modePanel = $('modePanel');
+  const plusMenu = $('plusMenu');
   const approvalPanel = $('approvalPanel');
-  const dictationPanel = $('dictationPanel');
+  const feedbackPanel = $('feedbackPanel');
+  // The empty state is a body class so the greeting, composer and chips re-flow together.
+  const empty = {
+    get hidden() { return !document.body.classList.contains('empty'); },
+    set hidden(value) { document.body.classList.toggle('empty', !value); }
+  };
 
   let strings = {};
   let busy = false;
@@ -24,10 +29,30 @@
   let lastTool = null;
   let comparisonTexts = {};
   let selectedMode = 'Code';
-  let mediaRecorder = null;
-  let microphoneStream = null;
-  let recordedChunks = [];
-  let dictating = false;
+  let attachments = [];
+  let skillsLoaded = null;
+  let subKind = '';
+  let userName = '';
+  let currentLanguage = 'auto';
+  let availableLocales = {
+    tr: 'Türkçe (Turkish)',
+    en: 'English',
+    de: 'Deutsch (German)',
+    es: 'Español (Spanish)',
+    fr: 'Français (French)',
+    zh: '中文 (Chinese)',
+    ru: 'Русский (Russian)',
+    ja: '日本語 (Japanese)',
+    ko: '한국어 (Korean)',
+    pt: 'Português (Portuguese)',
+    it: 'Italiano (Italian)',
+    ar: 'العربية (Arabic)',
+    nl: 'Nederlands (Dutch)',
+    pl: 'Polski (Polish)',
+    hi: 'हिन्दी (Hindi)',
+    az: 'Azərbaycan (Azerbaijani)'
+  };
+  let theme = (vscode.getState() || {}).theme || 'auto';
   let autoApproveNext = false;
   const metricHistory = [];
 
@@ -44,6 +69,8 @@
       el.title = s(el.dataset.i18nTitle);
     });
     if (busy) statusEl.textContent = s('ui.working');
+    updateGreeting();
+    setMode(selectedMode);
   }
 
   function escapeHtml(text) {
@@ -73,7 +100,7 @@
   }
 
   function add(className, text) {
-    $('empty').hidden = true;
+    empty.hidden = true;
     const el = document.createElement('div');
     el.className = 'msg ' + className;
     el.textContent = text;
@@ -145,18 +172,58 @@
     });
   }
 
+  function updateSend() {
+    sendBtn.disabled = !input.value.trim();
+  }
+
+  function autosize() {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+  }
+
   function send() {
     const text = input.value.trim();
     if (!text || busy) return;
-    add('user', text);
+    const bubbleEl = add('user', text);
+    if (attachments.length) {
+      const files = document.createElement('div');
+      files.className = 'user-files';
+      files.textContent = attachments.map((a) => a.name).join(', ');
+      bubbleEl.appendChild(files);
+    }
+    const blocks = attachments
+      .map((a) => '\n\n' + a.name + ':\n```' + a.language + '\n' + a.content + '\n```')
+      .join('');
     input.value = '';
-    vscode.postMessage({ type: 'send', text, mode: selectedMode });
+    attachments = [];
+    renderAttachments();
+    autosize();
+    updateSend();
+    vscode.postMessage({ type: 'send', text: text + blocks, mode: selectedMode });
+  }
+
+  // Opens upward by default; flips below the composer when there is no room above (e.g. the centred empty state).
+  function placePopover(panel) {
+    panel.classList.remove('drop-down');
+    panel.style.maxHeight = '';
+    const wrap = panel.parentElement.getBoundingClientRect();
+    const above = wrap.top - 12;
+    const below = window.innerHeight - wrap.bottom - 12;
+    const needed = panel.scrollHeight + 2;
+    const down = needed > above && below > above;
+    panel.classList.toggle('drop-down', down);
+    panel.style.maxHeight = Math.max(140, down ? below : above) + 'px';
   }
 
   function closePopovers(except) {
-    [modelPanel, modePanel, approvalPanel].forEach((panel) => {
-      if (panel !== except) panel.hidden = true;
+    [modelPanel, plusMenu, approvalPanel, feedbackPanel].forEach((panel) => {
+      if (panel && panel !== except) panel.hidden = true;
     });
+    $('plus').setAttribute('aria-expanded', String(!plusMenu.hidden));
+    $('model').setAttribute('aria-expanded', String(!modelPanel.hidden));
+    if ($('feedbackToggle')) {
+      $('feedbackToggle').setAttribute('aria-expanded', String(!feedbackPanel.hidden));
+    }
   }
 
   function renderModelOptions(models, selected, error) {
@@ -188,60 +255,301 @@
     }
   }
 
-  function toggleDictation() {
-    dictationPanel.hidden = !dictationPanel.hidden;
-    if (!dictationPanel.hidden) startDictation();
-    else stopDictation();
+  // ---- Icons (inline, stroke-based) ----
+  const ICONS = {
+    plus: '<path d="M5 12h14M12 5v14"/>',
+    arrowUp: '<path d="m5 12 7-7 7 7M12 19V5"/>',
+    stop: '<rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" stroke="none"/>',
+    x: '<path d="M18 6 6 18M6 6l12 12"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    chevronRight: '<path d="m9 18 6-6-6-6"/>',
+    chevronLeft: '<path d="m15 18-6-6 6-6"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+    paperclip: '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+    layers: '<path d="m12 2 9 4.5-9 4.5-9-4.5L12 2Z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 17 9 4.5 9-4.5"/>',
+    sparkles: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3Z"/>',
+    blocks: '<rect x="14" y="3" width="7" height="7" rx="1"/><path d="M10 21V8a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1H3"/>',
+    palette: '<circle cx="13.5" cy="6.5" r=".6" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".6" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".6" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".6" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.65-.75 1.65-1.69 0-.43-.18-.83-.44-1.12-.29-.29-.44-.65-.44-1.13a1.64 1.64 0 0 1 1.67-1.67h2c3.05 0 5.55-2.5 5.55-5.55C21.97 6.01 17.46 2 12 2Z"/>',
+    plug: '<path d="M12 22v-5M9 8V2M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
+    globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20M2 12h20"/>',
+    columns: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/>',
+    shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1Z"/>',
+    undo: '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>',
+    history: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    code: '<path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/>',
+    cap: '<path d="M21.4 10.9a1 1 0 0 0 0-1.8L12.8 5.2a2 2 0 0 0-1.6 0L2.6 9.1a1 1 0 0 0 0 1.8l8.6 3.9a2 2 0 0 0 1.6 0Z"/><path d="M22 10v6M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>',
+    pencil: '<path d="M21.2 6.8a1 1 0 0 0-4-4L3.8 16.2a2 2 0 0 0-.5.8l-1.3 4.4a.5.5 0 0 0 .6.6l4.4-1.3a2 2 0 0 0 .8-.5Z"/><path d="m15 5 4 4"/>',
+    bug: '<path d="m8 2 1.9 1.9M14.1 3.9 16 2M9 7.1v-1a3 3 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6ZM12 20v-9M6.5 9C4.6 8.8 3 7.1 3 5M6 13H2M3 21c0-2.1 1.7-3.9 3.8-4M20.97 5c0 2.1-1.6 3.8-3.5 4M22 13h-4M17.2 17c2.1.1 3.8 1.9 3.8 4"/>',
+    list: '<path d="m3 17 2 2 4-4M3 7l2 2 4-4M13 6h8M13 12h8M13 18h8"/>',
+    alertCircle: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+    copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+    mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>'
+  };
+
+  function icon(name, size) {
+    const px = size || 16;
+    return '<svg class="icon" viewBox="0 0 24 24" width="' + px + '" height="' + px + '" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[name] || '') + '</svg>';
   }
 
-  async function startDictation() {
-    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
-      $('status').textContent = s('ui.dictationUnavailable');
-      return;
-    }
-    try {
-      microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : 'audio/webm';
-      recordedChunks = [];
-      mediaRecorder = new MediaRecorder(microphoneStream, { mimeType });
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) recordedChunks.push(event.data);
-      };
-      mediaRecorder.onstop = async () => {
-        const blob = new Blob(recordedChunks, { type: mimeType });
-        const dataUrl = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-        $('status').textContent = s('ui.transcribing');
-        vscode.postMessage({ type: 'transcribe', audio: dataUrl, mimeType });
-      };
-      mediaRecorder.start();
-      dictating = true;
-      $('mic').classList.add('active');
-      $('status').textContent = s('ui.recording');
-    } catch (error) {
-      $('status').textContent = s('ui.dictationError');
-      stopDictation();
-    }
+  function hydrateIcons() {
+    document.querySelectorAll('[data-icon]').forEach((el) => {
+      if (!el.querySelector(':scope > svg.icon')) el.insertAdjacentHTML('afterbegin', icon(el.dataset.icon));
+    });
   }
 
-  function stopDictation() {
-    dictating = false;
-    $('mic').classList.remove('active');
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      mediaRecorder.stop();
-    }
-    if (microphoneStream) {
-      microphoneStream.getTracks().forEach((track) => track.stop());
-      microphoneStream = null;
-    }
-    mediaRecorder = null;
+  // ---- Greeting, mode, theme ----
+  function updateGreeting() {
+    const hour = new Date().getHours();
+    const key = hour >= 5 && hour < 12 ? 'ui.greetingMorning' : hour >= 12 && hour < 18 ? 'ui.greetingAfternoon' : 'ui.greetingEvening';
+    const base = s(key);
+    $('greeting').textContent = userName ? base + ', ' + userName : base;
   }
+
+  function setMode(mode) {
+    selectedMode = mode;
+    const chat = $('segChat');
+    const agent = $('segAgent');
+    chat.classList.toggle('active', mode === 'Ask');
+    agent.classList.toggle('active', mode === 'Code');
+    chat.setAttribute('aria-pressed', String(mode === 'Ask'));
+    agent.setAttribute('aria-pressed', String(mode === 'Code'));
+    // Debug and Plan have no segment, so they show as a removable chip above the input.
+    renderAttachments();
+  }
+
+  function applyTheme() {
+    document.body.classList.toggle('theme-dark', theme === 'dark');
+    document.body.classList.toggle('theme-light', theme === 'light');
+  }
+
+  function setTheme(value) {
+    theme = value;
+    applyTheme();
+    vscode.setState({ ...(vscode.getState() || {}), theme });
+  }
+
+  // ---- Attachments ----
+  function renderAttachments() {
+    const box = $('attachments');
+    box.replaceChildren();
+    const extraMode = selectedMode !== 'Ask' && selectedMode !== 'Code';
+    box.hidden = attachments.length === 0 && !extraMode;
+    if (extraMode) {
+      const chip = document.createElement('span');
+      chip.className = 'attachment mode-chip';
+      chip.insertAdjacentHTML('beforeend', icon(selectedMode === 'Debug' ? 'bug' : 'list', 13));
+      const name = document.createElement('span');
+      name.textContent = selectedMode === 'Debug' ? s('ui.chipDebug') : s('ui.chipPlan');
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.title = s('ui.removeAttachment');
+      remove.setAttribute('aria-label', s('ui.removeAttachment'));
+      remove.innerHTML = icon('x', 12);
+      remove.addEventListener('click', () => setMode('Code'));
+      chip.append(name, remove);
+      box.appendChild(chip);
+    }
+    attachments.forEach((item, index) => {
+      const chip = document.createElement('span');
+      chip.className = 'attachment';
+      const name = document.createElement('span');
+      name.textContent = item.name;
+      name.title = item.name;
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.title = s('ui.removeAttachment');
+      remove.setAttribute('aria-label', s('ui.removeAttachment'));
+      remove.innerHTML = icon('x', 12);
+      remove.addEventListener('click', () => {
+        attachments.splice(index, 1);
+        renderAttachments();
+      });
+      chip.append(name, remove);
+      box.appendChild(chip);
+    });
+  }
+
+  // ---- "+" menu ----
+  const shortcut = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘U' : 'Ctrl+U';
+
+  function menuRow(opts) {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'menu-item';
+    row.setAttribute('role', 'menuitem');
+    if (opts.icon) row.insertAdjacentHTML('beforeend', icon(opts.icon));
+    const label = document.createElement('span');
+    label.className = 'menu-label';
+    label.textContent = opts.label;
+    row.appendChild(label);
+    if (opts.badge) {
+      const badge = document.createElement('span');
+      badge.className = 'menu-badge';
+      badge.textContent = opts.badge;
+      row.appendChild(badge);
+    }
+    if (opts.end === 'chevron' || opts.end === 'check') {
+      const end = document.createElement('span');
+      end.className = 'menu-end' + (opts.end === 'check' ? ' checked' : '');
+      end.innerHTML = icon(opts.end === 'check' ? 'check' : 'chevronRight', opts.end === 'check' ? 16 : 14);
+      row.appendChild(end);
+    } else if (opts.end) {
+      const end = document.createElement('span');
+      end.className = 'menu-end';
+      end.textContent = opts.end;
+      row.appendChild(end);
+    }
+    if (opts.disabled) row.disabled = true;
+    else row.addEventListener('click', opts.onClick);
+    return row;
+  }
+
+  function menuSep() {
+    const sep = document.createElement('div');
+    sep.className = 'menu-sep';
+    sep.setAttribute('role', 'separator');
+    return sep;
+  }
+
+  function showPlusMain() {
+    subKind = '';
+    const main = $('plusMain');
+    main.replaceChildren(
+      menuRow({ icon: 'paperclip', label: s('ui.menuAttach'), end: shortcut, onClick: attachFile }),
+      menuRow({ icon: 'layers', label: s('ui.menuProject'), end: 'chevron', onClick: () => showSub('ui.menuProject', projectRows()) }),
+      menuSep(),
+      menuRow({ icon: 'sparkles', label: s('ui.menuSkills'), end: 'chevron', onClick: openSkills }),
+      menuRow({ icon: 'blocks', label: s('ui.menuConnectors'), end: 'chevron', onClick: () => showSub('ui.menuConnectors', connectorRows()) }),
+      menuRow({ icon: 'palette', label: s('ui.menuDesign'), end: 'chevron', onClick: () => { subKind = 'design'; showSub('ui.menuDesign', themeRows()); } }),
+      menuRow({ icon: 'globe', label: s('ui.menuLanguage') || 'Dil Seçimi / Language', end: 'chevron', onClick: () => { subKind = 'language'; showSub('ui.menuLanguage', languageRows()); } }),
+      menuSep(),
+      menuRow({ icon: 'plug', label: s('ui.openSettings') || 'Ayarlar / Settings', onClick: () => post({ type: 'openSettings' }) }),
+      menuRow({ icon: 'alertCircle', label: s('ui.feedback') || 'Destek & İstek', onClick: () => {
+        closePopovers(feedbackPanel);
+        feedbackPanel.hidden = false;
+        $('feedbackToggle').setAttribute('aria-expanded', 'true');
+        $('feedbackText').focus();
+      } }),
+      menuRow({ icon: 'plug', label: s('ui.menuExtension'), onClick: () => { closePopovers(); vscode.postMessage({ type: 'openExtensions' }); } }),
+      menuSep(),
+      // Web search stays off on purpose: the extension promises to only talk to local servers.
+      menuRow({ icon: 'globe', label: s('ui.menuWebSearch'), badge: s('ui.soon'), disabled: true })
+    );
+    main.hidden = false;
+    $('plusSub').hidden = true;
+  }
+
+  function showSub(titleKey, rows) {
+    const sub = $('plusSub');
+    const back = menuRow({ icon: 'chevronLeft', label: s(titleKey), onClick: showPlusMain });
+    back.classList.add('menu-back');
+    sub.replaceChildren(back, menuSep(), ...rows);
+    $('plusMain').hidden = true;
+    sub.hidden = false;
+    placePopover(plusMenu);
+  }
+
+  function post(message) {
+    closePopovers();
+    vscode.postMessage(message);
+  }
+
+  function attachFile() { post({ type: 'attachFile' }); }
+
+  function projectRows() {
+    return [
+      menuRow({ label: s('ui.projectActiveFile'), onClick: () => post({ type: 'attachActive' }) }),
+      menuRow({ label: s('ui.projectPickFile'), onClick: () => post({ type: 'attachPick' }) }),
+      menuRow({ label: s('ui.projectSelection'), onClick: () => post({ type: 'attachSelection' }) })
+    ];
+  }
+
+  function connectorRows() {
+    return [menuRow({ label: s('ui.connectorsOpen'), onClick: () => post({ type: 'openMcpSettings' }) })];
+  }
+
+  function themeRows() {
+    return [['auto', 'ui.themeAuto'], ['dark', 'ui.themeDark'], ['light', 'ui.themeLight']].map(([value, key]) =>
+      menuRow({
+        label: s(key),
+        end: theme === value ? 'check' : '',
+        onClick: () => {
+          setTheme(value);
+          showSub('ui.menuDesign', themeRows());
+        }
+      })
+    );
+  }
+
+  function languageRows() {
+    const entries = [['auto', s('ui.languageAuto') || 'Otomatik (VS Code)'], ...Object.entries(availableLocales)];
+    return entries.map(([code, name]) =>
+      menuRow({
+        label: name,
+        end: currentLanguage === code ? 'check' : '',
+        onClick: () => {
+          currentLanguage = code;
+          post({ type: 'setLanguage', language: code });
+        }
+      })
+    );
+  }
+
+  function skillRows() {
+    if (skillsLoaded === null) return [menuRow({ label: s('ui.skillsLoading'), disabled: true })];
+    if (!skillsLoaded.length) return [menuRow({ label: s('ui.skillsEmpty'), disabled: true })];
+    return skillsLoaded.map((item) =>
+      menuRow({ label: item.name, onClick: () => post({ type: 'useSkill', file: item.name }) })
+    );
+  }
+
+  function openSkills() {
+    subKind = 'skills';
+    skillsLoaded = null;
+    showSub('ui.menuSkills', skillRows());
+    vscode.postMessage({ type: 'listSkills' });
+  }
+
+  $('plus').addEventListener('click', () => {
+    const open = plusMenu.hidden;
+    closePopovers(plusMenu);
+    plusMenu.hidden = !open;
+    if (open) {
+      showPlusMain();
+      placePopover(plusMenu);
+    }
+    $('plus').setAttribute('aria-expanded', String(open));
+  });
+
+  document.addEventListener('click', (event) => {
+    const path = event.composedPath();
+    const inside = path.some((node) => node.classList && (node.classList.contains('popover') || ['plus', 'model', 'approval', 'feedbackToggle', 'langToggle'].includes(node.id)));
+    if (!inside) closePopovers();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closePopovers();
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'u') {
+      event.preventDefault();
+      attachFile();
+    }
+  });
+
+  $('segChat').addEventListener('click', () => setMode('Ask'));
+  $('segAgent').addEventListener('click', () => setMode('Code'));
+  document.querySelectorAll('.chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      setMode(chip.dataset.mode);
+      input.value = s(chip.dataset.starter);
+      autosize();
+      updateSend();
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    });
+  });
+
+  hydrateIcons();
+  applyTheme();
+  setMode(selectedMode);
 
   sendBtn.addEventListener('click', send);
   stopBtn.addEventListener('click', () => vscode.postMessage({ type: 'stop' }));
@@ -250,16 +558,13 @@
     closePopovers(modelPanel);
     modelPanel.hidden = !open;
     $('model').setAttribute('aria-expanded', String(!modelPanel.hidden));
-    if (open) vscode.postMessage({ type: 'modelMenu' });
+    if (open) {
+      placePopover(modelPanel);
+      vscode.postMessage({ type: 'modelMenu' });
+    }
   });
   $('compareModel').addEventListener('click', () => vscode.postMessage({ type: 'selectCompareModel' }));
   $('compareModelOption').addEventListener('click', () => vscode.postMessage({ type: 'selectCompareModel' }));
-  $('mode').addEventListener('click', () => {
-    const open = modePanel.hidden;
-    closePopovers(modePanel);
-    modePanel.hidden = !open;
-    $('mode').setAttribute('aria-expanded', String(!modePanel.hidden));
-  });
   $('approval').addEventListener('click', () => {
     const open = approvalPanel.hidden;
     closePopovers(approvalPanel);
@@ -270,19 +575,6 @@
     vscode.postMessage({ type: 'setAutoApprove', value: autoApproveNext });
     $('approvalToggle').textContent = autoApproveNext ? s('ui.approvalEnabled') : s('ui.approveNext');
   });
-  document.querySelectorAll('#modePanel [data-mode]').forEach((button) => {
-    button.addEventListener('click', () => {
-      selectedMode = button.dataset.mode;
-      $('modeName').textContent = selectedMode;
-      modePanel.hidden = true;
-    });
-  });
-  $('mic').addEventListener('click', toggleDictation);
-  $('asrSettings').addEventListener('click', () => vscode.postMessage({ type: 'openSettings' }));
-  $('dictationClose').addEventListener('click', () => {
-    dictationPanel.hidden = true;
-    stopDictation();
-  });
   $('modelSearch').addEventListener('input', () => {
     const query = $('modelSearch').value.toLowerCase();
     document.querySelectorAll('.model-option').forEach((option) => {
@@ -291,7 +583,50 @@
   });
   $('undo').addEventListener('click', () => vscode.postMessage({ type: 'undo' }));
   $('historyToggle').addEventListener('click', () => showHistory(historyPanel.hidden));
+  $('langToggle').addEventListener('click', () => vscode.postMessage({ type: 'selectLanguage' }));
+  $('feedbackToggle').addEventListener('click', () => {
+    const open = feedbackPanel.hidden;
+    closePopovers(feedbackPanel);
+    feedbackPanel.hidden = !open;
+    $('feedbackToggle').setAttribute('aria-expanded', String(open));
+    if (open) {
+      $('feedbackText').focus();
+    }
+  });
+  $('feedbackClose').addEventListener('click', () => {
+    feedbackPanel.hidden = true;
+    $('feedbackToggle').setAttribute('aria-expanded', 'false');
+  });
+  $('copyEmailBtn').addEventListener('click', () => {
+    vscode.postMessage({ type: 'copyText', text: 'destekai.sovereign.ai@gmail.com' });
+    const orig = $('copyEmailBtn').getAttribute('title') || '';
+    $('copyEmailBtn').setAttribute('title', s('ui.emailCopied') || 'Kopyalandı!');
+    $('copyEmailBtn').classList.add('copied');
+    setTimeout(() => {
+      $('copyEmailBtn').setAttribute('title', orig);
+      $('copyEmailBtn').classList.remove('copied');
+    }, 2000);
+  });
+  $('sendEmailBtn').addEventListener('click', () => {
+    const text = $('feedbackText').value.trim();
+    const subject = encodeURIComponent('Sovereign Agent - Kullanıcı Talebi / Geri Bildirim');
+    const body = encodeURIComponent(text ? text + '\n\n---\nSovereign Agent User Request' : 'Merhaba Sovereign Agent Ekibi,\n\n');
+    const mailto = 'mailto:destekai.sovereign.ai@gmail.com?subject=' + subject + '&body=' + body;
+    vscode.postMessage({ type: 'openExternal', url: mailto });
+    $('feedbackText').value = '';
+    feedbackPanel.hidden = true;
+    $('feedbackToggle').setAttribute('aria-expanded', 'false');
+  });
+  $('metricsToggle').addEventListener('click', () => {
+    const open = metrics.classList.contains('collapsed');
+    metrics.classList.toggle('collapsed', !open);
+    $('metricsToggle').setAttribute('aria-expanded', String(open));
+  });
   $('historyClose').addEventListener('click', () => showHistory(false));
+  input.addEventListener('input', () => {
+    autosize();
+    updateSend();
+  });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
@@ -304,10 +639,30 @@
     switch (msg.type) {
       case 'init':
         strings = msg.strings;
+        userName = msg.userName || '';
+        if (msg.language) currentLanguage = msg.language;
+        if (msg.locales) availableLocales = msg.locales;
         applyStrings();
         $('modelName').textContent = msg.compareModel
           ? (msg.model || s('ui.noModel')) + ' + ' + msg.compareModel
           : (msg.model || s('ui.noModel'));
+        break;
+      case 'openFeedback':
+        closePopovers(feedbackPanel);
+        feedbackPanel.hidden = false;
+        $('feedbackToggle').setAttribute('aria-expanded', 'true');
+        $('feedbackText').focus();
+        break;
+      case 'attachments':
+        (msg.items || []).forEach((item) => {
+          if (!attachments.some((a) => a.name === item.name)) attachments.push(item);
+        });
+        renderAttachments();
+        updateSend();
+        break;
+      case 'skills':
+        skillsLoaded = msg.items || [];
+        if (subKind === 'skills' && !plusMenu.hidden) showSub('ui.menuSkills', skillRows());
         break;
       case 'modelOptions':
         renderModelOptions(msg.models || [], msg.selected, msg.error);
@@ -332,7 +687,7 @@
             messages.appendChild(el);
           }
         });
-        $('empty').hidden = messages.querySelectorAll('.msg').length > 0;
+        empty.hidden = messages.querySelectorAll('.msg').length > 0;
         scrollDown();
         break;
       case 'metrics':
@@ -373,7 +728,7 @@
           button.disabled = true;
         });
         $('comparisonStatus').textContent = s('ui.compareRunning');
-        $('empty').hidden = true;
+        empty.hidden = true;
         break;
       case 'compareText': {
         comparisonTexts[msg.id] = msg.text;
@@ -411,7 +766,7 @@
         break;
       }
       case 'assistantStart':
-        $('empty').hidden = true;
+        empty.hidden = true;
         bubble = document.createElement('div');
         bubble.className = 'msg assistant';
         bubbleText = '';
@@ -451,9 +806,64 @@
       case 'error':
         add('error', msg.text);
         break;
+      case 'confirmRequest': {
+        empty.hidden = true;
+        const card = document.createElement('div');
+        card.className = 'msg confirm-card';
+        const text = document.createElement('p');
+        text.className = 'confirm-message';
+        text.textContent = msg.message;
+        card.appendChild(text);
+        if (msg.detail) {
+          const detail = document.createElement('pre');
+          detail.className = 'confirm-detail';
+          detail.textContent = msg.detail;
+          card.appendChild(detail);
+        }
+        const verdict = document.createElement('span');
+        verdict.className = 'confirm-verdict';
+        verdict.hidden = true;
+        card.appendChild(verdict);
+        const actions = document.createElement('div');
+        actions.className = 'confirm-actions';
+        const allowBtn = document.createElement('button');
+        allowBtn.type = 'button';
+        allowBtn.className = 'confirm-allow';
+        allowBtn.innerHTML = '<svg class="icon btn-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>';
+        const allowSpan = document.createElement('span');
+        allowSpan.dataset.i18n = 'approval.allow';
+        allowSpan.textContent = s('approval.allow') || 'İzin ver';
+        allowBtn.appendChild(allowSpan);
+        const denyBtn = document.createElement('button');
+        denyBtn.type = 'button';
+        denyBtn.className = 'confirm-deny';
+        denyBtn.innerHTML = '<svg class="icon btn-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>';
+        const denySpan = document.createElement('span');
+        denySpan.dataset.i18n = 'approval.deny';
+        denySpan.textContent = s('approval.deny') || 'Reddet';
+        denyBtn.appendChild(denySpan);
+        const settle = (allow) => {
+          allowBtn.disabled = true;
+          denyBtn.disabled = true;
+          actions.hidden = true;
+          verdict.hidden = false;
+          const label = allow ? (s('approval.allow') || 'İzin ver') : (s('approval.deny') || 'Reddet');
+          verdict.textContent = (allow ? '✓ ' : '✕ ') + label;
+          card.classList.add(allow ? 'confirm-allowed' : 'confirm-denied');
+          vscode.postMessage({ type: 'confirmResponse', id: msg.id, allow });
+        };
+        allowBtn.addEventListener('click', () => settle(true));
+        denyBtn.addEventListener('click', () => settle(false));
+        actions.appendChild(allowBtn);
+        actions.appendChild(denyBtn);
+        card.appendChild(actions);
+        messages.appendChild(card);
+        scrollDown();
+        break;
+      }
       case 'cleared':
         messages.querySelectorAll('.msg').forEach((el) => el.remove());
-        $('empty').hidden = false;
+        empty.hidden = false;
         bubble = null;
         lastTool = null;
         comparison.hidden = true;

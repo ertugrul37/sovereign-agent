@@ -2,7 +2,7 @@
   "name": "sovereign-agent",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.1.6",
+  "version": "0.1.14",
   "publisher": "ertugrul37",
   "icon": "media/logo.png",
   "license": "GPL-3.0-or-later",
@@ -24,6 +24,8 @@
   "categories": [
     "AI",
     "Chat",
+    "Machine Learning",
+    "Programming Languages",
     "Other"
   ],
   "keywords": [
@@ -34,7 +36,29 @@
     "llama.cpp",
     "lm studio",
     "privacy",
-    "offline"
+    "offline",
+    "copilot",
+    "local-llm",
+    "deepseek",
+    "qwen",
+    "codellama",
+    "vllm",
+    "jan",
+    "gpt4all",
+    "localai",
+    "coding-assistant",
+    "code-completion",
+    "mcp",
+    "air-gapped",
+    "zero-telemetry",
+    "open-source",
+    "autonomous-agent",
+    "lan",
+    "chat",
+    "assistant",
+    "llm",
+    "mistral",
+    "gemma"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -91,6 +115,21 @@
         "command": "sovereignAgent.openSettings",
         "title": "%command.openSettings%",
         "icon": "$(gear)"
+      },
+      {
+        "command": "sovereignAgent.showNetworkPeers",
+        "title": "%command.showNetworkPeers%",
+        "icon": "$(radio-tower)"
+      },
+      {
+        "command": "sovereignAgent.openFeedback",
+        "title": "%command.openFeedback%",
+        "icon": "$(info)"
+      },
+      {
+        "command": "sovereignAgent.selectLanguage",
+        "title": "%command.selectLanguage%",
+        "icon": "$(globe)"
       }
     ],
     "menus": {
@@ -126,6 +165,11 @@
           "command": "sovereignAgent.undo",
           "when": "view == sovereignAgent.chat",
           "group": "navigation@5"
+        },
+        {
+          "command": "sovereignAgent.openFeedback",
+          "when": "view == sovereignAgent.chat",
+          "group": "navigation@6"
         }
       ]
     },
@@ -186,22 +230,49 @@
           "type": "string",
           "enum": [
             "auto",
-            "en",
             "tr",
+            "en",
             "de",
             "es",
-            "fr"
+            "fr",
+            "zh",
+            "ru",
+            "ja",
+            "ko",
+            "pt",
+            "it",
+            "ar",
+            "nl",
+            "pl",
+            "hi",
+            "az"
           ],
           "markdownEnumDescriptions": [
             "%config.language.auto%",
-            "%config.language.en%",
-            "%config.language.tr%",
-            "%config.language.de%",
-            "%config.language.es%",
-            "%config.language.fr%"
+            "Türkçe (Turkish)",
+            "English",
+            "Deutsch (German)",
+            "Español (Spanish)",
+            "Français (French)",
+            "中文 (Chinese)",
+            "Русский (Russian)",
+            "日本語 (Japanese)",
+            "한국어 (Korean)",
+            "Português (Portuguese)",
+            "Italiano (Italian)",
+            "العربية (Arabic)",
+            "Nederlands (Dutch)",
+            "Polski (Polish)",
+            "हिन्दी (Hindi)",
+            "Azərbaycan (Azerbaijani)"
           ],
           "default": "auto",
           "markdownDescription": "%config.language%"
+        },
+        "sovereignAgent.userName": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "%config.userName%"
         },
         "sovereignAgent.temperature": {
           "type": "number",
@@ -237,6 +308,16 @@
           "type": "boolean",
           "default": false,
           "markdownDescription": "%config.allowLanHosts%"
+        },
+        "sovereignAgent.enableNetworkDiscovery": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "%config.enableNetworkDiscovery%"
+        },
+        "sovereignAgent.discoveryDisplayName": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "%config.discoveryDisplayName%"
         },
         "sovereignAgent.mcpServers": {
           "type": "string",

@@ -1,6 +1,6 @@
 {
-  "displayName": "Sovereign Agent",
-  "description": "VS Code için özgür, tamamen yerel yapay zekâ kodlama ajanı. Bulut yok, telemetri yok.",
+  "displayName": "Sovereign Agent — Yerel Yapay Zekâ & Ollama Kodlama Ajanı",
+  "description": "VS Code için %100 yerel, çevrimdışı yapay zekâ kodlama ajanı (Ollama, LM Studio, llama.cpp, vLLM). Yan yana model karşılaştırma, LAN paylaşımı, 16 dil, sıfır bulut ve sıfır telemetri.",
   "view.container.title": "Sovereign Agent",
   "view.chat.name": "Sohbet",
   "command.newChat": "Sovereign Agent: Yeni Sohbet",
@@ -10,6 +10,9 @@
   "command.undo": "Sovereign Agent: Son değişikliği geri al",
   "command.addSelectionToChat": "Sovereign Agent: Seçimi Sohbete Ekle",
   "command.openSettings": "Sovereign Agent: Ayarları Aç",
+  "command.showNetworkPeers": "Sovereign Agent: Ağdaki Eşleri Göster",
+  "command.openFeedback": "Sovereign Agent: Destek ve İstek Bildirimi (destekai.sovereign.ai@gmail.com)",
+  "command.selectLanguage": "Sovereign Agent: Dil Seç",
   "config.title": "Sovereign Agent",
   "config.provider.ollama": "Ollama yerel API'si",
   "config.provider.lmStudio": "LM Studio (OpenAI uyumlu API)",
@@ -32,6 +35,7 @@
   "config.asrBaseUrl": "Yerel OpenAI uyumlu ASR sunucusunun adresi. Nemotron ASR sunucuları genellikle http://localhost:8000/v1 kullanır.",
   "config.asrModel": "ASR model kimliği. Varsayılan nemotron-3.5-asr'dir; yerel sunucunuzun gösterdiği tam model kimliğini kullanın.",
   "config.language": "Arayüz dili. `auto` VS Code'un görüntüleme dilini izler. Mesajın dili belirsizse ajan da bu dilde yanıt verir.",
+  "config.userName": "Sohbet karşılamasında gösterilecek ad. Boş bırakılırsa yalnızca karşılama metni gösterilir.",
   "config.temperature": "Örnekleme sıcaklığı. Düşük değerler daha öngörülebilirdir.",
   "config.contextLength": "Bağlam penceresi (token). Modelin yüklendiği değerle eşleştir.",
   "config.maxIterations": "Mesaj başına en fazla araç adımı sayısı.",
@@ -39,5 +43,7 @@
   "config.requireCommandApproval": "Ajan kabuk komutu çalıştırmadan önce sor.",
   "config.tools": "Çalışma alanı araçları yerel ajana her zaman açıktır. Dosya yazma, değiştirme ve kabuk komutları varsayılan olarak onay ister.",
   "config.mcpServers": "Yerel STDIO MCP sunucularının JSON haritası. Sunucular yalnızca onaydan sonra başlar. Örnek: {\"filesystem\":{\"command\":\"npx\",\"args\":[\"-y\",\"@modelcontextprotocol/server-filesystem\",\".\"]}}.",
-  "config.allowLanHosts": "Özel yerel ağ adreslerindeki (10.x, 192.168.x, 172.16-31.x, `*.local`) sunuculara izin ver. Hiçbir şey makinenden çıkmasın diye varsayılan olarak kapalı."
+  "config.allowLanHosts": "Özel yerel ağ adreslerindeki (10.x, 192.168.x, 172.16-31.x, `*.local`) sunuculara izin ver. Hiçbir şey makinenden çıkmasın diye varsayılan olarak kapalı.",
+  "config.enableNetworkDiscovery": "Bu makinenin varlığını yerel ağda yayınla, böylece Sovereign Agent kullanan başkaları onu görüp bağlanabilsin. Varsayılan olarak kapalı. Gerçekten işe yaraması için `allowLanHosts` ayarının da açık olması gerekir; aksi halde bilgi uç noktası LAN dışı çağrıları zaten reddeder.",
+  "config.discoveryDisplayName": "Ağ yayını açıkken başkalarına gösterilecek ad. Boş bırakılırsa bu bilgisayarın ana bilgisayar adı ve çalışma alanı adı kullanılır."
 }

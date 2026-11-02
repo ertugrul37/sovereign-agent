@@ -1,7 +1,7 @@
 export const en = {
   // Webview UI
   'ui.title': 'Sovereign Agent',
-  'ui.placeholder': 'Ask about your code… (Enter to send, Shift+Enter for a new line)',
+  'ui.placeholder': 'How can I help you today?',
   'ui.send': 'Send',
   'ui.stop': 'Stop',
   'ui.you': 'You',
@@ -102,6 +102,57 @@ export const en = {
   ,'checkpoint.none': 'There is no change to undo.'
   ,'checkpoint.restored': 'Restored {path}.'
   ,'checkpoint.preview': 'Change preview'
+  ,'ui.greetingMorning': 'Good morning'
+  ,'ui.greetingAfternoon': 'Good afternoon'
+  ,'ui.greetingEvening': 'Good evening'
+  ,'ui.modeChat': 'Chat'
+  ,'ui.modeAgent': 'Agent'
+  ,'ui.chipCode': 'Code'
+  ,'ui.chipLearn': 'Learn'
+  ,'ui.chipWrite': 'Write'
+  ,'ui.chipDebug': 'Debug'
+  ,'ui.chipPlan': 'Plan'
+  ,'ui.starterCode': 'In this project, build: '
+  ,'ui.starterLearn': 'Explain to me: '
+  ,'ui.starterWrite': 'Write documentation for: '
+  ,'ui.starterDebug': 'Find and fix this bug: '
+  ,'ui.starterPlan': 'Make a step-by-step plan for: '
+  ,'ui.menuAttach': 'Add files or photos'
+  ,'ui.menuProject': 'Add to project'
+  ,'ui.menuSkills': 'Skills'
+  ,'ui.menuConnectors': 'Add connector'
+  ,'ui.menuDesign': 'Design system'
+  ,'ui.menuExtension': 'Add extension'
+  ,'ui.menuWebSearch': 'Web search'
+  ,'ui.soon': 'Soon'
+  ,'ui.projectActiveFile': 'Add open file'
+  ,'ui.projectPickFile': 'Pick files from workspace…'
+  ,'ui.projectSelection': 'Add selected code'
+  ,'ui.skillsEmpty': 'No prompts found in .github/prompts'
+  ,'ui.skillsLoading': 'Loading…'
+  ,'ui.connectorsOpen': 'Configure MCP servers…'
+  ,'ui.themeAuto': 'VS Code theme'
+  ,'ui.themeDark': 'Dark'
+  ,'ui.themeLight': 'Light'
+  ,'ui.back': 'Back'
+  ,'ui.removeAttachment': 'Remove attachment'
+  ,'ui.imageUnsupported': 'Images cannot be sent to the model yet. Attach a text or code file.'
+  ,'ui.attachUnsupported': 'Could not attach {name}: the file is binary or larger than 512 KB.'
+  ,'ui.noActiveFile': 'No file is open.'
+  ,'ui.feedback': 'Support & Feedback'
+  ,'ui.feedbackTitle': 'Support & Feedback'
+  ,'ui.feedbackDesc': 'Have a feature request, question, or bug report? Send your request directly to our team:'
+  ,'ui.feedbackPlaceholder': 'Describe your request, issue, or suggested feature here...'
+  ,'ui.sendEmail': 'Send via Email'
+  ,'ui.copyEmail': 'Copy Email'
+  ,'ui.emailCopied': 'Copied!'
+  ,'ui.openEmailClient': 'Open in Email Client'
+  ,'ui.menuLanguage': 'Language'
+  ,'ui.languageAuto': 'Automatic (VS Code)'
+  ,'ui.openSettings': 'Settings'
+  ,'review.prompt': 'Enjoying Sovereign Agent? Leaving a quick 5-star review on the VS Code Marketplace helps other privacy-focused developers find it!'
+  ,'review.rateNow': 'Rate on Marketplace ⭐'
+  ,'review.later': 'Maybe Later'
 };
 
 export type MessageKey = keyof typeof en;

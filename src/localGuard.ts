@@ -3,20 +3,31 @@
  * anything that is not loopback (or, optionally, a private LAN address).
  */
 
-function isLoopback(host: string): boolean {
-  const h = host.toLowerCase();
+export function isLoopback(host: string): boolean {
+  let h = host.toLowerCase();
+  if (h.startsWith('[') && h.endsWith(']')) {
+    h = h.slice(1, -1);
+  }
   return (
     h === 'localhost' ||
     h.endsWith('.localhost') ||
-    h === '[::1]' ||
     h === '::1' ||
+    h === '::ffff:127.0.0.1' ||
+    /^::ffff:7f[0-9a-f]{2}:/i.test(h) ||
     /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h)
   );
 }
 
-function isPrivateLan(host: string): boolean {
-  const h = host.toLowerCase();
+export function isPrivateLan(host: string): boolean {
+  let h = host.toLowerCase();
+  if (h.startsWith('[') && h.endsWith(']')) {
+    h = h.slice(1, -1);
+  }
   if (h.endsWith('.local')) {
+    return true;
+  }
+  // IPv6 Link-Local (fe80::/10) or Unique Local Address (fc00::/7)
+  if (/^fe[89ab][0-9a-f]:/i.test(h) || /^f[cd][0-9a-f]{2}:/i.test(h)) {
     return true;
   }
   const m = /^(\d{1,3})\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/.exec(h);

@@ -1,0 +1,62 @@
+# Changelog
+
+All notable changes to the **Sovereign Agent** extension will be documented in this file.
+
+## [0.1.14] - 2026-11-02
+
+### Fixed
+- **Interactive Agent Terminal & Output Buffering:** Fixed Pseudoterminal startup race condition where early command output was dropped before `pty.open()`; removed the read-only banner and added interactive `stdin` support (`Enter`, `Backspace`, `Ctrl+C`) for running scripts.
+- **Automatic Windows Python & UTF-8 Resolution:** Automatically discovers local Windows Python installations (`%LOCALAPPDATA%\Programs\Python\Python*`, `C:\Python*`) and sets `PYTHONIOENCODING=utf-8` / `PYTHONUTF8=1` so `python` commands and non-ASCII output work out-of-the-box.
+
+## [0.1.13] - 2026-11-02
+
+### Added
+- **Marketplace SEO & Showcase:** Expanded Marketplace search keywords (30 high-intent terms), categories (`Machine Learning`, `Programming Languages`), localized Marketplace titles/descriptions, and a comprehensive feature comparison showcase in `README.md`.
+- **One-Time Review Prompt:** Added a gentle, one-time Marketplace review prompt after 15 completed agent runs.
+
+## [0.1.12] - 2026-11-02
+
+### Added
+- **Support & Feedback Panel (`(!)` Header Button):** Added a dedicated Support & Feedback button in the top menu bar and `+` menu where users can write feature requests/feedback and send them directly to `destekai.sovereign.ai@gmail.com` or copy the support email with one click.
+- **Expanded World Language Support (16 Languages):** Added full support and UI translations for Turkish (`tr`), English (`en`), German (`de`), Spanish (`es`), French (`fr`), Chinese (`zh`), Russian (`ru`), Japanese (`ja`), Korean (`ko`), Portuguese (`pt`), Italian (`it`), Arabic (`ar`), Dutch (`nl`), Polish (`pl`), Hindi (`hi`), and Azerbaijani (`az`).
+- **Quick Language Selector:** Added a Language selector (`🌐`) in the top header bar, inside the `+` menu (`Dil Seçimi / Language`), in VS Code Settings (`sovereignAgent.language`), and via the `Sovereign Agent: Dil Seç / Select Language` command.
+
+### Fixed
+- **Host Clipboard Integration & Dynamic i18n:** Routed email clipboard copying through VS Code's native host API and enabled live language switching on active confirmation buttons.
+
+## [0.1.11] - 2026-11-02
+
+### Fixed
+- **Approval Buttons Design & i18n:** Fixed missing `approval.*` keys in webview UI causing empty/collapsed confirmation buttons; added clear icons, full labels, and modernized confirmation card styles.
+
+## [0.1.10] - 2026-11-02
+
+### Added
+- **Local Network Discovery:** Opt-in UDP presence broadcast and HTTP peer information endpoint (`sovereignAgent.showNetworkPeers` command).
+- **Personalized Greeting:** `sovereignAgent.userName` setting for customizable chat greetings.
+- **Symlink Traversal Hardening:** Parent directory recursion checks preventing symlink escapes on newly created files.
+- **Binary Extension Filter:** Fast skipping of binary files (`.png`, `.exe`, `.dll`, `.zip`, etc.) in `search_files` tool.
+- **Expanded IPv6 Support:** Support for IPv4-mapped hex loopbacks (`[::ffff:7f00:1]`) and IPv6 private LANs (`fc00::/7`, `fe80::/10`).
+- **Complete i18n Sync:** Full command and configuration translations across English, Turkish, German, Spanish, and French.
+- **Automated Agensi Skills:** Added standalone skills in `agensi-skills/` with PowerShell and Bash automation scripts for local AI setup and code reviews.
+
+### Fixed
+- Fixed duplicate `ToolContext` instantiation in `handleSend`.
+- Fixed missing `LICENSE` file warnings during VSIX packaging.
+- Fixed missing localization keys across European locales (`package.nls.de.json`, `package.nls.es.json`, `package.nls.fr.json`).
+
+## [0.1.9] - 2026-10-20
+
+### Added
+- Model comparison mode: run prompts side-by-side against two local models.
+- Inline approval requests within the webview chat UI.
+- Checkpoint restoration and undo command (`sovereignAgent.undo`).
+
+## [0.1.0] - 2026-09-15
+
+### Initial Release
+- Fully local AI agent loop with tool-use protocol.
+- Local provider integrations: Ollama, LM Studio, llama.cpp, LocalAI, vLLM.
+- Approval gates for file writes, replacements, and terminal commands.
+- Local STDIO Model Context Protocol (MCP) support.
+

@@ -19,6 +19,7 @@ export interface AgentConfig {
   asrBaseUrl: string;
   asrModel: string;
   language: string;
+  userName: string;
   temperature: number;
   contextLength: number;
   maxIterations: number;
@@ -26,6 +27,8 @@ export interface AgentConfig {
   requireCommandApproval: boolean;
   allowLanHosts: boolean;
   mcpServers: string;
+  enableNetworkDiscovery: boolean;
+  discoveryDisplayName: string;
 }
 
 export const DEFAULT_URLS: Record<ProviderKind, string> = {
@@ -51,6 +54,7 @@ export function getConfig(): AgentConfig {
     asrBaseUrl: c.get<string>('asrBaseUrl', 'http://localhost:8000/v1').trim(),
     asrModel: c.get<string>('asrModel', 'nemotron-3.5-asr').trim(),
     language: c.get<string>('language', 'auto'),
+    userName: c.get<string>('userName', '').trim(),
     temperature: c.get<number>('temperature', 0.2),
     contextLength: c.get<number>('contextLength', 8192),
     maxIterations: c.get<number>('maxIterations', 20),
@@ -58,6 +62,8 @@ export function getConfig(): AgentConfig {
     requireCommandApproval: c.get<boolean>('requireCommandApproval', true),
     allowLanHosts: c.get<boolean>('allowLanHosts', false)
     ,mcpServers: c.get<string>('mcpServers', '{}')
+    ,enableNetworkDiscovery: c.get<boolean>('enableNetworkDiscovery', false)
+    ,discoveryDisplayName: c.get<string>('discoveryDisplayName', '').trim()
   };
 }
 

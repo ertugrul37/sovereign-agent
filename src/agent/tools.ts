@@ -1,6 +1,5 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { exec } from 'child_process';
 import { ToolCall } from './protocol';
 
 export interface ToolContext {
@@ -12,6 +11,8 @@ export interface ToolContext {
   checkpoint(relPath: string, content: string | undefined): Promise<void>;
   previewChange(relPath: string, original: string, updated: string): Promise<boolean>;
   callMcp(server: string, tool: string, argsJson: string): Promise<ToolResult>;
+  /** Runs a shell command in the visible agent terminal; see src/agent/terminal.ts. */
+  runCommand(command: string): Promise<ToolResult>;
   signal: AbortSignal;
 }
 
@@ -23,6 +24,13 @@ export interface ToolResult {
 
 const IGNORED_DIRS = new Set([
   'node_modules', '.git', 'out', 'dist', 'build', '.next', '__pycache__', '.venv', 'venv', 'target', '.idea'
+]);
+const BINARY_EXTS = new Set([
+  '.png', '.jpg', '.jpeg', '.gif', '.ico', '.webp', '.bmp', '.pdf',
+  '.zip', '.tar', '.gz', '.7z', '.rar',
+  '.exe', '.dll', '.so', '.dylib', '.bin', '.iso', '.wasm',
+  '.mp3', '.mp4', '.mov', '.avi', '.woff', '.woff2', '.ttf', '.eot',
+  '.node'
 ]);
 const MAX_READ_BYTES = 512 * 1024;
 const MAX_OUTPUT_CHARS = 20000;
@@ -45,17 +53,28 @@ export function resolveInside(root: string, requested: string | undefined): stri
 
 async function safePath(root: string, requested: string | undefined): Promise<string> {
   const abs = resolveInside(root, requested);
-  try {
-    // Defeat symlinks that point outside the workspace.
-    const real = await fs.realpath(abs);
-    const realRoot = await fs.realpath(root);
-    const rel = path.relative(realRoot, real);
-    if (rel.startsWith('..') || path.isAbsolute(rel)) {
-      throw new Error(`Path is outside the workspace: ${requested}`);
-    }
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-      throw err;
+  const realRoot = await fs.realpath(root);
+  
+  // Defeat symlinks that point outside the workspace, including parent directories for new files.
+  let current = abs;
+  while (true) {
+    try {
+      const real = await fs.realpath(current);
+      const rel = path.relative(realRoot, real);
+      if (rel.startsWith('..') || path.isAbsolute(rel)) {
+        throw new Error(`Path is outside the workspace: ${requested}`);
+      }
+      break;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        const parent = path.dirname(current);
+        if (parent === current) {
+          break;
+        }
+        current = parent;
+      } else {
+        throw err;
+      }
     }
   }
   return abs;
@@ -209,6 +228,10 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
           if (matches.length >= MAX_SEARCH_MATCHES) {
             break;
           }
+          const ext = path.extname(file).toLowerCase();
+          if (BINARY_EXTS.has(ext)) {
+            continue;
+          }
           const stat = await fs.stat(file);
           if (stat.size > 1024 * 1024) {
             continue;
@@ -239,21 +262,7 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
         if (!(await ctx.confirmCommand(p.command))) {
           return { ok: false, output: 'The user denied this action.' };
         }
-        return await new Promise<ToolResult>((resolve) => {
-          exec(
-            p.command,
-            { cwd: root, timeout: 60000, maxBuffer: 1024 * 1024, signal: ctx.signal },
-            (error, stdout, stderr) => {
-              const body = clip([stdout, stderr].filter(Boolean).join('\n').trim() || '(no output)');
-              if (error) {
-                const code = (error as NodeJS.ErrnoException & { code?: number | string }).code;
-                resolve({ ok: false, output: `Command failed (exit ${code ?? 'unknown'}).\n${body}` });
-              } else {
-                resolve({ ok: true, output: body });
-              }
-            }
-          );
-        });
+        return await ctx.runCommand(p.command);
       }
     }
   } catch (err) {

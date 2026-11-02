@@ -32,9 +32,9 @@ list_files: list a directory.
 <recursive>true</recursive>
 </list_files>
 
-read_file: read a file.
+read_file: read a file. NEVER guess a path. Call list_files first if you have not already seen this file in the conversation.
 <read_file>
-<path>src/index.ts</path>
+<path>relative/path/to/an/already-listed/file.ext</path>
 </read_file>
 
 write_file: create or overwrite a file. Always give the COMPLETE new content.
@@ -45,9 +45,9 @@ console.log("hello");
 </content>
 </write_file>
 
-replace_in_file: replace exact text in an existing file. Prefer this for surgical edits.
+replace_in_file: replace exact text in an existing file you have already read. Prefer this for surgical edits.
 <replace_in_file>
-<path>src/index.ts</path>
+<path>relative/path/to/an/already-read/file.ext</path>
 <old_text>const oldValue = 1;</old_text>
 <new_text>const oldValue = 2;</new_text>
 <replace_all>false</replace_all>
@@ -77,6 +77,7 @@ mcp_call: call a tool exposed by a configured local STDIO MCP server. The user m
 
 RULES
 - One tool call per message. Never invent tool results.
+- Never call read_file, write_file, replace_in_file or search_files on a path you have not first seen via list_files (or via get_editor_context / a previous tool result) in this conversation. If you do not yet know the project layout, call list_files on the root first.
 - Read a file before you change it.
 - Prefer replace_in_file for focused edits and write_file only when replacing a complete file is necessary.
 - Use get_editor_context when the user refers to "this code", "the selection" or the active editor.

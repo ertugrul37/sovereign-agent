@@ -2,7 +2,7 @@ import type { MessageKey } from './en';
 
 export const tr: Record<MessageKey, string> = {
   'ui.title': 'Sovereign Agent',
-  'ui.placeholder': 'Kodun hakkında sor… (Göndermek için Enter, yeni satır için Shift+Enter)',
+  'ui.placeholder': 'Bugün size nasıl yardımcı olabilirim?',
   'ui.send': 'Gönder',
   'ui.stop': 'Durdur',
   'ui.you': 'Sen',
@@ -99,4 +99,55 @@ export const tr: Record<MessageKey, string> = {
   'checkpoint.none': 'Geri alınacak değişiklik yok.',
   'checkpoint.restored': '{path} geri yüklendi.',
   'checkpoint.preview': 'Değişiklik önizlemesi'
+  ,'ui.greetingMorning': 'Günaydın'
+  ,'ui.greetingAfternoon': 'İyi günler'
+  ,'ui.greetingEvening': 'İyi akşamlar'
+  ,'ui.modeChat': 'Sohbet'
+  ,'ui.modeAgent': 'Ajan'
+  ,'ui.chipCode': 'Code'
+  ,'ui.chipLearn': 'Öğren'
+  ,'ui.chipWrite': 'Yaz'
+  ,'ui.chipDebug': 'Hata ayıkla'
+  ,'ui.chipPlan': 'Planla'
+  ,'ui.starterCode': 'Bu projede şunu geliştir: '
+  ,'ui.starterLearn': 'Bana şunu açıkla: '
+  ,'ui.starterWrite': 'Şunun için dokümantasyon yaz: '
+  ,'ui.starterDebug': 'Şu hatayı bulup düzelt: '
+  ,'ui.starterPlan': 'Şunun için adım adım bir plan hazırla: '
+  ,'ui.menuAttach': 'Dosya veya fotoğraf ekle'
+  ,'ui.menuProject': 'Projeye ekle'
+  ,'ui.menuSkills': 'Skills'
+  ,'ui.menuConnectors': 'Bağdaştırıcı ekle'
+  ,'ui.menuDesign': 'Tasarım sistemi'
+  ,'ui.menuExtension': 'Eklenti ekle'
+  ,'ui.menuWebSearch': 'Web araması'
+  ,'ui.soon': 'Yakında'
+  ,'ui.projectActiveFile': 'Açık dosyayı ekle'
+  ,'ui.projectPickFile': 'Çalışma alanından dosya seç…'
+  ,'ui.projectSelection': 'Seçili kodu ekle'
+  ,'ui.skillsEmpty': '.github/prompts içinde komut bulunamadı'
+  ,'ui.skillsLoading': 'Yükleniyor…'
+  ,'ui.connectorsOpen': 'MCP sunucularını yapılandır…'
+  ,'ui.themeAuto': 'VS Code teması'
+  ,'ui.themeDark': 'Koyu'
+  ,'ui.themeLight': 'Açık'
+  ,'ui.back': 'Geri'
+  ,'ui.removeAttachment': 'Eki kaldır'
+  ,'ui.imageUnsupported': 'Görseller henüz modele gönderilemiyor. Metin ya da kod dosyası ekleyin.'
+  ,'ui.attachUnsupported': '{name} eklenemedi: dosya ikili ya da 512 KB’tan büyük.'
+  ,'ui.noActiveFile': 'Açık bir dosya yok.'
+  ,'ui.feedback': 'Destek ve İstek Bildirimi'
+  ,'ui.feedbackTitle': 'Destek ve İstek Bildirimi'
+  ,'ui.feedbackDesc': 'Bir özellik isteğiniz, öneriniz veya sorunuz mu var? Talebinizi doğrudan ekibimize iletebilirsiniz:'
+  ,'ui.feedbackPlaceholder': 'İstek, öneri veya karşılaştığınız sorunu buraya yazın...'
+  ,'ui.sendEmail': 'E-posta ile Gönder'
+  ,'ui.copyEmail': 'E-postayı Kopyala'
+  ,'ui.emailCopied': 'Kopyalandı!'
+  ,'ui.openEmailClient': 'E-posta İstemcisinde Aç'
+  ,'ui.menuLanguage': 'Dil Seçimi'
+  ,'ui.languageAuto': 'Otomatik (VS Code)'
+  ,'ui.openSettings': 'Ayarlar'
+  ,'review.prompt': 'Sovereign Agent işinize yarıyor mu? VS Code Marketplace üzerinde yıldız vererek gizlilik odaklı diğer geliştiricilerin de keşfetmesine destek olabilirsiniz!'
+  ,'review.rateNow': 'Marketplace’te Değerlendir ⭐'
+  ,'review.later': 'Daha Sonra'
 };

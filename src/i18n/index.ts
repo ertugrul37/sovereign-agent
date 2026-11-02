@@ -3,10 +3,28 @@ import { tr } from './locales/tr';
 import { de } from './locales/de';
 import { es } from './locales/es';
 import { fr } from './locales/fr';
+import { zh, ru, ja, ko, pt, it, ar, nl, pl, hi, az } from './locales/world';
 
 export type { MessageKey };
 
-const catalogs: Record<string, Record<MessageKey, string>> = { en, tr, de, es, fr };
+const catalogs: Record<string, Record<MessageKey, string>> = {
+  en,
+  tr,
+  de,
+  es,
+  fr,
+  zh,
+  ru,
+  ja,
+  ko,
+  pt,
+  it,
+  ar,
+  nl,
+  pl,
+  hi,
+  az
+};
 
 /** Native names, also used to tell the model which language to reply in. */
 export const LOCALE_NAMES: Record<string, string> = {
@@ -14,7 +32,18 @@ export const LOCALE_NAMES: Record<string, string> = {
   tr: 'Türkçe (Turkish)',
   de: 'Deutsch (German)',
   es: 'Español (Spanish)',
-  fr: 'Français (French)'
+  fr: 'Français (French)',
+  zh: '中文 (Chinese)',
+  ru: 'Русский (Russian)',
+  ja: '日本語 (Japanese)',
+  ko: '한국어 (Korean)',
+  pt: 'Português (Portuguese)',
+  it: 'Italiano (Italian)',
+  ar: 'العربية (Arabic)',
+  nl: 'Nederlands (Dutch)',
+  pl: 'Polski (Polish)',
+  hi: 'हिन्दी (Hindi)',
+  az: 'Azərbaycan (Azerbaijani)'
 };
 
 export const SUPPORTED_LOCALES = Object.keys(catalogs);
@@ -61,7 +90,7 @@ export function t(key: MessageKey, vars?: Record<string, string | number>): stri
 export function uiStrings(): Record<string, string> {
   const out: Record<string, string> = {};
   for (const key of Object.keys(en) as MessageKey[]) {
-    if (key.startsWith('ui.')) {
+    if (key.startsWith('ui.') || key.startsWith('approval.')) {
       out[key] = t(key);
     }
   }

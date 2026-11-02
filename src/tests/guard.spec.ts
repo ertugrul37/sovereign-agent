@@ -8,6 +8,7 @@ test('allows loopback, blocks the internet', () => {
   assert.equal(checkLocalUrl('http://localhost:11434', false).ok, true);
   assert.equal(checkLocalUrl('http://127.0.0.1:8080/v1', false).ok, true);
   assert.equal(checkLocalUrl('http://[::1]:8080', false).ok, true);
+  assert.equal(checkLocalUrl('http://[::ffff:127.0.0.1]:8080', false).ok, true);
   assert.equal(checkLocalUrl('https://api.openai.com/v1', false).ok, false);
   assert.equal(checkLocalUrl('http://localhost.evil.com', false).ok, false);
 });
@@ -15,6 +16,7 @@ test('allows loopback, blocks the internet', () => {
 test('LAN addresses need opt-in', () => {
   assert.equal(checkLocalUrl('http://192.168.1.20:11434', false).ok, false);
   assert.equal(checkLocalUrl('http://192.168.1.20:11434', true).ok, true);
+  assert.equal(checkLocalUrl('http://[fd00::1]:8080', true).ok, true);
   assert.equal(checkLocalUrl('http://8.8.8.8', true).ok, false);
 });
 

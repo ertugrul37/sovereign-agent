@@ -1,14 +1,18 @@
 {
-  "displayName": "Sovereign Agent",
-  "description": "Agente de programación con IA libre y totalmente local para VS Code. Sin nube, sin telemetría.",
+  "displayName": "Sovereign Agent — Asistente de IA Local y Ollama",
+  "description": "Agente de programación con IA 100% local y sin conexión para VS Code (Ollama, LM Studio, llama.cpp, vLLM). Comparación de modelos, red LAN, 16 idiomas, sin nube ni telemetría.",
   "view.container.title": "Sovereign Agent",
   "view.chat.name": "Chat",
   "command.newChat": "Sovereign Agent: Nuevo chat",
   "command.selectModel": "Sovereign Agent: Seleccionar modelo",
   "command.selectCompareModel": "Sovereign Agent: Seleccionar modelo de comparación",
   "command.stop": "Sovereign Agent: Detener",
+  "command.undo": "Sovereign Agent: Deshacer el último cambio",
   "command.addSelectionToChat": "Sovereign Agent: Añadir selección al chat",
   "command.openSettings": "Sovereign Agent: Abrir configuración",
+  "command.showNetworkPeers": "Sovereign Agent: Mostrar pares de red",
+  "command.openFeedback": "Sovereign Agent: Soporte y comentarios (destekai.sovereign.ai@gmail.com)",
+  "command.selectLanguage": "Sovereign Agent: Seleccionar idioma",
   "config.title": "Sovereign Agent",
   "config.provider.ollama": "API nativa de Ollama",
   "config.provider.lmStudio": "LM Studio (API compatible con OpenAI)",
@@ -31,6 +35,7 @@
   "config.asrBaseUrl": "Dirección del servidor ASR local compatible con OpenAI.",
   "config.asrModel": "Identificador del modelo ASR; por defecto nemotron-3.5-asr. Usa el identificador exacto de tu servidor local.",
   "config.language": "Idioma de la interfaz. `auto` sigue el idioma de VS Code. El agente también responde en este idioma cuando el idioma del mensaje no está claro.",
+  "config.userName": "Nombre que se muestra en el saludo del chat. Déjalo vacío para mostrar solo el saludo.",
   "config.temperature": "Temperatura de muestreo. Los valores bajos son más predecibles.",
   "config.contextLength": "Ventana de contexto en tokens. Debe coincidir con el valor con el que cargaste el modelo.",
   "config.maxIterations": "Número máximo de pasos con herramientas por mensaje.",
@@ -38,5 +43,7 @@
   "config.requireCommandApproval": "Preguntar antes de que el agente ejecute un comando de shell.",
   "config.mcpServers": "Mapa JSON de servidores MCP STDIO locales. Los servidores solo se inician después de la aprobación.",
   "config.tools": "Las herramientas del espacio de trabajo están disponibles para el agente local. Las modificaciones y comandos requieren aprobación por defecto.",
-  "config.allowLanHosts": "Permitir servidores en direcciones privadas de la red local (10.x, 192.168.x, 172.16-31.x, `*.local`). Desactivado por defecto para que nada salga de tu máquina."
+  "config.allowLanHosts": "Permitir servidores en direcciones privadas de la red local (10.x, 192.168.x, 172.16-31.x, `*.local`). Desactivado por defecto para que nada salga de tu máquina.",
+  "config.enableNetworkDiscovery": "Transmitir la presencia de esta máquina en la red local para que otros usuarios de Sovereign Agent puedan verla y conectarse. Desactivado por defecto.",
+  "config.discoveryDisplayName": "Nombre que se muestra a otros en la red cuando el descubrimiento está activo. Déjalo vacío para usar el nombre de host y del espacio de trabajo."
 }
