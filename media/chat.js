@@ -84,8 +84,24 @@
       .map((part, i) => {
         if (i % 2 === 1) {
           const nl = part.indexOf('\n');
+          const lang = (nl >= 0 ? part.slice(0, nl) : '').trim().replace(/[^a-zA-Z0-9_+#.-]/g, '');
           const code = nl >= 0 ? part.slice(nl + 1) : part;
-          return '<pre><code>' + escapeHtml(code.replace(/\n$/, '')) + '</code></pre>';
+          const copyLbl = escapeHtml(s('ui.copyCode') || 'Copy');
+          const insertLbl = escapeHtml(s('ui.insertCode') || 'Insert');
+          const runLbl = escapeHtml(s('ui.runCode') || 'Run');
+          return (
+            '<div class="code-block" data-lang="' + escapeHtml(lang) + '">' +
+              '<div class="code-header">' +
+                '<span class="code-lang">' + escapeHtml(lang || 'code') + '</span>' +
+                '<div class="code-actions">' +
+                  '<button type="button" class="code-btn" data-action="copy" data-i18n="ui.copyCode">' + copyLbl + '</button>' +
+                  '<button type="button" class="code-btn" data-action="insert" data-i18n="ui.insertCode">' + insertLbl + '</button>' +
+                  '<button type="button" class="code-btn code-btn-run" data-action="run" data-i18n="ui.runCode">▶ ' + runLbl + '</button>' +
+                '</div>' +
+              '</div>' +
+              '<pre><code>' + escapeHtml(code.replace(/\n$/, '')) + '</code></pre>' +
+            '</div>'
+          );
         }
         return escapeHtml(part)
           .replace(/`([^`\n]+)`/g, '<code>$1</code>')
@@ -94,6 +110,27 @@
       })
       .join('');
   }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.code-btn');
+    if (!btn) return;
+    const block = btn.closest('.code-block');
+    const codeEl = block && block.querySelector('pre > code');
+    if (!codeEl) return;
+    const code = codeEl.textContent || '';
+    const lang = block.dataset.lang || '';
+    const action = btn.dataset.action;
+    if (action === 'copy') {
+      vscode.postMessage({ type: 'copyText', text: code });
+      const orig = btn.textContent;
+      btn.textContent = '✓ ' + (s('ui.emailCopied') || 'Copied!');
+      setTimeout(() => { btn.textContent = s('ui.copyCode') || orig; }, 1600);
+    } else if (action === 'insert') {
+      vscode.postMessage({ type: 'insertCode', code, lang });
+    } else if (action === 'run') {
+      vscode.postMessage({ type: 'runCode', code, lang });
+    }
+  });
 
   function scrollDown() {
     messages.scrollTop = messages.scrollHeight;

@@ -2,6 +2,7 @@
 
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/ertugrul37.sovereign-agent?label=VS%20Code%20Marketplace&color=22c55e)](https://marketplace.visualstudio.com/items?itemName=ertugrul37.sovereign-agent)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/ertugrul37.sovereign-agent?color=3b82f6)](https://marketplace.visualstudio.com/items?itemName=ertugrul37.sovereign-agent)
+[![CI & Tests](https://github.com/ertugrul37/sovereign-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/ertugrul37/sovereign-agent/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-amber.svg)](LICENSE)
 [![Privacy: 100% Local](https://img.shields.io/badge/Privacy-100%25%20Local%20%7C%20Zero%20Telemetry-10b981)](#privacy--security-guarantee)
 [![Languages: 16](https://img.shields.io/badge/Languages-16%20Supported-8b5cf6)](#16-supported-languages)

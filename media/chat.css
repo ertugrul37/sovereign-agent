@@ -503,4 +503,53 @@ button:focus-visible, textarea:focus-visible { outline: 1px solid var(--accent);
 .composer textarea:focus-visible { outline: none; }
 @media (max-width: 330px) { .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .model-trigger { max-width: 38%; } }
 @media (max-width: 430px) { .comparison-grid { grid-template-columns: 1fr; } }
+.code-block {
+  margin: 8px 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 10px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 11px;
+}
+.code-lang {
+  font-family: var(--mono);
+  color: var(--muted);
+  text-transform: lowercase;
+}
+.code-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.code-btn {
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+}
+.code-btn:hover {
+  background: var(--hover);
+  border-color: var(--muted);
+}
+.code-btn-run {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--line));
+}
+.code-block pre {
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

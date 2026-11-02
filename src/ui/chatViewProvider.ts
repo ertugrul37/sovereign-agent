@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
+import * as os from 'os';
 import * as path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
@@ -7,7 +8,7 @@ import { randomUUID } from 'crypto';
 import { Agent, AgentHooks, RunSettings } from '../agent/agent';
 import { describeCall } from '../agent/protocol';
 import { AgentConfig, getConfig, activeLocale } from '../config';
-import { createProvider } from '../llm/factory';
+import { createProvider, discoverLocalServer } from '../llm/factory';
 import { setLocale, t, uiStrings, LOCALE_NAMES } from '../i18n';
 import { McpManager, McpServerConfig } from '../agent/mcp';
 import { ChatMessage } from '../llm/types';
@@ -55,6 +56,8 @@ type FromWebview =
   | { type: 'openExtensions' }
   | { type: 'openExternal'; url: string }
   | { type: 'copyText'; text: string }
+  | { type: 'insertCode'; code: string; lang: string }
+  | { type: 'runCode'; code: string; lang: string }
   | { type: 'setLanguage'; language: string }
   | { type: 'selectLanguage' }
   | { type: 'confirmResponse'; id: string; allow: boolean };
@@ -255,6 +258,33 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       locales: LOCALE_NAMES
     });
     this.post({ type: 'conversation', messages: this.agent.getHistory() });
+    if (!cfg.model) {
+      void this.autoDetectServer();
+    }
+  }
+
+  private async autoDetectServer(): Promise<boolean> {
+    const discovered = await discoverLocalServer();
+    if (!discovered || discovered.models.length === 0) {
+      return false;
+    }
+    const c = vscode.workspace.getConfiguration('sovereignAgent');
+    await c.update('provider', discovered.provider, vscode.ConfigurationTarget.Global);
+    await c.update('baseUrl', discovered.baseUrl, vscode.ConfigurationTarget.Global);
+    if (!c.get<string>('model', '').trim()) {
+      await c.update('model', discovered.models[0], vscode.ConfigurationTarget.Global);
+    }
+    const cfg = this.prepare();
+    this.post({
+      type: 'init',
+      strings: uiStrings(),
+      model: cfg.model,
+      compareModel: cfg.compareModel,
+      userName: cfg.userName,
+      language: cfg.language,
+      locales: LOCALE_NAMES
+    });
+    return true;
   }
 
   private async onMessage(msg: FromWebview): Promise<void> {
@@ -335,6 +365,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         break;
       case 'copyText':
         await vscode.env.clipboard.writeText(msg.text);
+        break;
+      case 'insertCode':
+        await this.insertCodeBlock(msg.code, msg.lang);
+        break;
+      case 'runCode':
+        await this.runCodeBlock(msg.code, msg.lang);
         break;
       case 'selectLanguage':
         await this.selectLanguage();
@@ -680,13 +716,73 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
 
     private async sendModelOptions(): Promise<void> {
-      const cfg = this.prepare();
+      let cfg = this.prepare();
       try {
-        const models = await createProvider(cfg).listModels();
+        let models = await createProvider(cfg).listModels();
+        if (models.length === 0 && (await this.autoDetectServer())) {
+          cfg = this.prepare();
+          models = await createProvider(cfg).listModels();
+        }
         this.post({ type: 'modelOptions', models, selected: cfg.model });
       } catch (err) {
+        if (await this.autoDetectServer()) {
+          cfg = this.prepare();
+          try {
+            const models = await createProvider(cfg).listModels();
+            this.post({ type: 'modelOptions', models, selected: cfg.model });
+            return;
+          } catch {
+            // fall through
+          }
+        }
         this.post({ type: 'modelOptions', models: [], error: err instanceof Error ? err.message : String(err) });
       }
+    }
+
+    private async insertCodeBlock(code: string, lang: string): Promise<void> {
+      const editor = vscode.window.activeTextEditor;
+      if (editor) {
+        await editor.edit((builder) => {
+          if (editor.selection.isEmpty) {
+            builder.insert(editor.selection.active, code);
+          } else {
+            builder.replace(editor.selection, code);
+          }
+        });
+        await vscode.window.showTextDocument(editor.document, editor.viewColumn);
+        return;
+      }
+      const doc = await vscode.workspace.openTextDocument({
+        content: code,
+        language: lang || 'plaintext'
+      });
+      await vscode.window.showTextDocument(doc);
+    }
+
+    private async runCodeBlock(code: string, lang: string): Promise<void> {
+      const cfg = this.prepare();
+      const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd();
+      const normalized = (lang || '').toLowerCase();
+      let command = code.trim();
+
+      if (normalized === 'python' || normalized === 'py') {
+        const tmpFile = path.join(os.tmpdir(), 'sovereign_snippet.py');
+        await fs.writeFile(tmpFile, code, 'utf8');
+        command = `python "${tmpFile}"`;
+      } else if (normalized === 'javascript' || normalized === 'js' || normalized === 'node') {
+        const tmpFile = path.join(os.tmpdir(), 'sovereign_snippet.js');
+        await fs.writeFile(tmpFile, code, 'utf8');
+        command = `node "${tmpFile}"`;
+      }
+
+      if (cfg.requireCommandApproval && !this.autoApprove) {
+        const ok = await this.confirm(t('approval.command'), command);
+        if (!ok) {
+          return;
+        }
+      }
+      const abort = new AbortController();
+      await this.terminal.run(command, root, abort.signal);
     }
 
     private async pickModel(model: string): Promise<void> {

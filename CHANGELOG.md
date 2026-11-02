@@ -5,6 +5,9 @@ All notable changes to the **Sovereign Agent** extension will be documented in t
 ## [0.1.15] - 2026-11-02
 
 ### Added
+- **Zero-Config Local Server Auto-Discovery (`discoverLocalServer`):** Automatically probes local loopback ports (`Ollama :11434`, `LM Studio :1234`, `llama.cpp :8080`, `vLLM :8000`, `Jan :1337`, `GPT4All :4891`) and selects the first active local server and model out-of-the-box.
+- **Interactive Code Block Toolbar (`Copy` / `Insert` / `▶ Run`):** Added 1-click Copy, Insert into Editor, and Run in Terminal action buttons on every chat code block.
+- **GitHub Actions CI & Automated Releases:** Added `.github/workflows/ci.yml` to run all security/unit tests and publish VSIX release artifacts automatically.
 - **Marketplace Showcase Preview (`media/showcase.png`):** Added visual product overview banner to the Marketplace README.
 
 ## [0.1.14] - 2026-11-02
