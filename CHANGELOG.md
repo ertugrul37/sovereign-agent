@@ -2,6 +2,11 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.18] - 2026-11-03
+
+### Fixed
+- **Tool Card & Code Block Flex Compression Fix (`media/chat.css`):** Added `flex-shrink: 0` and removed `overflow: hidden` clipping on `.msg`, `details.tool`, `.confirm-card`, and `.code-block` so tool cards and directory listings never get vertically squished when the chat view scrolls.
+
 ## [0.1.17] - 2026-11-02
 
 ### Changed
