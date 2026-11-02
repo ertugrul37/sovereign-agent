@@ -2,6 +2,11 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.15] - 2026-11-02
+
+### Added
+- **Marketplace Showcase Preview (`media/showcase.png`):** Added visual product overview banner to the Marketplace README.
+
 ## [0.1.14] - 2026-11-02
 
 ### Fixed
