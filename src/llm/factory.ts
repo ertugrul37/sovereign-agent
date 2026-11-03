@@ -41,22 +41,26 @@ export function createProvider(s: ProviderSettings): LlmProvider {
 
 /**
  * Probes standard local loopback LLM ports (Ollama, LM Studio, llama.cpp, vLLM, Jan, GPT4All)
- * and returns the first active server that exposes at least one model.
+ * in parallel and returns the highest-priority active server that exposes at least one model.
  */
-export async function discoverLocalServer(timeoutMs = 1500): Promise<DiscoveredServer | undefined> {
-  for (const probe of LOCAL_PROBES) {
-    try {
-      const provider = createProvider({ ...probe, allowLanHosts: false });
-      const models = await Promise.race<string[]>([
-        provider.listModels(),
-        new Promise<string[]>((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs))
-      ]);
-      if (Array.isArray(models) && models.length > 0) {
-        return { provider: probe.provider, baseUrl: probe.baseUrl, models };
+export async function discoverLocalServer(timeoutMs = 900): Promise<DiscoveredServer | undefined> {
+  const results = await Promise.all(
+    LOCAL_PROBES.map(async (probe): Promise<DiscoveredServer | undefined> => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const provider = createProvider({ ...probe, allowLanHosts: false });
+        const models = await provider.listModels(controller.signal);
+        if (Array.isArray(models) && models.length > 0) {
+          return { provider: probe.provider, baseUrl: probe.baseUrl, models };
+        }
+      } catch {
+        // Ignore inactive local port
+      } finally {
+        clearTimeout(timer);
       }
-    } catch {
-      // Try next local endpoint
-    }
-  }
-  return undefined;
+      return undefined;
+    })
+  );
+  return results.find((r): r is DiscoveredServer => r !== undefined);
 }

@@ -42,6 +42,9 @@ export interface ToolCall {
 }
 
 const NAMES_PATTERN = TOOL_NAMES.join('|');
+const CALL_RE = new RegExp(`<(${NAMES_PATTERN})(?:\\s+([^>]*?))?>([\\s\\S]*?)</\\1>|<(${NAMES_PATTERN})(?:\\s+([^>]*?))?\\s*/>`);
+const OPEN_TAG_RE = new RegExp(`<(${NAMES_PATTERN})(?=\\s|>|/)`);
+const ANY_TOOL_TAG_RE = new RegExp(`<(${NAMES_PATTERN})\\b`);
 
 const PARAM_ALIASES: Record<string, string[]> = {
   path: ['path', 'file', 'filepath', 'filename', 'file_path', 'directory', 'dir', 'target'],
@@ -131,7 +134,7 @@ function extractFallbackWriteContent(body: string, fullText: string, callStart: 
   let match: RegExpExecArray | null;
   while ((match = fenceRe.exec(outside)) !== null) {
     const candidate = match[1].replace(/\r?\n$/, '');
-    if (candidate.trim().length > 0 && !new RegExp(`<(${NAMES_PATTERN})\\b`).test(candidate)) {
+    if (candidate.trim().length > 0 && !ANY_TOOL_TAG_RE.test(candidate)) {
       lastBlock = candidate;
     }
   }
@@ -140,8 +143,10 @@ function extractFallbackWriteContent(body: string, fullText: string, callStart: 
 
 /** Returns the first complete tool call in the text, if any. */
 export function parseToolCall(text: string): ToolCall | null {
-  const re = new RegExp(`<(${NAMES_PATTERN})(?:\\s+([^>]*?))?>([\\s\\S]*?)</\\1>|<(${NAMES_PATTERN})(?:\\s+([^>]*?))?\\s*/>`);
-  const m = re.exec(text);
+  if (!text.includes('</') && !text.includes('/>')) {
+    return null;
+  }
+  const m = CALL_RE.exec(text);
   if (!m) {
     return null;
   }
@@ -187,7 +192,10 @@ export function parseToolCall(text: string): ToolCall | null {
  * such as "<read_f" is held back so it never flashes on screen.
  */
 export function visibleText(full: string): string {
-  const open = new RegExp(`<(${NAMES_PATTERN})(?=\\s|>|/)`).exec(full);
+  if (!full.includes('<')) {
+    return full;
+  }
+  const open = OPEN_TAG_RE.exec(full);
   if (open) {
     return full.slice(0, open.index);
   }

@@ -553,6 +553,16 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     let outputCharacters = 0;
     let currentReply = '';
     let assistantReplies = 0;
+    let lastPostedAt = 0;
+    let flushTimer: ReturnType<typeof setTimeout> | undefined;
+    const flushStream = () => {
+      if (flushTimer) {
+        clearTimeout(flushTimer);
+        flushTimer = undefined;
+      }
+      lastPostedAt = performance.now();
+      this.post({ type: 'assistantText', text: currentReply });
+    };
     this.post({ type: 'busy', value: true });
 
     try {
@@ -574,13 +584,24 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         {
           onAssistantStart: () => {
             currentReply = '';
+            lastPostedAt = 0;
             this.post({ type: 'assistantStart' });
           },
           onAssistantText: (visible) => {
             currentReply = visible;
-            this.post({ type: 'assistantText', text: visible });
+            const now = performance.now();
+            if (now - lastPostedAt >= 25) {
+              flushStream();
+            } else if (!flushTimer) {
+              flushTimer = setTimeout(flushStream, 25);
+            }
           },
           onAssistantEnd: () => {
+            if (flushTimer) {
+              flushStream();
+            } else {
+              this.post({ type: 'assistantText', text: currentReply });
+            }
             outputCharacters += currentReply.length;
             assistantReplies += 1;
             this.post({ type: 'assistantEnd' });
@@ -592,12 +613,17 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         abort.signal
       );
     } catch (err) {
+      if (flushTimer) {
+        clearTimeout(flushTimer);
+        flushTimer = undefined;
+      }
       this.post({ type: 'assistantEnd' });
       this.post({ type: 'error', text: err instanceof Error ? err.message : String(err) });
     } finally {
       const durationMs = Math.max(1, performance.now() - startedAt);
       const outputTokens = Math.max(0, Math.round(outputCharacters / 4));
       const inputTokens = Math.max(1, Math.round(text.length / 4));
+      const rssMb = Math.round(process.memoryUsage().rss / (1024 * 1024));
       this.post({
         type: 'metrics',
         durationMs: Math.round(durationMs),
@@ -605,7 +631,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         outputTokens,
         tokensPerSecond: Math.round((outputTokens / durationMs) * 1000 * 10) / 10,
         replies: assistantReplies,
-        memory: 'unavailable'
+        memory: `${rssMb} MB`
       });
       this.abort = undefined;
       void this.extensionContext.workspaceState.update('agentHistory', this.agent.getHistory());
@@ -695,6 +721,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           0,
           Math.round([...candidates.values()].reduce((total, candidate) => total + candidate.text.length, 0) / 4)
         );
+        const rssMb = Math.round(process.memoryUsage().rss / (1024 * 1024));
         this.post({
           type: 'metrics',
           durationMs: Math.round(durationMs),
@@ -702,7 +729,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           outputTokens,
           tokensPerSecond: Math.round((outputTokens / durationMs) * 1000 * 10) / 10,
           replies: candidates.size,
-          memory: 'unavailable'
+          memory: `${rssMb} MB`
         });
         this.abort = undefined;
         if (abort.signal.aborted) {

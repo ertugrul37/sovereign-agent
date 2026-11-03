@@ -25,7 +25,9 @@ export interface ToolResult {
 }
 
 const IGNORED_DIRS = new Set([
-  'node_modules', '.git', 'out', 'dist', 'build', '.next', '__pycache__', '.venv', 'venv', 'target', '.idea'
+  'node_modules', '.git', 'out', 'out-test', 'dist', 'build', '.next', '.nuxt', '.svelte-kit',
+  '__pycache__', '.venv', 'venv', 'target', '.idea', '.vscode-test', 'coverage', '.cache', '.turbo',
+  '.parcel-cache', 'bower_components'
 ]);
 const BINARY_EXTS = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.ico', '.webp', '.bmp', '.pdf',

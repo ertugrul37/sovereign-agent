@@ -55,7 +55,20 @@
   let theme = (vscode.getState() || {}).theme || 'auto';
   let autoApproveNext = false;
   let webSearchEnabled = false;
+  let renderRaf = 0;
+  let compareRaf = 0;
   const metricHistory = [];
+
+  function flushBubbleRender() {
+    if (renderRaf) {
+      cancelAnimationFrame(renderRaf);
+      renderRaf = 0;
+    }
+    if (bubble) {
+      bubble.innerHTML = render(bubbleText);
+      scrollDown();
+    }
+  }
 
   const s = (key) => strings[key] || '';
 
@@ -841,13 +854,25 @@
         break;
       case 'compareText': {
         comparisonTexts[msg.id] = msg.text;
-        const suffix = msg.id[0].toUpperCase() + msg.id.slice(1);
-        $('compareText' + suffix).innerHTML = render(msg.text);
-        scrollDown();
+        if (!compareRaf) {
+          compareRaf = requestAnimationFrame(() => {
+            compareRaf = 0;
+            ['primary', 'secondary'].forEach((id) => {
+              if (comparisonTexts[id] !== undefined) {
+                const sfx = id[0].toUpperCase() + id.slice(1);
+                $('compareText' + sfx).innerHTML = render(comparisonTexts[id]);
+              }
+            });
+            scrollDown();
+          });
+        }
         break;
       }
       case 'compareCandidateDone': {
         const suffix = msg.id[0].toUpperCase() + msg.id.slice(1);
+        if (comparisonTexts[msg.id] !== undefined) {
+          $('compareText' + suffix).innerHTML = render(comparisonTexts[msg.id]);
+        }
         $('compareState' + suffix).textContent = s('ui.compareReady');
         const button = document.querySelector('.compare-choice[data-id="' + msg.id + '"]');
         button.disabled = !comparisonTexts[msg.id]?.trim();
@@ -884,11 +909,13 @@
       case 'assistantText':
         if (bubble) {
           bubbleText = msg.text;
-          bubble.innerHTML = render(bubbleText);
-          scrollDown();
+          if (!renderRaf) {
+            renderRaf = requestAnimationFrame(flushBubbleRender);
+          }
         }
         break;
       case 'assistantEnd':
+        flushBubbleRender();
         if (bubble && !bubbleText.trim()) bubble.remove();
         bubble = null;
         break;

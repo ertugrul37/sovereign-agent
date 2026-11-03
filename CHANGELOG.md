@@ -2,6 +2,15 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.22] - 2026-11-03
+
+### Changed
+- **Performance & Streaming Optimization (`src/llm/factory.ts`, `src/agent/protocol.ts`, `src/ui/chatViewProvider.ts`, `media/chat.js`, `src/agent/tools.ts`):**
+  - Parallelized local LLM server auto-discovery (`discoverLocalServer`) with `AbortController` timeouts, reducing cold discovery latency from up to 9,000ms to <150ms.
+  - Pre-compiled tool protocol regexes and added $O(1)$ fast-paths in `parseToolCall` and `visibleText` during token streaming.
+  - Added 25ms IPC coalescing in `ChatViewProvider` and `requestAnimationFrame` DOM/scroll batching in `media/chat.js` to eliminate UI stutter at high token/s rates.
+  - Enabled live RSS memory reporting (`MB`) in the Performance metrics card.
+
 ## [0.1.21] - 2026-11-03
 
 ### Added
