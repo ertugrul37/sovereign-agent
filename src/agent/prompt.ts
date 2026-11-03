@@ -80,10 +80,29 @@ web_search: search the web for documentation, libraries, error messages, or curr
 <query>python 3.13 new features</query>
 </web_search>
 
+browser_action: open a workspace HTML file or local dev server URL inside the VS Code Editor Live Preview, capture the live DOM/layout snapshot and console errors, click buttons, or type into inputs to test the UI.
+- Open & inspect a page:
+<browser_action>
+<action>open</action>
+<target>index.html</target>
+</browser_action>
+- Click a button or element (by CSS selector or "text:Button Label"):
+<browser_action>
+<action>click</action>
+<selector>#submitBtn</selector>
+</browser_action>
+- Type into an input field:
+<browser_action>
+<action>type</action>
+<selector>#username</selector>
+<text>test user</text>
+</browser_action>
+
 RULES
 - One tool call per message. Never invent tool results.
 - Never call read_file or replace_in_file on an existing file path you have not first seen via list_files (or via get_editor_context / a previous tool result) in this conversation. If you do not yet know the project layout, call list_files on the root first. You CAN use write_file to create brand-new files.
 - When calling write_file, always put the full file code inside <content>...</content>. Never omit <content>.
+- When you build or update a website / HTML page, use browser_action (open, click, type) to open it inside the editor preview, test buttons/inputs, and verify there are 0 JS errors.
 - Read an existing file before you modify it.
 - Prefer replace_in_file for focused edits and write_file only when replacing a complete file is necessary.
 - Use get_editor_context when the user refers to "this code", "the selection" or the active editor.

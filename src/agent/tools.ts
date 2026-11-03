@@ -15,6 +15,8 @@ export interface ToolContext {
   runCommand(command: string): Promise<ToolResult>;
   /** Searches the web for documentation or current information; see src/agent/webSearch.ts. */
   webSearch(query: string): Promise<ToolResult>;
+  /** Opens a web page in the in-editor Live Preview, captures DOM/layout snapshot, clicks buttons, or types into inputs. */
+  browserAction?(params: { action?: string; target?: string; selector?: string; text?: string }): Promise<ToolResult>;
   signal: AbortSignal;
 }
 
@@ -149,6 +151,12 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
       return missing(call, 'query');
     }
     return await ctx.webSearch(p.query);
+  }
+  if (call.name === 'browser_action') {
+    if (!ctx.browserAction) {
+      return { ok: false, output: 'Live Browser Preview is not available in this context.' };
+    }
+    return await ctx.browserAction(p);
   }
   if (!ctx.root) {
     return { ok: false, output: 'No workspace folder is open.' };

@@ -77,3 +77,14 @@ test('write_file recovers content when <content> tag is omitted or fenced or pre
   assert.equal(preceding?.params.path, 'calculator.py');
   assert.equal(preceding?.params.content, 'def sub(a, b):\n    return a - b');
 });
+
+test('parses browser_action open, click, and type calls', () => {
+  const openCall = parseToolCall('<browser_action>\n<action>open</action>\n<target>index.html</target>\n</browser_action>');
+  assert.equal(openCall?.name, 'browser_action');
+  assert.equal(openCall?.params.action, 'open');
+  assert.equal(openCall?.params.target, 'index.html');
+
+  const clickCall = parseToolCall('<browser_action><action>click</action><selector>#calcBtn</selector></browser_action>');
+  assert.equal(clickCall?.params.action, 'click');
+  assert.equal(clickCall?.params.selector, '#calcBtn');
+});

@@ -2,7 +2,7 @@
   "name": "sovereign-agent",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "publisher": "ertugrul37",
   "icon": "media/logo.png",
   "license": "GPL-3.0-or-later",
@@ -144,6 +144,11 @@
         "command": "sovereignAgent.openFeedback",
         "title": "%command.openFeedback%",
         "icon": "$(info)"
+      },
+      {
+        "command": "sovereignAgent.openPreview",
+        "title": "%command.openPreview%",
+        "icon": "$(browser)"
       },
       {
         "command": "sovereignAgent.rateExtension",

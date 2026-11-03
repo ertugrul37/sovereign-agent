@@ -151,6 +151,7 @@ export const es: Record<MessageKey, string> = {
   ,'ui.insertCode': 'Insertar'
   ,'ui.runCode': 'Ejecutar'
   ,'ui.webSearch': 'Búsqueda web'
+  ,'ui.livePreview': 'Vista previa web en vivo y pruebas'
   ,'ui.rateExtension': 'Valorar con 5 estrellas en Marketplace ⭐'
   ,'ui.starGithub': 'Estrella en GitHub ★'
   ,'ui.rateDesc': '¿Te gusta la privacidad 100 % local? ¡Una valoración de 5 estrellas ayuda a más desarrolladores a descubrir Sovereign Agent!'

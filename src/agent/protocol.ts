@@ -16,7 +16,8 @@ export const TOOL_NAMES = [
   'get_editor_context',
   'run_command',
   'mcp_call',
-  'web_search'
+  'web_search',
+  'browser_action'
 ] as const;
 export type ToolName = (typeof TOOL_NAMES)[number];
 
@@ -29,7 +30,8 @@ export const TOOL_PARAMS: Record<ToolName, string[]> = {
   get_editor_context: [],
   run_command: ['command'],
   mcp_call: ['server', 'tool', 'arguments'],
-  web_search: ['query']
+  web_search: ['query'],
+  browser_action: ['action', 'target', 'selector', 'text']
 };
 
 export interface ToolCall {
@@ -58,7 +60,11 @@ const PARAM_ALIASES: Record<string, string[]> = {
   server: ['server', 'name'],
   tool: ['tool', ' tool_name', 'method'],
   arguments: ['arguments', 'args', 'params', 'input'],
-  query: ['query', 'q', 'search', 'pattern', 'text']
+  query: ['query', 'q', 'search', 'pattern', 'text'],
+  action: ['action', 'cmd', 'operation', 'mode'],
+  target: ['target', 'path', 'url', 'file', 'page'],
+  selector: ['selector', 'element', 'button', 'input', 'id'],
+  text: ['text', 'value', 'input_text']
 };
 
 function stripOuterCodeFence(code: string, filePath?: string): string {
@@ -229,5 +235,7 @@ export function describeCall(call: ToolCall): string {
       return `mcp_call ${p.server ?? ''}/${p.tool ?? ''}`;
     case 'web_search':
       return `web_search ${p.query ?? ''}`;
+    case 'browser_action':
+      return `browser_action ${p.action ?? 'open'} ${p.target || p.selector || ''}`.trim();
   }
 }

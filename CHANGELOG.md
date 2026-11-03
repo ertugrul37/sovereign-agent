@@ -2,6 +2,14 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.23] - 2026-11-03
+
+### Added
+- **In-Editor Live Web Preview & Automated DOM/UI Tester (`src/agent/browserPreview.ts`, `browser_action` Tool):**
+  - Opens workspace `.html` files (with automatic local CSS/JS inlining) or local dev servers (`http://localhost:...`) in a side-by-side VS Code editor preview panel (`🌐 Sovereign Live Preview & Tester`).
+  - Allows the agent to inspect rendered DOM & bounding-box layout, click buttons (`<action>click</action><selector>#btn</selector>`), type into inputs (`<action>type</action>`), highlight interacted elements in real time, and capture `console.log` / uncaught JS runtime errors.
+  - Added header shortcut button (`🖥️`) and command `Sovereign Agent: 🌐 Open Live Web Preview & Tester` (`sovereignAgent.openPreview`).
+
 ## [0.1.22] - 2026-11-03
 
 ### Changed

@@ -16,6 +16,7 @@ import { ToolContext } from '../agent/tools';
 import { transcribeAudio } from '../llm/asr';
 import { AgentTerminal } from '../agent/terminal';
 import { performWebSearch } from '../agent/webSearch';
+import { BrowserPreviewManager } from '../agent/browserPreview';
 
 const execFileAsync = promisify(execFile);
 
@@ -61,6 +62,7 @@ type FromWebview =
   | { type: 'runCode'; code: string; lang: string }
   | { type: 'setLanguage'; language: string }
   | { type: 'selectLanguage' }
+  | { type: 'openPreview' }
   | { type: 'confirmResponse'; id: string; allow: boolean };
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
@@ -75,6 +77,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private autoApprove = false;
   private readonly pendingConfirms = new Map<string, (allow: boolean) => void>();
   private readonly terminal = new AgentTerminal();
+  private readonly browserPreview = new BrowserPreviewManager();
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -154,6 +157,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   dispose(): void {
     this.mcp.dispose();
     this.terminal.dispose();
+    this.browserPreview.dispose();
+  }
+
+  async openPreview(): Promise<void> {
+    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    await this.browserPreview.openInteractive(root);
   }
 
   async undo(): Promise<void> {
@@ -382,6 +391,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         break;
       case 'selectLanguage':
         await this.selectLanguage();
+        break;
+      case 'openPreview':
+        await this.openPreview();
         break;
       case 'setLanguage':
         await vscode.workspace
@@ -877,7 +889,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           this.previewChange(relPath, original, updated),
         callMcp: (server: string, tool: string, argsJson: string) => this.mcp.call(server, tool, argsJson),
         runCommand: (command: string) => this.terminal.run(command, root ?? process.cwd(), abort.signal),
-        webSearch: (query: string) => performWebSearch(query, abort.signal)
+        webSearch: (query: string) => performWebSearch(query, abort.signal),
+        browserAction: (params) => this.browserPreview.execute(params, root)
       };
     }
 
@@ -1055,6 +1068,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 <body class="empty">
   <header>
     <div class="header-actions">
+      <button id="previewBtn" class="icon-button" data-icon="monitor" data-i18n-title="ui.livePreview" title="" aria-label="Live Web Preview & Tester"></button>
       <button id="compareModel" class="icon-button" data-icon="columns" data-i18n-title="ui.compareModel" title="" aria-label="Compare models"></button>
       <button id="approval" class="icon-button" data-icon="shield" data-i18n-title="ui.autoApprove" title="" aria-haspopup="true" aria-label="Approvals"></button>
       <button id="undo" class="icon-button" data-icon="undo" data-i18n-title="ui.undo" title="" aria-label="Undo"></button>
