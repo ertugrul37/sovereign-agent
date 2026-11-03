@@ -79,6 +79,9 @@ export class BrowserPreviewManager implements vscode.Disposable {
           this.pendingWaiters.delete(msg.reqId);
           waiter(msg.snapshot);
         }
+      } else if (msg.type === 'reloadPreview' && this.currentTarget) {
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        void this.openTarget(this.currentTarget, workspaceRoot);
       }
     });
     this.panel = panel;
@@ -329,24 +332,53 @@ export class BrowserPreviewManager implements vscode.Disposable {
     const harnessScript = /* html */ `
 <style id="__sovereign_harness_css__">
   #__sov_bar__ {
-    position: sticky; top: 0; left: 0; right: 0; z-index: 2147483640;
-    display: flex; align-items: center; gap: 8px;
-    padding: 6px 10px; background: #0f172a; color: #e2e8f0;
+    position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important;
+    width: 100% !important; box-sizing: border-box !important; z-index: 2147483640 !important;
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 10px; background: rgba(15, 23, 42, 0.96); color: #e2e8f0;
     font: 12px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    border-bottom: 1px solid #1e293b; box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    border-bottom: 1px solid #1e293b; box-shadow: 0 2px 10px rgba(0,0,0,0.28);
+    backdrop-filter: blur(6px);
   }
+  #__sov_bar__[hidden] { display: none !important; }
   #__sov_url__ {
-    flex: 1; padding: 3px 8px; border-radius: 5px;
+    flex: 1; min-width: 60px; padding: 3px 8px; border-radius: 5px;
     background: #1e293b; color: #38bdf8; font-family: monospace; font-size: 11.5px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .__sov_badge__ {
-    padding: 2px 7px; border-radius: 999px; font-size: 11px; font-weight: 600;
-    background: rgba(16, 185, 129, 0.18); color: #34d399;
+  .__sov_btn__ {
+    padding: 3px 8px; border-radius: 6px; border: 1px solid #334155;
+    background: #1e293b; color: #e2e8f0; font-size: 11px; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
   }
-  .__sov_badge__.err {
-    background: rgba(239, 68, 68, 0.22); color: #f87171;
+  .__sov_btn__:hover { background: #334155; border-color: #475569; }
+  .__sov_btn__.primary {
+    background: rgba(16, 185, 129, 0.18); border-color: rgba(16, 185, 129, 0.45); color: #34d399;
   }
+  .__sov_btn__.primary:hover { background: rgba(16, 185, 129, 0.28); }
+  .__sov_btn__.err {
+    background: rgba(239, 68, 68, 0.22); border-color: rgba(239, 68, 68, 0.5); color: #f87171;
+  }
+  #__sov_fab__ {
+    position: fixed !important; bottom: 12px !important; right: 12px !important; z-index: 2147483641 !important;
+    padding: 5px 10px; border-radius: 999px; border: 1px solid #334155;
+    background: rgba(15, 23, 42, 0.92); color: #38bdf8; font: 600 11.5px sans-serif;
+    cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  #__sov_drawer__ {
+    position: fixed !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+    max-height: 44vh; overflow-y: auto; z-index: 2147483642 !important;
+    background: rgba(15, 23, 42, 0.97); color: #e2e8f0;
+    border-top: 1px solid #334155; padding: 10px 12px;
+    font: 12px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.35);
+  }
+  #__sov_drawer__[hidden] { display: none !important; }
+  .__sov_dom_row__ {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 5px 8px; border-bottom: 1px solid #1e293b; font-family: monospace; font-size: 11.5px;
+  }
+  .__sov_dom_row__:hover { background: #1e293b; }
   .__sov_pulse__ {
     outline: 3px solid #f59e0b !important;
     outline-offset: 2px !important;
@@ -354,16 +386,27 @@ export class BrowserPreviewManager implements vscode.Disposable {
     transition: outline 0.2s ease, box-shadow 0.2s ease !important;
   }
   #__sov_toast__ {
-    position: fixed; bottom: 12px; right: 12px; z-index: 2147483645;
+    position: fixed !important; bottom: 14px !important; left: 14px !important; z-index: 2147483645 !important;
     padding: 7px 12px; border-radius: 8px; background: #0f172a; color: #f8fafc;
     border: 1px solid #38bdf8; font: 12px sans-serif; box-shadow: 0 6px 18px rgba(0,0,0,0.35);
     display: none;
   }
 </style>
 <div id="__sov_bar__">
-  <span>🌐 Live Preview</span>
+  <span style="font-weight:600">🌐 Live Preview</span>
   <span id="__sov_url__">${safeUrl}</span>
-  <span id="__sov_status__" class="__sov_badge__">✓ DOM Ready</span>
+  <button type="button" id="__sov_dom_btn__" class="__sov_btn__ primary" title="Inspect DOM Elements & Console">✓ DOM Ready</button>
+  <button type="button" id="__sov_autotest_btn__" class="__sov_btn__" title="Auto-test inputs and buttons on this page">▶ Test UI</button>
+  <button type="button" id="__sov_reload_btn__" class="__sov_btn__" title="Reload Page">↻</button>
+  <button type="button" id="__sov_min_btn__" class="__sov_btn__" title="Minimize Toolbar">✕</button>
+</div>
+<button type="button" id="__sov_fab__" hidden title="Show Live Preview Toolbar">🌐 DevTools</button>
+<div id="__sov_drawer__" hidden>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+    <strong style="color:#38bdf8">🔍 Live DOM Elements & Console Inspector</strong>
+    <button type="button" id="__sov_drawer_close__" class="__sov_btn__">Close</button>
+  </div>
+  <div id="__sov_dom_list__"></div>
 </div>
 <div id="__sov_toast__"></div>
 <script id="__sovereign_harness_js__">
@@ -371,24 +414,37 @@ export class BrowserPreviewManager implements vscode.Disposable {
   const vscode = acquireVsCodeApi();
   const logs = [];
   const errors = [];
-  const statusBadge = document.getElementById('__sov_status__');
+  const barEl = document.getElementById('__sov_bar__');
+  const fabEl = document.getElementById('__sov_fab__');
+  const domBtn = document.getElementById('__sov_dom_btn__');
+  const autoTestBtn = document.getElementById('__sov_autotest_btn__');
+  const reloadBtn = document.getElementById('__sov_reload_btn__');
+  const minBtn = document.getElementById('__sov_min_btn__');
+  const drawerEl = document.getElementById('__sov_drawer__');
+  const drawerCloseBtn = document.getElementById('__sov_drawer_close__');
+  const domListEl = document.getElementById('__sov_dom_list__');
   const toastEl = document.getElementById('__sov_toast__');
+
+  function isHarnessNode(el) {
+    return Boolean(el && el.closest && el.closest('#__sov_bar__, #__sov_drawer__, #__sov_fab__, #__sov_toast__'));
+  }
 
   function showToast(text) {
     if (!toastEl) return;
     toastEl.textContent = text;
     toastEl.style.display = 'block';
-    setTimeout(() => { toastEl.style.display = 'none'; }, 1800);
+    setTimeout(() => { toastEl.style.display = 'none'; }, 2000);
   }
 
   function updateBadge() {
-    if (!statusBadge) return;
+    if (!domBtn) return;
+    const count = getInteractiveNodes().length;
     if (errors.length > 0) {
-      statusBadge.textContent = '✕ ' + errors.length + ' Error(s)';
-      statusBadge.className = '__sov_badge__ err';
+      domBtn.textContent = '✕ ' + errors.length + ' Error · 🔍 DOM (' + count + ')';
+      domBtn.className = '__sov_btn__ err';
     } else {
-      statusBadge.textContent = '✓ 0 Errors';
-      statusBadge.className = '__sov_badge__';
+      domBtn.textContent = '✓ 0 Errors · 🔍 DOM (' + count + ')';
+      domBtn.className = '__sov_btn__ primary';
     }
   }
 
@@ -423,38 +479,39 @@ export class BrowserPreviewManager implements vscode.Disposable {
     return el.tagName.toLowerCase();
   }
 
+  function getInteractiveNodes() {
+    return Array.from(document.querySelectorAll('button, input, select, textarea, a, [role="button"]'))
+      .filter(el => !isHarnessNode(el));
+  }
+
   function findTargetElement(sel) {
     if (!sel) return null;
     if (sel.startsWith('text:')) {
       const needle = sel.slice(5).trim().toLowerCase();
-      const candidates = Array.from(document.querySelectorAll('button, a, input[type="button"], input[type="submit"], [role="button"], label'));
-      return candidates.find(el => (el.textContent || el.value || '').trim().toLowerCase().includes(needle)) || null;
+      return getInteractiveNodes().find(el => (el.textContent || el.value || '').trim().toLowerCase().includes(needle)) || null;
     }
     try {
       const found = document.querySelector(sel);
-      if (found) return found;
+      if (found && !isHarnessNode(found)) return found;
     } catch {}
-    // Fallback: match by button/link text if selector is plain words
     const needle = sel.replace(/^[#.]/, '').trim().toLowerCase();
-    const all = Array.from(document.querySelectorAll('button, a, input, select, textarea, [role="button"]'));
-    return all.find(el => (el.textContent || el.value || el.id || el.getAttribute('placeholder') || '').trim().toLowerCase().includes(needle)) || null;
+    return getInteractiveNodes().find(el => (el.textContent || el.value || el.id || el.getAttribute('placeholder') || '').trim().toLowerCase().includes(needle)) || null;
   }
 
   function highlight(el, label) {
     if (!el) return;
     el.classList.add('__sov_pulse__');
-    showToast('🤖 Agent: ' + label);
+    showToast('🤖 ' + label);
     setTimeout(() => el.classList.remove('__sov_pulse__'), 1400);
   }
 
   function collectSnapshot(ok, actionSummary) {
     const clone = document.body ? document.body.cloneNode(true) : null;
     if (clone) {
-      clone.querySelectorAll('#__sov_bar__, #__sov_toast__, script, style').forEach(n => n.remove());
+      clone.querySelectorAll('#__sov_bar__, #__sov_drawer__, #__sov_fab__, #__sov_toast__, script, style').forEach(n => n.remove());
     }
     const visibleText = clone ? (clone.innerText || clone.textContent || '').replace(/\\n{3,}/g, '\\n\\n').trim().slice(0, 4000) : '';
-    const interactive = Array.from(document.querySelectorAll('button, input, select, textarea, a, [role="button"]'))
-      .filter(el => !el.closest('#__sov_bar__'))
+    const interactive = getInteractiveNodes()
       .slice(0, 40)
       .map(el => {
         const r = el.getBoundingClientRect();
@@ -470,6 +527,7 @@ export class BrowserPreviewManager implements vscode.Disposable {
         };
       });
 
+    updateBadge();
     return {
       ok,
       title: document.title || '',
@@ -481,6 +539,94 @@ export class BrowserPreviewManager implements vscode.Disposable {
       errors: errors.slice(-15)
     };
   }
+
+  function renderDomDrawer() {
+    if (!domListEl) return;
+    const snap = collectSnapshot(true, 'Manual DOM inspect');
+    domListEl.replaceChildren();
+    if (snap.interactiveElements.length === 0) {
+      domListEl.textContent = 'No interactive elements found on page.';
+      return;
+    }
+    snap.interactiveElements.forEach((item, idx) => {
+      const row = document.createElement('div');
+      row.className = '__sov_dom_row__';
+      const info = document.createElement('span');
+      info.textContent = (idx + 1) + '. <' + item.tag + '> ' + item.selector + (item.text ? ' "' + item.text + '"' : '') + ' [' + item.rect + ']';
+      const act = document.createElement('button');
+      act.type = 'button';
+      act.className = '__sov_btn__';
+      act.textContent = item.tag === 'input' || item.tag === 'textarea' ? 'Test Fill' : 'Test Click';
+      act.addEventListener('click', () => {
+        const nodes = getInteractiveNodes();
+        const target = nodes[idx];
+        if (!target) return;
+        if (item.tag === 'input' || item.tag === 'textarea') {
+          highlight(target, 'Fill ' + item.selector);
+          target.focus();
+          target.value = target.type === 'password' ? 'TestPass123!' : 'test_user';
+          target.dispatchEvent(new Event('input', { bubbles: true }));
+          target.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+          highlight(target, 'Click ' + item.selector);
+          target.click();
+        }
+        setTimeout(renderDomDrawer, 200);
+      });
+      row.append(info, act);
+      domListEl.appendChild(row);
+    });
+  }
+
+  domBtn?.addEventListener('click', () => {
+    const nextHidden = !drawerEl.hidden;
+    drawerEl.hidden = nextHidden;
+    if (!nextHidden) renderDomDrawer();
+  });
+  drawerCloseBtn?.addEventListener('click', () => { drawerEl.hidden = true; });
+  reloadBtn?.addEventListener('click', () => vscode.postMessage({ type: 'reloadPreview' }));
+  minBtn?.addEventListener('click', () => {
+    barEl.hidden = true;
+    drawerEl.hidden = true;
+    fabEl.hidden = false;
+  });
+  fabEl?.addEventListener('click', () => {
+    fabEl.hidden = true;
+    barEl.hidden = false;
+  });
+
+  autoTestBtn?.addEventListener('click', async () => {
+    const nodes = getInteractiveNodes();
+    if (nodes.length === 0) {
+      showToast('No inputs or buttons to test');
+      return;
+    }
+    let step = 0;
+    for (const node of nodes) {
+      const tag = node.tagName.toLowerCase();
+      if (tag === 'input' || tag === 'textarea') {
+        const type = (node.getAttribute('type') || 'text').toLowerCase();
+        if (type !== 'submit' && type !== 'button') {
+          highlight(node, 'Auto-Test Fill ' + uniqueSelector(node));
+          node.focus();
+          node.value = type === 'password' ? 'Sovereign123!' : type === 'email' ? 'test@example.com' : type === 'number' ? '42' : 'test_user';
+          node.dispatchEvent(new Event('input', { bubbles: true }));
+          node.dispatchEvent(new Event('change', { bubbles: true }));
+          await new Promise(r => setTimeout(r, 450));
+          step++;
+        }
+      }
+    }
+    const submitBtn = nodes.find(n => n.tagName.toLowerCase() === 'button' || (n.tagName.toLowerCase() === 'input' && ['submit', 'button'].includes((n.getAttribute('type') || '').toLowerCase())));
+    if (submitBtn) {
+      highlight(submitBtn, 'Auto-Test Click ' + uniqueSelector(submitBtn));
+      submitBtn.click();
+      step++;
+    }
+    updateBadge();
+    if (!drawerEl.hidden) renderDomDrawer();
+    showToast('✓ Auto-tested ' + step + ' element(s) · ' + errors.length + ' JS Error(s)');
+  });
 
   window.addEventListener('message', (event) => {
     const msg = event.data;
@@ -543,6 +689,7 @@ export class BrowserPreviewManager implements vscode.Disposable {
 
   window.addEventListener('load', () => {
     setTimeout(() => {
+      updateBadge();
       vscode.postMessage({
         type: 'snapshotResult',
         reqId: '__init__',
@@ -559,3 +706,4 @@ export class BrowserPreviewManager implements vscode.Disposable {
     return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>${harnessScript}\n${userHtml}</body></html>`;
   }
 }
+

@@ -2,6 +2,11 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.24] - 2026-11-03
+
+### Fixed
+- **Live Preview Flexbox/Grid Isolation & Interactive DevTools Bar (`src/agent/browserPreview.ts`):** Changed `#__sov_bar__` from `position: sticky` to `position: fixed; top: 0; left: 0; right: 0` so it never participates in `body { display: flex; justify-content: center; align-items: center }` layouts, and added interactive **🔍 DOM Inspector Drawer**, **▶ Test UI (1-Click Auto-Tester)**, **↻ Reload**, and **✕ Minimize** controls directly on the preview toolbar.
+
 ## [0.1.23] - 2026-11-03
 
 ### Added
