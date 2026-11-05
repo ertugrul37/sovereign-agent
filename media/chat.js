@@ -91,8 +91,271 @@
     return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
-  // Minimal, safe rendering: code fences, inline code, bold, line breaks.
+  function replaceLatexMath(str) {
+    if (!str) return '';
+    // LaTeX arrows
+    str = str.replace(/\\leftrightarrow/g, '↔');
+    str = str.replace(/\\rightarrow|\\to(?![a-zA-Z])/g, '→');
+    str = str.replace(/\\leftarrow|\\gets(?![a-zA-Z])/g, '←');
+    str = str.replace(/\\Rightarrow/g, '⇒');
+    str = str.replace(/\\Leftarrow/g, '⇐');
+    str = str.replace(/\\Leftrightarrow/g, '⇔');
+    str = str.replace(/\\mapsto/g, '↦');
+    str = str.replace(/\\uparrow/g, '↑');
+    str = str.replace(/\\downarrow/g, '↓');
+    str = str.replace(/\\nearrow/g, '↗');
+    str = str.replace(/\\searrow/g, '↘');
+
+    // Math comparison & operations
+    str = str.replace(/\\leq?(?![a-zA-Z])/g, '≤');
+    str = str.replace(/\\geq?(?![a-zA-Z])/g, '≥');
+    str = str.replace(/\\neq?(?![a-zA-Z])/g, '≠');
+    str = str.replace(/\\approx/g, '≈');
+    str = str.replace(/\\equiv/g, '≡');
+    str = str.replace(/\\times/g, '×');
+    str = str.replace(/\\div/g, '÷');
+    str = str.replace(/\\pm/g, '±');
+    str = str.replace(/\\mp/g, '∓');
+    str = str.replace(/\\cdot/g, '·');
+    str = str.replace(/\\in(?![a-zA-Z])/g, '∈');
+    str = str.replace(/\\notin/g, '∉');
+    str = str.replace(/\\subseteq?/g, '⊆');
+    str = str.replace(/\\subset(?![a-zA-Z])/g, '⊂');
+    str = str.replace(/\\forall/g, '∀');
+    str = str.replace(/\\exists/g, '∃');
+    str = str.replace(/\\infty/g, '∞');
+    str = str.replace(/\\sum/g, '∑');
+    str = str.replace(/\\prod/g, '∏');
+    str = str.replace(/\\sqrt/g, '√');
+
+    // Clean $ delimiters around arrows and simple inline math
+    str = str.replace(/\$([^\$\n]+)\$/g, (m, content) => {
+      const trimmed = content.trim();
+      if (/^[→←↔⇒⇐⇔↦↑↓≤≥≠≈≡×÷±·∈∉⊆⊂∀∃∞]+$/.test(trimmed)) {
+        return trimmed;
+      }
+      return '<span class="chat-math">' + escapeHtml(trimmed) + '</span>';
+    });
+
+    return str;
+  }
+
+  function isFilePath(str) {
+    if (!str || str.length > 150 || /\s/.test(str)) return false;
+    if (str.includes('(') || str.includes(')') || str.includes('{') || str.includes('}') || str.startsWith('http://') || str.startsWith('https://')) return false;
+
+    const hasKnownExt = /\.(ts|tsx|js|jsx|json|py|html|css|scss|md|rs|go|java|c|cpp|h|hpp|sh|bat|cmd|yml|yaml|toml|sql|svg|png|jpg|ico|vue|svelte|rb|php|xml|env|lock|wasm|map|txt|graphql)$/i.test(str);
+    const hasSlash = /[/\\]/.test(str);
+    const isSpecial = /^(dockerfile|makefile|license|readme|changelog|\.gitignore|\.env(\.[a-z0-9_-]+)?|\.eslintrc|\.prettierrc)$/i.test(str);
+    const isDirPath = hasSlash && (str.endsWith('/') || str.endsWith('\\'));
+
+    if (hasKnownExt) return true;
+    if (isSpecial) return true;
+    if (isDirPath) return true;
+    if (hasSlash && /^(\.\/|\.\.\/|src\/|lib\/|media\/|test\/|tests\/|app\/|dist\/|build\/|packages\/)/i.test(str)) return true;
+
+    return false;
+  }
+
+  function renderInline(rawText) {
+    if (!rawText) return '';
+    // 1. Extract inline code spans to preserve literal content
+    const codeSpans = [];
+    let s = rawText.replace(/`([^`\n]+)`/g, (match, code) => {
+      const idx = codeSpans.length;
+      codeSpans.push(code);
+      return '___CODESPAN_' + idx + '___';
+    });
+
+    // 2. LaTeX arrows and math
+    s = replaceLatexMath(s);
+
+    // 3. Escape HTML
+    s = escapeHtml(s);
+
+    // 4. Bold: **text**
+    s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+
+    // 5. Italic: *text* or _text_
+    s = s.replace(/(^|[^*])\*([^*\n]+)\*([^*]|$)/g, '$1<em>$2</em>$3');
+    s = s.replace(/(^|[^_])_([^_\n]+)_([^_]|$)/g, '$1<em>$2</em>$3');
+
+    // 6. Links: [text](url)
+    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+    // 7. Restore inline code spans with file path badge styling
+    s = s.replace(/___CODESPAN_(\d+)___/g, (match, idx) => {
+      const code = codeSpans[Number(idx)];
+      const trimmed = (code || '').trim();
+      if (isFilePath(trimmed)) {
+        const isDir = trimmed.endsWith('/') || trimmed.endsWith('\\');
+        const icon = isDir ? '📁' : '📄';
+        return '<code class="code-filepath' + (isDir ? ' code-dirpath' : '') + '" data-filepath="' + escapeHtml(trimmed) + '" title="Dosyayı aç: ' + escapeHtml(trimmed) + '"><span class="filepath-icon">' + icon + '</span><span class="filepath-name">' + escapeHtml(trimmed) + '</span></code>';
+      }
+      return '<code>' + escapeHtml(code) + '</code>';
+    });
+
+    return s;
+  }
+
+  function parseTableLine(line) {
+    let s = line.trim();
+    if (s.startsWith('|')) s = s.slice(1);
+    if (s.endsWith('|')) s = s.slice(0, -1);
+    return s.split('|').map((c) => c.trim());
+  }
+
+  function isTableSeparator(line) {
+    const parts = parseTableLine(line);
+    return parts.length > 0 && parts.every((p) => /^:?-{2,}:?$/.test(p));
+  }
+
+  function renderMarkdownBlock(text) {
+    if (!text) return '';
+    const lines = text.split('\n');
+    const out = [];
+    let i = 0;
+
+    while (i < lines.length) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      if (!trimmed) {
+        out.push('');
+        i++;
+        continue;
+      }
+
+      // 1. Table check
+      if (trimmed.includes('|') && i + 1 < lines.length && isTableSeparator(lines[i + 1])) {
+        const headerCells = parseTableLine(trimmed);
+        const sepCells = parseTableLine(lines[i + 1]);
+        const alignments = sepCells.map((c) => {
+          const l = c.startsWith(':');
+          const r = c.endsWith(':');
+          if (l && r) return 'center';
+          if (r) return 'right';
+          return 'left';
+        });
+
+        let tableHtml = '<div class="chat-table-wrap"><table class="chat-table"><thead><tr>';
+        headerCells.forEach((c, idx) => {
+          const align = alignments[idx] || 'left';
+          tableHtml += '<th style="text-align:' + align + '">' + renderInline(c) + '</th>';
+        });
+        tableHtml += '</tr></thead><tbody>';
+
+        i += 2;
+        while (i < lines.length && lines[i].trim().includes('|')) {
+          const rowLine = lines[i].trim();
+          if (!rowLine || isTableSeparator(rowLine)) {
+            i++;
+            continue;
+          }
+          const cells = parseTableLine(rowLine);
+          tableHtml += '<tr>';
+          headerCells.forEach((_, idx) => {
+            const align = alignments[idx] || 'left';
+            const cellVal = cells[idx] !== undefined ? cells[idx] : '';
+            tableHtml += '<td style="text-align:' + align + '">' + renderInline(cellVal) + '</td>';
+          });
+          tableHtml += '</tr>';
+          i++;
+        }
+        tableHtml += '</tbody></table></div>';
+        out.push(tableHtml);
+        continue;
+      }
+
+      // 2. Headings: # through ######
+      const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+      if (headingMatch) {
+        const lvl = headingMatch[1].length;
+        const hContent = renderInline(headingMatch[2]);
+        out.push('<h' + lvl + '>' + hContent + '</h' + lvl + '>');
+        i++;
+        continue;
+      }
+
+      // 3. Blockquote: > ...
+      if (trimmed.startsWith('>')) {
+        const quoteLines = [];
+        while (i < lines.length && lines[i].trim().startsWith('>')) {
+          quoteLines.push(lines[i].trim().replace(/^>\s?/, ''));
+          i++;
+        }
+        out.push('<blockquote class="chat-quote">' + quoteLines.map(renderInline).join('<br>') + '</blockquote>');
+        continue;
+      }
+
+      // 4. Bullet list: * , - , +
+      if (/^[*+-]\s+/.test(trimmed)) {
+        let listHtml = '<ul class="chat-list">';
+        while (i < lines.length) {
+          const itemMatch = lines[i].trim().match(/^[*+-]\s+(.+)$/);
+          if (!itemMatch) break;
+          listHtml += '<li>' + renderInline(itemMatch[1]) + '</li>';
+          i++;
+        }
+        listHtml += '</ul>';
+        out.push(listHtml);
+        continue;
+      }
+
+      // 5. Numbered list: 1. , 2.
+      if (/^\d+\.\s+/.test(trimmed)) {
+        let listHtml = '<ol class="chat-list">';
+        while (i < lines.length) {
+          const itemMatch = lines[i].trim().match(/^\d+\.\s+(.+)$/);
+          if (!itemMatch) break;
+          listHtml += '<li>' + renderInline(itemMatch[1]) + '</li>';
+          i++;
+        }
+        listHtml += '</ol>';
+        out.push(listHtml);
+        continue;
+      }
+
+      // 6. Horizontal rule: --- or *** or ___
+      if (/^(---|---|\*\*\*|___)\s*$/.test(trimmed)) {
+        out.push('<hr class="chat-divider">');
+        i++;
+        continue;
+      }
+
+      // 7. Regular paragraph line
+      out.push(renderInline(trimmed));
+      i++;
+    }
+
+    // Join pieces sensibly
+    let result = '';
+    for (let k = 0; k < out.length; k++) {
+      const cur = out[k];
+      if (!cur) {
+        if (result && !result.endsWith('</div>') && !result.endsWith('</ul>') && !result.endsWith('</ol>') && !result.endsWith('</blockquote>') && !/<\/h[1-6]>$/.test(result) && !result.endsWith('<br>')) {
+          result += '<br>';
+        }
+        continue;
+      }
+      const isCurBlock = cur.startsWith('<h') || cur.startsWith('<div class="chat-table') || cur.startsWith('<ul') || cur.startsWith('<ol') || cur.startsWith('<blockquote') || cur.startsWith('<hr');
+      if (result) {
+        const prevEndsWithBlock = result.endsWith('</div>') || result.endsWith('</ul>') || result.endsWith('</ol>') || result.endsWith('</blockquote>') || /<\/h[1-6]>$/.test(result) || result.endsWith('<hr class="chat-divider">');
+        if (prevEndsWithBlock || isCurBlock) {
+          result += '\n' + cur;
+        } else {
+          result += '<br>' + cur;
+        }
+      } else {
+        result = cur;
+      }
+    }
+    return result;
+  }
+
+  // Safe rendering: code fences, tables, headers, lists, blockquotes, file paths, latex arrows & math.
   function render(text) {
+    if (!text) return '';
     return text
       .split('```')
       .map((part, i) => {
@@ -117,15 +380,17 @@
             '</div>'
           );
         }
-        return escapeHtml(part)
-          .replace(/`([^`\n]+)`/g, '<code>$1</code>')
-          .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
-          .replace(/\n/g, '<br>');
+        return renderMarkdownBlock(part);
       })
       .join('');
   }
 
   document.addEventListener('click', (e) => {
+    const fileBadge = e.target.closest('.code-filepath');
+    if (fileBadge && fileBadge.dataset.filepath) {
+      vscode.postMessage({ type: 'openFile', file: fileBadge.dataset.filepath });
+      return;
+    }
     const btn = e.target.closest('.code-btn');
     if (!btn) return;
     const block = btn.closest('.code-block');

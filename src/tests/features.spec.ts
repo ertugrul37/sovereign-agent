@@ -76,3 +76,17 @@ test('AntiHallucinationGuard detects non-existent local imports', async () => {
   await fs.rm(tmpDir, { recursive: true, force: true });
 });
 
+test('media chat parser includes table, heading, filepath, and latex arrow rendering', async () => {
+  const chatJs = await fs.readFile(path.join(__dirname, '../../media/chat.js'), 'utf8');
+  assert.ok(chatJs.includes('function replaceLatexMath'), 'chat.js has replaceLatexMath');
+  assert.ok(chatJs.includes('function isFilePath'), 'chat.js has isFilePath');
+  assert.ok(chatJs.includes('chat-table'), 'chat.js has chat-table rendering');
+  assert.ok(chatJs.includes('code-filepath'), 'chat.js has code-filepath styling and handling');
+
+  const chatCss = await fs.readFile(path.join(__dirname, '../../media/chat.css'), 'utf8');
+  assert.ok(chatCss.includes('.chat-table-wrap'), 'chat.css has .chat-table-wrap');
+  assert.ok(chatCss.includes('.msg code.code-filepath'), 'chat.css has .msg code.code-filepath');
+  assert.ok(chatCss.includes('.msg h3'), 'chat.css has .msg h3');
+});
+
+

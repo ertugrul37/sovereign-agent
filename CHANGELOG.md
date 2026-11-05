@@ -2,7 +2,16 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
-## [0.1.30] - 2026-11-05
+## [0.1.31] - 2026-11-05
+
+### Added & Fixed
+- **Markdown & Chat Presentation Overhaul (`media/chat.js`, `media/chat.css`, `src/ui/chatViewProvider.ts`):**
+  - **📊 GFM Markdown Table Rendering:** Automatically converts Markdown tables (`| Col | ... |` + `|:---|:---|`) into clean, responsive HTML tables (`<table class="chat-table">`) with cell alignments, hover rows, headers, and horizontal scroll wrapper.
+  - **📑 Markdown Headings (`#` to `######`):** Fully supports `#` headings even with emojis, numbers, and tight line spacing. Formatted with Sovereign typography and signature terracotta accenting for `h3`.
+  - **📁 Colored Clickable File Path Badges:** Automatically identifies file and folder paths in inline code (e.g. `i18n/index.ts`, `agent/agent.ts`, `styles.css`) and renders them with vibrant sky-blue/amber badges, file icons (📄 / 📁), and tooltips. Clicking any file badge immediately opens the file in the VS Code editor.
+  - **🏹 LaTeX Math & Arrow Normalization:** Seamlessly converts LaTeX math notation and arrows (`$\rightarrow$`, `$\leftarrow$`, `$\leftrightarrow$`, `$\Rightarrow$`, `\leq`, `\geq`, `\times`, etc.) into clean Unicode symbols (`→`, `←`, `↔`, `⇒`, `≤`, `≥`, `×`) without ugly raw `$` or `\` syntax.
+  - **📜 Enhanced Lists, Quotes & Math:** Native styling for bullet lists (`<ul>`), numbered lists (`<ol>`), blockquotes (`<blockquote>`), horizontal dividers, and inline math spans.
+
 
 ### Added
 - **Graphify Star Constellation Architecture & Clean Block Diagram (`src/agent/graphify.ts`):**

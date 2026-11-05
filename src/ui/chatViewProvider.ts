@@ -68,6 +68,7 @@ type FromWebview =
   | { type: 'selectLanguage' }
   | { type: 'openPreview' }
   | { type: 'openGraphify' }
+  | { type: 'openFile'; file?: string; path?: string }
   | { type: 'confirmResponse'; id: string; allow: boolean };
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
@@ -504,6 +505,20 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case 'openGraphify':
         await this.openGraphify();
         break;
+      case 'openFile': {
+        const fileTarget = String(msg.file || msg.path || '').trim();
+        const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        if (fileTarget && root) {
+          const fullPath = path.isAbsolute(fileTarget) ? fileTarget : path.join(root, fileTarget);
+          try {
+            const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
+            await vscode.window.showTextDocument(doc);
+          } catch {
+            // File might not exist or be binary
+          }
+        }
+        break;
+      }
       case 'setLanguage':
         await vscode.workspace
           .getConfiguration('sovereignAgent')
