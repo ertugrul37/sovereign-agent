@@ -2,6 +2,14 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.27] - 2026-11-05
+
+### Changed
+- **Unified Graphify Design System & Palette (`src/agent/graphify.ts`, `media/chat.css`):**
+  - Updated the Graphify Knowledge Graph visualizer to use Sovereign Agent's native warm obsidian / terracotta / sage design system (`--bg: #171716`, `--surface: #1f1f1e`, `--accent: #d97757`).
+  - Added full light/dark theme support matching VS Code and the in-app theme toggle with adaptive node borders, canvas edges, and text contrast.
+  - Aligned header badges, toolbar buttons, and starter chips in the chat interface to match Sovereign Agent's terracotta accent styling.
+
 ## [0.1.26] - 2026-11-05
 
 ### Fixed

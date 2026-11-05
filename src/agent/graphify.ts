@@ -457,82 +457,166 @@ export class GraphifyManager implements vscode.Disposable {
 <meta charset="UTF-8">
 <title>Graphify Knowledge Graph</title>
 <style>
+  /* Sovereign Agent Design System — Dark by default, Light follows VS Code or user toggle */
   :root {
-    --bg: #0b0f19;
-    --surface: #111827;
-    --surface-2: #1e293b;
-    --line: #334155;
-    --text: #f1f5f9;
-    --muted: #94a3b8;
-    --accent: #38bdf8;
-    --ok: #10b981;
-    --warn: #f59e0b;
+    color-scheme: dark;
+    --serif: "Tiempos Headline", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: var(--vscode-font-family, system-ui, -apple-system, "Segoe UI", sans-serif);
+    --mono: var(--vscode-editor-font-family, ui-monospace, Consolas, monospace);
+  }
+  body {
+    --bg: #171716;
+    --surface: #1f1f1e;
+    --surface-2: #2a2a28;
+    --surface-3: #373735;
+    --menu: #262624;
+    --line: #3a3a37;
+    --line-soft: #2e2e2c;
+    --text: #ece9e4;
+    --muted: #8f8d87;
+    --faint: #66655f;
+    --accent: #d97757;
+    --accent-ink: #ffffff;
+    --danger: #f0746a;
+    --ok: #73c991;
+    --code: #232322;
+    --shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
+  }
+  body.theme-light,
+  body.vscode-light:not(.theme-dark) {
+    color-scheme: light;
+    --bg: #faf9f5;
+    --surface: #ffffff;
+    --surface-2: #f0eee6;
+    --surface-3: #e5e2d8;
+    --menu: #ffffff;
+    --line: #dcd9ce;
+    --line-soft: #e9e6dc;
+    --text: #1f1e1d;
+    --muted: #6f6d66;
+    --faint: #9b988f;
+    --accent: #d97757;
+    --accent-ink: #ffffff;
+    --danger: #c0392b;
+    --ok: #2e7d4f;
+    --code: #f2f0e8;
+    --shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
   }
   * { box-sizing: border-box; }
   body {
     margin: 0; height: 100vh; display: flex; flex-direction: column;
     background: var(--bg); color: var(--text);
-    font: 12.5px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: var(--sans);
+    font-size: var(--vscode-font-size, 13px);
+    line-height: 1.45;
     overflow: hidden;
   }
   header {
-    display: flex; align-items: center; gap: 10px; padding: 8px 14px;
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
     background: var(--surface); border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
   }
-  .brand { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 13.5px; color: var(--accent); }
-  .stats { display: flex; gap: 8px; flex-wrap: wrap; }
+  .brand {
+    display: flex; align-items: center; gap: 8px;
+    font: 500 15px/1.2 var(--serif);
+    letter-spacing: -0.01em;
+    color: var(--text);
+  }
+  .brand-mark {
+    display: inline-grid; place-items: center;
+    width: 24px; height: 24px; border-radius: 7px;
+    background: color-mix(in srgb, var(--accent) 16%, var(--surface-2));
+    border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line));
+    color: var(--accent);
+    font-size: 13px;
+  }
+  .stats { display: flex; gap: 6px; flex-wrap: wrap; }
   .stat-pill {
-    padding: 2px 8px; border-radius: 999px; background: var(--surface-2);
-    border: 1px solid var(--line); font-size: 11px; color: var(--muted);
+    padding: 3px 9px; border-radius: 8px; background: var(--surface-2);
+    border: 1px solid var(--line-soft); font-size: 11.5px; color: var(--muted);
   }
-  .stat-pill strong { color: var(--text); }
-  .stat-pill.health { border-color: rgba(16,185,129,0.45); color: #34d399; }
+  .stat-pill strong { color: var(--text); font-weight: 600; }
+  .stat-pill.health {
+    border-color: color-mix(in srgb, var(--ok) 45%, var(--line));
+    background: color-mix(in srgb, var(--ok) 10%, var(--surface-2));
+    color: var(--ok);
+  }
   .search-input {
-    margin-left: auto; width: 210px; padding: 5px 10px; border-radius: 7px;
-    border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 12px;
+    margin-left: auto; width: 210px; padding: 6px 11px; border-radius: 9px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text);
+    font: inherit; font-size: 12px; outline: none; transition: border-color 0.15s ease;
   }
+  .search-input::placeholder { color: var(--faint); }
+  .search-input:focus { border-color: var(--accent); }
   .btn {
-    padding: 5px 10px; border-radius: 7px; border: 1px solid var(--line);
-    background: var(--surface-2); color: var(--text); font-size: 11.5px; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 11px; border-radius: 9px; border: 1px solid var(--line);
+    background: var(--surface-2); color: var(--text);
+    font: inherit; font-size: 12px; font-weight: 500; cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
   }
-  .btn:hover { border-color: var(--accent); color: var(--accent); }
-  .btn.primary { background: rgba(56,189,248,0.16); border-color: rgba(56,189,248,0.5); color: var(--accent); }
-  .workspace { flex: 1; display: grid; grid-template-columns: 1fr 300px; min-height: 0; }
-  .canvas-wrap { position: relative; overflow: hidden; background: radial-gradient(circle at center, #111827 0%, #0b0f19 100%); }
+  .btn:hover { background: var(--surface-3); border-color: var(--faint); }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .workspace { flex: 1; display: grid; grid-template-columns: 1fr 310px; min-height: 0; }
+  .canvas-wrap {
+    position: relative; overflow: hidden;
+    background: radial-gradient(circle at center, var(--surface) 0%, var(--bg) 100%);
+  }
   canvas { width: 100%; height: 100%; display: block; cursor: grab; }
   canvas:active { cursor: grabbing; }
   .legend {
-    position: absolute; left: 12px; bottom: 12px; display: flex; flex-wrap: wrap; gap: 6px;
-    max-width: 70%; padding: 6px 10px; border-radius: 8px;
-    background: rgba(15,23,42,0.88); border: 1px solid var(--line); backdrop-filter: blur(4px);
+    position: absolute; left: 12px; bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px;
+    max-width: 74%; padding: 7px 11px; border-radius: 10px;
+    background: color-mix(in srgb, var(--surface) 90%, transparent);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(6px);
   }
   .legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
   .dot { width: 9px; height: 9px; border-radius: 50%; }
   aside {
     border-left: 1px solid var(--line); background: var(--surface);
-    padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
+    padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
   }
-  h3 { margin: 0; font-size: 13px; color: var(--accent); word-break: break-all; }
-  .sub { font-size: 11px; color: var(--muted); }
-  .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 6px 0 4px; }
-  .chip-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  h3 {
+    margin: 0; font: 500 14px/1.3 var(--serif);
+    color: var(--text); word-break: break-all;
+  }
+  .sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .section-title {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--muted); margin: 8px 0 4px;
+  }
+  .chip-list { display: flex; flex-wrap: wrap; gap: 5px; }
   .chip {
-    padding: 2px 7px; border-radius: 5px; background: var(--surface-2);
-    border: 1px solid var(--line); font-family: monospace; font-size: 11px; color: var(--text);
-    cursor: pointer;
+    padding: 3px 8px; border-radius: 7px; background: var(--surface-2);
+    border: 1px solid var(--line-soft); font-family: var(--mono); font-size: 11px; color: var(--text);
+    cursor: pointer; transition: background 0.12s ease, border-color 0.12s ease;
   }
-  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .chip:hover { background: var(--surface-3); border-color: var(--accent); color: var(--accent); }
   .hub-row {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 5px 7px; border-radius: 6px; background: var(--surface-2);
-    margin-bottom: 4px; cursor: pointer; font-size: 11.5px;
+    padding: 6px 9px; border-radius: 8px; background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    margin-bottom: 5px; cursor: pointer; font-size: 12px; color: var(--text);
+    transition: background 0.12s ease, border-color 0.12s ease;
   }
-  .hub-row:hover { border: 1px solid var(--accent); }
+  .hub-row strong {
+    padding: 1px 6px; border-radius: 6px; background: var(--surface-3);
+    color: var(--accent); font-size: 11px; font-family: var(--mono);
+  }
+  .hub-row:hover { background: var(--surface-3); border-color: var(--accent); }
 </style>
 </head>
 <body>
   <header>
-    <div class="brand">🕸️ Graphify Knowledge Graph</div>
+    <div class="brand"><span class="brand-mark">🕸️</span><span>Graphify Knowledge Graph</span></div>
     <div class="stats">
       <span class="stat-pill"><strong id="statNodes">0</strong> Files</span>
       <span class="stat-pill"><strong id="statEdges">0</strong> Edges</span>
@@ -542,6 +626,7 @@ export class GraphifyManager implements vscode.Disposable {
     <input id="search" class="search-input" type="search" placeholder="Filter file or symbol..." />
     <button id="injectBtn" class="btn primary" type="button">🤖 Send Graph to Agent</button>
     <button id="refreshBtn" class="btn" type="button">↻ Refresh</button>
+    <button id="themeBtn" class="btn" type="button" title="Toggle Dark / Light Theme">◐</button>
   </header>
   <div class="workspace">
     <div class="canvas-wrap">
@@ -561,12 +646,25 @@ export class GraphifyManager implements vscode.Disposable {
   const searchEl = document.getElementById('search');
   const inspectorContent = document.getElementById('inspectorContent');
 
+  let themeState = (vscode.getState() || {}).theme || 'auto';
+  function applyTheme() {
+    document.body.classList.toggle('theme-dark', themeState === 'dark');
+    document.body.classList.toggle('theme-light', themeState === 'light');
+  }
+  applyTheme();
+  document.getElementById('themeBtn').addEventListener('click', () => {
+    themeState = themeState === 'dark' ? 'light' : (themeState === 'light' ? 'auto' : 'dark');
+    applyTheme();
+    vscode.setState({ ...(vscode.getState() || {}), theme: themeState });
+  });
+
   document.getElementById('statNodes').textContent = data.nodes.length;
   document.getElementById('statEdges').textContent = data.edges.length;
   document.getElementById('statSymbols').textContent = data.totalSymbols;
   document.getElementById('statHealth').textContent = data.healthScore;
 
-  const PALETTE = ['#38bdf8', '#a78bfa', '#34d399', '#fbbf24', '#f472b6', '#fb7185', '#60a5fa', '#c084fc', '#2dd4bf'];
+  // Sovereign Agent warm obsidian / terracotta / sage cluster palette
+  const PALETTE = ['#d97757', '#73c991', '#e0a952', '#7ba3b8', '#b888c4', '#e07a6a', '#6eb5a5', '#c7926b', '#94a3b8'];
   const clusterColors = {};
   data.clusters.forEach((c, idx) => { clusterColors[c.name] = PALETTE[idx % PALETTE.length]; });
 
@@ -595,7 +693,7 @@ export class GraphifyManager implements vscode.Disposable {
       vx: 0,
       vy: 0,
       radius: Math.max(6, Math.min(18, 6 + Math.sqrt(n.score) * 2.2)),
-      color: clusterColors[n.cluster] || '#38bdf8'
+      color: clusterColors[n.cluster] || '#d97757'
     };
   });
   const nodeById = new Map(simNodes.map(n => [n.id, n]));
@@ -681,8 +779,9 @@ export class GraphifyManager implements vscode.Disposable {
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
-      ctx.strokeStyle = active ? '#38bdf8' : 'rgba(148, 163, 184, 0.22)';
-      ctx.lineWidth = active ? 1.8 : 1;
+      const isLight = document.body.classList.contains('theme-light');
+      ctx.strokeStyle = active ? '#d97757' : (isLight ? 'rgba(31, 30, 29, 0.16)' : 'rgba(236, 233, 228, 0.18)');
+      ctx.lineWidth = active ? 2 : 1;
       ctx.stroke();
     }
 
@@ -696,7 +795,7 @@ export class GraphifyManager implements vscode.Disposable {
       if (isSelected || isHovered) {
         ctx.beginPath();
         ctx.arc(n.x, n.y, n.radius + 5, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
+        ctx.fillStyle = 'rgba(217, 119, 87, 0.28)';
         ctx.fill();
       }
 
@@ -704,12 +803,13 @@ export class GraphifyManager implements vscode.Disposable {
       ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
       ctx.fillStyle = n.color;
       ctx.fill();
-      ctx.strokeStyle = isSelected ? '#ffffff' : '#0b0f19';
-      ctx.lineWidth = isSelected ? 2.2 : 1.2;
+      const isLight = document.body.classList.contains('theme-light');
+      ctx.strokeStyle = isSelected ? (isLight ? '#1f1e1d' : '#ffffff') : (isLight ? '#faf9f5' : '#171716');
+      ctx.lineWidth = isSelected ? 2.4 : 1.2;
       ctx.stroke();
 
-      ctx.font = (isSelected ? '600 ' : '') + '11px -apple-system, Segoe UI, sans-serif';
-      ctx.fillStyle = '#e2e8f0';
+      ctx.font = (isSelected ? '600 ' : '') + '11px var(--sans, system-ui)';
+      ctx.fillStyle = isLight ? '#1f1e1d' : '#ece9e4';
       ctx.fillText(n.label, n.x + n.radius + 5, n.y + 3.5);
     }
 

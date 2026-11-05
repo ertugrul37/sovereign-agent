@@ -73,12 +73,13 @@ header { display: flex; justify-content: flex-end; padding: 6px 8px 0; min-heigh
   gap: 5px;
   width: auto !important;
   padding: 0 8px;
-  color: #38bdf8 !important;
-  background: color-mix(in srgb, #38bdf8 12%, transparent);
-  border: 1px solid color-mix(in srgb, #38bdf8 35%, transparent);
+  color: var(--accent) !important;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--line));
 }
 .graphify-header-btn:hover {
-  background: color-mix(in srgb, #38bdf8 22%, var(--surface-2)) !important;
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface-2)) !important;
+  color: var(--text) !important;
 }
 .header-pill-label {
   font-size: 11px;
@@ -86,11 +87,20 @@ header { display: flex; justify-content: flex-end; padding: 6px 8px 0; min-heigh
   letter-spacing: 0.01em;
 }
 .graphify-toolbar-btn {
-  color: #38bdf8 !important;
+  color: var(--muted);
+}
+.graphify-toolbar-btn:hover {
+  background: var(--surface-2);
+  color: var(--accent);
 }
 .graphify-chip {
-  border-color: color-mix(in srgb, #38bdf8 45%, var(--line)) !important;
-  color: #38bdf8 !important;
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line-soft)) !important;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)) !important;
+  color: var(--text) !important;
+}
+.graphify-chip:hover {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-3)) !important;
+  border-color: var(--accent) !important;
 }
 
 /* Empty state: greeting, composer and chips are centred; once chatting, the composer docks to the bottom */
