@@ -2,6 +2,22 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.35] - 2026-11-05
+
+### Added & Localized
+- **🌐 Comprehensive Multi-Language (i18n) Support in Graphify Architecture Studio (`src/agent/graphify.ts`):**
+  - **Dynamic Language Selector Dropdown:** Integrated a sleek header language picker (`🇹🇷 Türkçe`, `🇬🇧 English`, `🇩🇪 Deutsch`, `🇪🇸 Español`, `🇫🇷 Français`, `🇦🇿 Azərbaycan`, `🇷🇺 Русский`, `🇨🇳 中文`, `🇯🇵 日本語`) allowing instant, real-time UI localization without refreshing or losing canvas zoom or camera focus.
+  - **Automatic Locale Synchronization:** Graphify Studio automatically detects and applies Sovereign Agent's configured active language upon launching.
+  - **100% Localized Studio Interface:**
+    - Stats bar: Files, Edges, Symbols, Health badges.
+    - Layout modes: Star Constellation, Block Architecture Diagram, Layered Hierarchy.
+    - Filter and view toggles: 1-Hop Focus, Circular Dependency Loops, Zoom in/out/fit.
+    - Architecture Health & Hubs tab: Health metrics, God-nodes, Circular loops, Orphan dead-code files.
+    - Knowledge Graph Export tab: Markdown export descriptions and actions.
+    - Inspector tab: Symbols/exports, incoming dependents, outgoing imports, Open File, and Agent Impact analysis prompts.
+    - Interactive canvas tooltips and Send to Agent prompt synthesis.
+
+
 ## [0.1.34] - 2026-11-05
 
 ### Enhanced & Fixed

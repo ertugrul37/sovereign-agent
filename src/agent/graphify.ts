@@ -1,6 +1,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { getConfig, activeLocale } from '../config';
 import { ToolResult } from './tools';
 
 export interface GraphNode {
@@ -568,6 +569,8 @@ export class GraphifyManager implements vscode.Disposable {
   }
 
   private showPanel(data: CodeGraphData, root: string): void {
+    const cfg = getConfig();
+    const currentLocale = activeLocale(cfg);
     if (this.panel) {
       this.panel.reveal(vscode.ViewColumn.Beside, true);
     } else {
@@ -591,7 +594,8 @@ export class GraphifyManager implements vscode.Disposable {
           }
         } else if (msg.type === 'refreshGraph') {
           const fresh = await buildCodeGraph(root);
-          panel.webview.html = this.buildWebviewHtml(fresh);
+          const c = getConfig();
+          panel.webview.html = this.buildWebviewHtml(fresh, activeLocale(c));
         } else if (msg.type === 'askAgent' && msg.prompt && this.onAskAgent) {
           this.onAskAgent(msg.prompt);
         } else if (msg.type === 'exportArchitectureReport') {
@@ -601,7 +605,7 @@ export class GraphifyManager implements vscode.Disposable {
       this.panel = panel;
     }
     this.panel.title = `🕸️ Graphify Studio: ${data.workspaceName}`;
-    this.panel.webview.html = this.buildWebviewHtml(data);
+    this.panel.webview.html = this.buildWebviewHtml(data, currentLocale);
   }
 
   private async exportArchitectureReport(data: CodeGraphData, root: string): Promise<void> {
@@ -617,7 +621,7 @@ export class GraphifyManager implements vscode.Disposable {
     }
   }
 
-  private buildWebviewHtml(data: CodeGraphData): string {
+  private buildWebviewHtml(data: CodeGraphData, defaultLocale: string = 'en'): string {
     const serialized = JSON.stringify(data).replace(/</g, '\\u003c');
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -711,6 +715,14 @@ export class GraphifyManager implements vscode.Disposable {
     font: inherit; font-size: 12px; outline: none; transition: border-color 0.15s ease;
   }
   .search-input:focus { border-color: var(--accent); }
+  .lang-select {
+    padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--surface-2); color: var(--text);
+    font: inherit; font-size: 11.5px; font-weight: 500; cursor: pointer;
+    outline: none; transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .lang-select:hover { background: var(--surface-3); border-color: var(--faint); }
+  .lang-select:focus { border-color: var(--accent); }
   .btn {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line);
@@ -868,14 +880,25 @@ export class GraphifyManager implements vscode.Disposable {
 </head>
 <body>
   <header>
-    <div class="brand"><span class="brand-mark">🕸️</span><span>Graphify Architecture Studio</span></div>
+    <div class="brand"><span class="brand-mark">🕸️</span><span id="brandTitle">Graphify Architecture Studio</span></div>
     <div class="stats">
-      <span class="stat-pill"><strong id="statNodes">0</strong> Files</span>
-      <span class="stat-pill"><strong id="statEdges">0</strong> Edges</span>
-      <span class="stat-pill"><strong id="statSymbols">0</strong> Symbols</span>
-      <span class="stat-pill health">Health <strong id="statHealth">100</strong>/100</span>
+      <span class="stat-pill"><strong id="statNodes">0</strong><span id="statNodesLabel"> Files</span></span>
+      <span class="stat-pill"><strong id="statEdges">0</strong><span id="statEdgesLabel"> Edges</span></span>
+      <span class="stat-pill"><strong id="statSymbols">0</strong><span id="statSymbolsLabel"> Symbols</span></span>
+      <span class="stat-pill health"><span id="statHealthLabel">Health </span><strong id="statHealth">100</strong>/100</span>
     </div>
     <input id="search" class="search-input" type="search" placeholder="Search file or symbol..." />
+    <select id="langSelect" class="lang-select" title="Dil / Language">
+      <option value="tr">🇹🇷 Türkçe</option>
+      <option value="en">🇬🇧 English</option>
+      <option value="de">🇩🇪 Deutsch</option>
+      <option value="es">🇪🇸 Español</option>
+      <option value="fr">🇫🇷 Français</option>
+      <option value="az">🇦🇿 Azərbaycan</option>
+      <option value="ru">🇷🇺 Русский</option>
+      <option value="zh">🇨🇳 中文</option>
+      <option value="ja">🇯🇵 日本語</option>
+    </select>
     <button id="injectBtn" class="btn primary" type="button">🤖 Send to Agent</button>
     <button id="exportBtn" class="btn" type="button" title="Generate ARCHITECTURE.md in workspace">📝 Export Report</button>
     <button id="refreshBtn" class="btn" type="button" title="Re-scan codebase">↻ Refresh</button>
@@ -885,9 +908,9 @@ export class GraphifyManager implements vscode.Disposable {
     <div class="canvas-wrap">
       <div class="canvas-controls">
         <div class="segmented" id="layoutSegmented">
-          <button type="button" class="seg-btn active" data-layout="star" title="Ana Yıldız ve Kollar: Çekirdek yıldızdan dallanan temiz takımyıldız mimarisi">⭐ Yıldız & Kollar</button>
-          <button type="button" class="seg-btn" data-layout="diagram" title="Bileşen Blok Diyagramı: Temiz modül kutuları ve kartlar">📦 Blok Diyagramı</button>
-          <button type="button" class="seg-btn" data-layout="hierarchy" title="Yukarıdan aşağıya katmanlı mimari hiyerarşisi">🏛️ Hiyerarşi</button>
+          <button type="button" class="seg-btn active" data-layout="star" id="btnLayoutStar" title="Star & Arms">⭐ Yıldız & Kollar</button>
+          <button type="button" class="seg-btn" data-layout="diagram" id="btnLayoutDiagram" title="Block Diagram">📦 Blok Diyagramı</button>
+          <button type="button" class="seg-btn" data-layout="hierarchy" id="btnLayoutHierarchy" title="Hierarchy">🏛️ Hiyerarşi</button>
         </div>
         <button type="button" id="focusModeBtn" class="filter-toggle" title="Isolate 1-hop neighborhood of selected node">🎯 1-Hop Focus</button>
         <button type="button" id="cyclesBtn" class="filter-toggle warn" title="Highlight circular dependencies">⚠️ Cycles (<span id="cycleCountBadge">0</span>)</button>
@@ -906,9 +929,9 @@ export class GraphifyManager implements vscode.Disposable {
     </div>
     <aside id="inspector">
       <div class="sidebar-tabs">
-        <button type="button" class="tab-btn active" data-tab="tabSelected">🔍 Inspector</button>
-        <button type="button" class="tab-btn" data-tab="tabHealth">📊 Health & Hubs</button>
-        <button type="button" class="tab-btn" data-tab="tabExport">📝 Export</button>
+        <button type="button" class="tab-btn active" data-tab="tabSelected" id="tabBtnSelected">🔍 Inspector</button>
+        <button type="button" class="tab-btn" data-tab="tabHealth" id="tabBtnHealth">📊 Health & Hubs</button>
+        <button type="button" class="tab-btn" data-tab="tabExport" id="tabBtnExport">📝 Export</button>
       </div>
       <div class="tab-body">
         <div id="tabSelected" class="tab-pane"></div>
@@ -921,10 +944,561 @@ export class GraphifyManager implements vscode.Disposable {
 (function() {
   const vscode = acquireVsCodeApi();
   const data = ${serialized};
+  const defaultLocale = ${JSON.stringify(defaultLocale || 'en')};
+
+  const I18N = {
+    tr: {
+      title: 'Graphify Mimari Stüdyosu',
+      files: 'Dosya',
+      edges: 'Bağlantı',
+      symbols: 'Sembol',
+      health: 'Sağlık',
+      searchPlaceholder: 'Dosya veya sembol ara...',
+      sendToAgent: '🤖 Ajana Gönder',
+      exportReport: '📝 Rapor Çıkar',
+      refresh: '↻ Yenile',
+      themeToggle: 'Temayı Değiştir',
+      layoutStar: '⭐ Yıldız & Kollar',
+      layoutStarTitle: 'Çekirdek yıldızdan dallanan temiz takımyıldız mimarisi',
+      layoutDiagram: '📦 Blok Diyagramı',
+      layoutDiagramTitle: 'Bileşen Blok Diyagramı: Temiz modül kutuları ve kartlar',
+      layoutHierarchy: '🏛️ Hiyerarşi',
+      layoutHierarchyTitle: 'Yukarıdan aşağıya katmanlı mimari hiyerarşisi',
+      focusMode: '🎯 1-Hop Odak',
+      focusModeTitle: 'Seçili düğümün 1-adım komşularını izole et',
+      cycles: '⚠️ Döngüler',
+      cyclesTitle: 'Döngüsel bağımlılıkları vurgula',
+      zoomIn: 'Yakınlaştır',
+      zoomOut: 'Uzaklaştır',
+      zoomFit: 'Ekrana Sığdır',
+      tabInspector: '🔍 İnceleyici',
+      tabHealth: '📊 Sağlık & Merkezler',
+      tabExport: '📝 Dışa Aktar',
+      archHealth: 'Mimari Sağlığı',
+      archHealthSub: 'Döngüler, dev düğümler ve bağlantı metriği',
+      hubsTitle: '👑 Mimari Merkezler (God-Nodes)',
+      cyclesTitleSec: '⚠️ Döngüsel Bağımlılıklar',
+      orphansTitle: '📦 İzole Dosyalar (Ölü Kod Adayları)',
+      loopPrefix: '⚠️ Döngü:',
+      linesUnit: 'satır',
+      exportTitle: 'Bilgi Grafiği Dışa Aktarma',
+      exportDesc: 'Çalışma alanınızın kök dizininde Mermaid diyagramları, mimari metrikler ve bağlantı tabloları içeren kapsamlı bir ARCHITECTURE.md dosyası oluşturun.',
+      exportBtn: '📝 ARCHITECTURE.md Oluştur',
+      clickNodeHint: 'Sembolleri, bağımlılıkları ve etkilenen dosyaları incelemek için tuvaldeki herhangi bir düğüme tıklayın.',
+      clusterLabel: 'Modül:',
+      scoreLabel: 'Skor:',
+      openFile: '📂 Dosyayı Aç',
+      analyzeImpact: '🤖 Etki Analizi Yap',
+      symbolsSection: 'Semboller / Tanımlar',
+      importedBySection: 'Import Edenler (Bağımlı Olanlar)',
+      importsSection: 'Import Edilenler (Bağımlılıklar)',
+      none: '(yok)',
+      dependentsTooltip: 'bağımlı dosya',
+      importsTooltip: 'import',
+      askPrompt: '{file} dosyasının mimari ve bağımlılık etkisini <code_graph><action>impact</action><target>{file}</target></code_graph> kullanarak analiz et.',
+      injectPrompt: '/graphify Çalışma alanı mimarisini, modül coupling (bağlantı) durumunu ve döngüsel bağımlılıkları analiz et.'
+    },
+    en: {
+      title: 'Graphify Architecture Studio',
+      files: 'Files',
+      edges: 'Edges',
+      symbols: 'Symbols',
+      health: 'Health',
+      searchPlaceholder: 'Search file or symbol...',
+      sendToAgent: '🤖 Send to Agent',
+      exportReport: '📝 Export Report',
+      refresh: '↻ Refresh',
+      themeToggle: 'Toggle Theme',
+      layoutStar: '⭐ Star & Arms',
+      layoutStarTitle: 'Constellation architecture branching outward from the core project star',
+      layoutDiagram: '📦 Block Diagram',
+      layoutDiagramTitle: 'Clean modular component boxes and cards',
+      layoutHierarchy: '🏛️ Hierarchy',
+      layoutHierarchyTitle: 'Top-down layered architecture tiers',
+      focusMode: '🎯 1-Hop Focus',
+      focusModeTitle: 'Isolate 1-hop neighborhood of selected node',
+      cycles: '⚠️ Cycles',
+      cyclesTitle: 'Highlight circular dependencies',
+      zoomIn: 'Zoom In',
+      zoomOut: 'Zoom Out',
+      zoomFit: 'Fit to Viewport',
+      tabInspector: '🔍 Inspector',
+      tabHealth: '📊 Health & Hubs',
+      tabExport: '📝 Export',
+      archHealth: 'Architecture Health',
+      archHealthSub: 'Cycles, god-nodes & coupling metric',
+      hubsTitle: '👑 Architectural Hubs (God-Nodes)',
+      cyclesTitleSec: '⚠️ Circular Dependencies',
+      orphansTitle: '📦 Orphan Files (Dead Code Candidates)',
+      loopPrefix: '⚠️ Loop:',
+      linesUnit: 'lines',
+      exportTitle: 'Knowledge Graph Export',
+      exportDesc: 'Generate an ARCHITECTURE.md file in the root of your workspace with complete metrics, Mermaid dependency flowcharts, and coupling tables.',
+      exportBtn: '📝 Generate ARCHITECTURE.md',
+      clickNodeHint: 'Click on any node in the canvas to inspect its symbols, dependencies, and dependents.',
+      clusterLabel: 'Cluster:',
+      scoreLabel: 'Score:',
+      openFile: '📂 Open File',
+      analyzeImpact: '🤖 Analyze Impact',
+      symbolsSection: 'Symbols / Definitions',
+      importedBySection: 'Imported By (Dependents)',
+      importsSection: 'Imports (Dependencies)',
+      none: '(none)',
+      dependentsTooltip: 'dependents',
+      importsTooltip: 'imports',
+      askPrompt: 'Analyze the architecture and dependency impact of {file} using <code_graph><action>impact</action><target>{file}</target></code_graph>.',
+      injectPrompt: '/graphify Analyze the workspace architecture, cluster coupling, and circular dependencies.'
+    },
+    de: {
+      title: 'Graphify Architektur-Studio',
+      files: 'Dateien',
+      edges: 'Kanten',
+      symbols: 'Symbole',
+      health: 'Gesundheit',
+      searchPlaceholder: 'Datei oder Symbol suchen...',
+      sendToAgent: '🤖 An Agenten senden',
+      exportReport: '📝 Bericht exportieren',
+      refresh: '↻ Aktualisieren',
+      themeToggle: 'Design umschalten',
+      layoutStar: '⭐ Stern & Arme',
+      layoutStarTitle: 'Sternbild-Architektur, die vom Kernstern abzweigt',
+      layoutDiagram: '📦 Blockdiagramm',
+      layoutDiagramTitle: 'Modulare Komponentenboxen und Karten',
+      layoutHierarchy: '🏛️ Hierarchie',
+      layoutHierarchyTitle: 'Schichtenarchitektur von oben nach unten',
+      focusMode: '🎯 1-Hop Fokus',
+      focusModeTitle: '1-Hop-Nachbarschaft des ausgewählten Knotens isolieren',
+      cycles: '⚠️ Zyklen',
+      cyclesTitle: 'Zyklische Abhängigkeiten hervorheben',
+      zoomIn: 'Vergrößern',
+      zoomOut: 'Verkleinern',
+      zoomFit: 'An Ansicht anpassen',
+      tabInspector: '🔍 Inspektor',
+      tabHealth: '📊 Gesundheit & Knoten',
+      tabExport: '📝 Exportieren',
+      archHealth: 'Architektur-Gesundheit',
+      archHealthSub: 'Zyklen, Gott-Knoten und Kopplungsmetrik',
+      hubsTitle: '👑 Architektur-Knotenpunkte (God-Nodes)',
+      cyclesTitleSec: '⚠️ Zyklische Abhängigkeiten',
+      orphansTitle: '📦 Verwaiste Dateien (Toter Code)',
+      loopPrefix: '⚠️ Schleife:',
+      linesUnit: 'Zeilen',
+      exportTitle: 'Wissensgraph exportieren',
+      exportDesc: 'Erstellen Sie eine ARCHITECTURE.md-Datei im Stammverzeichnis Ihres Arbeitsbereichs mit Metriken, Mermaid-Flussdiagrammen und Kopplungstabellen.',
+      exportBtn: '📝 ARCHITECTURE.md generieren',
+      clickNodeHint: 'Klicken Sie auf einen Knoten auf der Leinwand, um Symbole und Abhängigkeiten zu prüfen.',
+      clusterLabel: 'Cluster:',
+      scoreLabel: 'Bewertung:',
+      openFile: '📂 Datei öffnen',
+      analyzeImpact: '🤖 Auswirkung analysieren',
+      symbolsSection: 'Symbole / Definitionen',
+      importedBySection: 'Importiert von (Abhängige)',
+      importsSection: 'Importe (Abhängigkeiten)',
+      none: '(keine)',
+      dependentsTooltip: 'Abhängige',
+      importsTooltip: 'Importe',
+      askPrompt: 'Analysieren Sie die Architektur- und Abhängigkeitsauswirkungen von {file} mit <code_graph><action>impact</action><target>{file}</target></code_graph>.',
+      injectPrompt: '/graphify Analysieren Sie die Arbeitsbereichsarchitektur, Cluster-Kopplung und zyklische Abhängigkeiten.'
+    },
+    es: {
+      title: 'Estudio de Arquitectura Graphify',
+      files: 'Archivos',
+      edges: 'Conexiones',
+      symbols: 'Símbolos',
+      health: 'Salud',
+      searchPlaceholder: 'Buscar archivo o símbolo...',
+      sendToAgent: '🤖 Enviar al Agente',
+      exportReport: '📝 Exportar Informe',
+      refresh: '↻ Actualizar',
+      themeToggle: 'Alternar Tema',
+      layoutStar: '⭐ Estrella y Brazos',
+      layoutStarTitle: 'Arquitectura de constelación que se ramifica desde la estrella central',
+      layoutDiagram: '📦 Diagrama de Bloques',
+      layoutDiagramTitle: 'Cajas de componentes modulares y tarjetas limpias',
+      layoutHierarchy: '🏛️ Jerarquía',
+      layoutHierarchyTitle: 'Arquitectura en capas descendente',
+      focusMode: '🎯 Foco 1-Salto',
+      focusModeTitle: 'Aislar el vecindario de 1 salto del nodo seleccionado',
+      cycles: '⚠️ Ciclos',
+      cyclesTitle: 'Destacar dependencias circulares',
+      zoomIn: 'Acercar',
+      zoomOut: 'Alejar',
+      zoomFit: 'Ajustar a la vista',
+      tabInspector: '🔍 Inspector',
+      tabHealth: '📊 Salud y Centros',
+      tabExport: '📝 Exportar',
+      archHealth: 'Salud de la Arquitectura',
+      archHealthSub: 'Métricas de ciclos, nodos centrales y acoplamiento',
+      hubsTitle: '👑 Centros Arquitectónicos (God-Nodes)',
+      cyclesTitleSec: '⚠️ Dependencias Circulares',
+      orphansTitle: '📦 Archivos Huérfanos (Código Muerto)',
+      loopPrefix: '⚠️ Bucle:',
+      linesUnit: 'líneas',
+      exportTitle: 'Exportación de Grafo de Conocimiento',
+      exportDesc: 'Genere un archivo ARCHITECTURE.md en la raíz con diagramas Mermaid, métricas y tablas de acoplamiento.',
+      exportBtn: '📝 Generar ARCHITECTURE.md',
+      clickNodeHint: 'Haga clic en cualquier nodo para inspeccionar sus símbolos y dependencias.',
+      clusterLabel: 'Módulo:',
+      scoreLabel: 'Puntuación:',
+      openFile: '📂 Abrir Archivo',
+      analyzeImpact: '🤖 Analizar Impacto',
+      symbolsSection: 'Símbolos / Definiciones',
+      importedBySection: 'Importado por (Dependientes)',
+      importsSection: 'Importaciones (Dependencias)',
+      none: '(ninguno)',
+      dependentsTooltip: 'dependientes',
+      importsTooltip: 'importaciones',
+      askPrompt: 'Analice el impacto de arquitectura y dependencias de {file} usando <code_graph><action>impact</action><target>{file}</target></code_graph>.',
+      injectPrompt: '/graphify Analice la arquitectura del espacio de trabajo, el acoplamiento de módulos y las dependencias circulares.'
+    },
+    fr: {
+      title: 'Studio d’Architecture Graphify',
+      files: 'Fichiers',
+      edges: 'Connexions',
+      symbols: 'Symboles',
+      health: 'Santé',
+      searchPlaceholder: 'Rechercher un fichier ou symbole...',
+      sendToAgent: '🤖 Envoyer à l’Agent',
+      exportReport: '📝 Exporter Rapport',
+      refresh: '↻ Rafraîchir',
+      themeToggle: 'Changer Thème',
+      layoutStar: '⭐ Étoile & Bras',
+      layoutStarTitle: 'Constellation branchée à partir de l’étoile centrale',
+      layoutDiagram: '📦 Diagramme de Blocs',
+      layoutDiagramTitle: 'Boîtes modulaires et cartes de composants',
+      layoutHierarchy: '🏛️ Hiérarchie',
+      layoutHierarchyTitle: 'Architecture en couches du haut vers le bas',
+      focusMode: '🎯 Focus 1-Saut',
+      focusModeTitle: 'Isoler le voisinage à 1 saut du nœud sélectionné',
+      cycles: '⚠️ Boucles',
+      cyclesTitle: 'Mettre en évidence les dépendances circulaires',
+      zoomIn: 'Zoom avant',
+      zoomOut: 'Zoom arrière',
+      zoomFit: 'Ajuster à l’écran',
+      tabInspector: '🔍 Inspecteur',
+      tabHealth: '📊 Santé & Pôles',
+      tabExport: '📝 Exporter',
+      archHealth: 'Santé Architecturale',
+      archHealthSub: 'Métriques de boucles, nœuds maîtres et couplage',
+      hubsTitle: '👑 Pôles Architecturaux (God-Nodes)',
+      cyclesTitleSec: '⚠️ Dépendances Circulaires',
+      orphansTitle: '📦 Fichiers Orphelins (Code Mort)',
+      loopPrefix: '⚠️ Boucle :',
+      linesUnit: 'lignes',
+      exportTitle: 'Exportation du Graphe de Connaissance',
+      exportDesc: 'Générez un fichier ARCHITECTURE.md avec diagrammes Mermaid, métriques et tables de couplage.',
+      exportBtn: '📝 Générer ARCHITECTURE.md',
+      clickNodeHint: 'Cliquez sur un nœud pour inspecter ses symboles et dépendances.',
+      clusterLabel: 'Module :',
+      scoreLabel: 'Score :',
+      openFile: '📂 Ouvrir Fichier',
+      analyzeImpact: '🤖 Analyser Impact',
+      symbolsSection: 'Symboles / Définitions',
+      importedBySection: 'Importé par (Dépendants)',
+      importsSection: 'Imports (Dépendances)',
+      none: '(aucun)',
+      dependentsTooltip: 'dépendants',
+      importsTooltip: 'imports',
+      askPrompt: 'Analysez l’impact architectural et les dépendances de {file} avec <code_graph><action>impact</action><target>{file}</target></code_graph>.',
+      injectPrompt: '/graphify Analysez l’architecture de l’espace de travail, le couplage des modules et les dépendances circulaires.'
+    },
+    az: {
+      title: 'Graphify Memarlıq Studiyası',
+      files: 'Fayl',
+      edges: 'Əlaqə',
+      symbols: 'Simvol',
+      health: 'Sağlamlıq',
+      searchPlaceholder: 'Fayl və ya simvol axtar...',
+      sendToAgent: '🤖 Agenta Göndər',
+      exportReport: '📝 Hesabat Çıxar',
+      refresh: '↻ Yenilə',
+      themeToggle: 'Mövzunu Dəyiş',
+      layoutStar: '⭐ Ulduz & Qollar',
+      layoutStarTitle: 'Mərkəzi ulduzdan qollara ayrılan bürc memarlığı',
+      layoutDiagram: '📦 Blok Diaqramı',
+      layoutDiagramTitle: 'Təmiz modul qutuları və blok diaqramı',
+      layoutHierarchy: '🏛️ Hiyerarxiya',
+      layoutHierarchyTitle: 'Yuxarıdan aşağı laylı memarlıq hiyerarxiyası',
+      focusMode: '🎯 1-Addım Fokus',
+      focusModeTitle: 'Seçilmiş düyünün 1-addım qonşularını təcrid et',
+      cycles: '⚠️ Dövrlər',
+      cyclesTitle: 'Dövri asılılıqları vurğula',
+      zoomIn: 'Yaxınlaşdır',
+      zoomOut: 'Uzaqlaşdır',
+      zoomFit: 'Ekrana Uyğunlaşdır',
+      tabInspector: '🔍 Müfəttiş',
+      tabHealth: '📊 Sağlamlıq & Mərkəzlər',
+      tabExport: '📝 İxrac Et',
+      archHealth: 'Memarlıq Sağlamlığı',
+      archHealthSub: 'Dövrlər, nəhəng düyünlər və əlaqə metriki',
+      hubsTitle: '👑 Memarlıq Mərkəzləri (God-Nodes)',
+      cyclesTitleSec: '⚠️ Dövri Asılılıqlar',
+      orphansTitle: '📦 Təcrid Olunmuş Fayllar (Ölü Kod)',
+      loopPrefix: '⚠️ Dövr:',
+      linesUnit: 'sətir',
+      exportTitle: 'Bilik Qrafiki İxracı',
+      exportDesc: 'İş sahəsinin kök qovluğunda Mermaid diaqramları, metriklər və asılılıq cədvəlləri olan ARCHITECTURE.md faylı yaradın.',
+      exportBtn: '📝 ARCHITECTURE.md Yarat',
+      clickNodeHint: 'Simvolları və asılılıqları yoxlamaq üçün kətan üzərindəki hər hansı düyünə klikləyin.',
+      clusterLabel: 'Modul:',
+      scoreLabel: 'Xal:',
+      openFile: '📂 Faylı Aç',
+      analyzeImpact: '🤖 Təsirini Təhlil Et',
+      symbolsSection: 'Simvollar / Təriflər',
+      importedBySection: 'İdxal Edənlər (Asılı Olanlar)',
+      importsSection: 'İdxal Edilənlər (Asılılıqlar)',
+      none: '(yoxdur)',
+      dependentsTooltip: 'asılı fayl',
+      importsTooltip: 'idxal',
+      askPrompt: '{file} faylının memarlıq və asılılıq təsirini <code_graph><action>impact</action><target>{file}</target></code_graph> istifadə edərək təhlil edin.',
+      injectPrompt: '/graphify İş sahəsi memarlığını, modul əlaqələrini və dövri asılılıqları təhlil edin.'
+    },
+    ru: {
+      title: 'Архитектурная студия Graphify',
+      files: 'Файлов',
+      edges: 'Связей',
+      symbols: 'Символов',
+      health: 'Здоровье',
+      searchPlaceholder: 'Поиск файла или символа...',
+      sendToAgent: '🤖 Отправить агенту',
+      exportReport: '📝 Экспорт отчета',
+      refresh: '↻ Обновить',
+      themeToggle: 'Сменить тему',
+      layoutStar: '⭐ Звезда и рукава',
+      layoutStarTitle: 'Архитектура созвездия с лучами от центрального проекта',
+      layoutDiagram: '📦 Блок-схема',
+      layoutDiagramTitle: 'Модульные блоки и компонентные карты',
+      layoutHierarchy: '🏛️ Иерархия',
+      layoutHierarchyTitle: 'Многоуровневая архитектурная иерархия сверху вниз',
+      focusMode: '🎯 Фокус 1 шаг',
+      focusModeTitle: 'Изолировать соседей выбранного узла в радиусе 1 шага',
+      cycles: '⚠️ Циклы',
+      cyclesTitle: 'Подсветить циклические зависимости',
+      zoomIn: 'Приблизить',
+      zoomOut: 'Отдалить',
+      zoomFit: 'По размеру экрана',
+      tabInspector: '🔍 Инспектор',
+      tabHealth: '📊 Здоровье и центры',
+      tabExport: '📝 Экспорт',
+      archHealth: 'Архитектурное здоровье',
+      archHealthSub: 'Метрики циклов, супер-узлов и связности',
+      hubsTitle: '👑 Архитектурные центры (God-Nodes)',
+      cyclesTitleSec: '⚠️ Циклические зависимости',
+      orphansTitle: '📦 Изолированные файлы (Мертвый код)',
+      loopPrefix: '⚠️ Цикл:',
+      linesUnit: 'строк',
+      exportTitle: 'Экспорт графа знаний',
+      exportDesc: 'Создайте файл ARCHITECTURE.md в корне проекта с диаграммами Mermaid, метриками и таблицами зависимостей.',
+      exportBtn: '📝 Сгенерировать ARCHITECTURE.md',
+      clickNodeHint: 'Нажмите на любой узел на холсте для просмотра символов и связей.',
+      clusterLabel: 'Модуль:',
+      scoreLabel: 'Оценка:',
+      openFile: '📂 Открыть файл',
+      analyzeImpact: '🤖 Анализ влияния',
+      symbolsSection: 'Символы / Определения',
+      importedBySection: 'Кем импортируется (Зависимые)',
+      importsSection: 'Импортирует (Зависимости)',
+      none: '(нет)',
+      dependentsTooltip: 'зависимых',
+      importsTooltip: 'импортов',
+      askPrompt: 'Проанализируйте архитектурное влияние и зависимости {file} с помощью <code_graph><action>impact</action><target>{file}</target></code_graph>.',
+      injectPrompt: '/graphify Проанализируйте архитектуру рабочей области, связность модулей и циклические зависимости.'
+    },
+    zh: {
+      title: 'Graphify 架构分析工作室',
+      files: '文件',
+      edges: '依赖关联',
+      symbols: '符号',
+      health: '健康度',
+      searchPlaceholder: '搜索文件或符号...',
+      sendToAgent: '🤖 发送给智能体',
+      exportReport: '📝 导出架构报告',
+      refresh: '↻ 刷新',
+      themeToggle: '切换深浅主题',
+      layoutStar: '⭐ 核心星系',
+      layoutStarTitle: '从核心星宿延伸的星系架构布局',
+      layoutDiagram: '📦 模块方块图',
+      layoutDiagramTitle: '组件架构方块图与模块卡片',
+      layoutHierarchy: '🏛️ 层次结构',
+      layoutHierarchyTitle: '自上而下的分层架构图',
+      focusMode: '🎯 1度关注',
+      focusModeTitle: '隔离所选节点的直接依赖',
+      cycles: '⚠️ 循环依赖',
+      cyclesTitle: '突出显示循环依赖',
+      zoomIn: '放大',
+      zoomOut: '缩小',
+      zoomFit: '适应画布',
+      tabInspector: '🔍 检查器',
+      tabHealth: '📊 健康与核心',
+      tabExport: '📝 导出',
+      archHealth: '架构健康度',
+      archHealthSub: '循环依赖、巨型节点与耦合度指标',
+      hubsTitle: '👑 关键架构枢纽 (God-Nodes)',
+      cyclesTitleSec: '⚠️ 循环依赖',
+      orphansTitle: '📦 孤立文件 (废弃代码候选)',
+      loopPrefix: '⚠️ 环路：',
+      linesUnit: '行',
+      exportTitle: '知识图谱导出',
+      exportDesc: '在工作区根目录生成包含指标、Mermaid 流程图及耦合表的 ARCHITECTURE.md 文件。',
+      exportBtn: '📝 生成 ARCHITECTURE.md',
+      clickNodeHint: '点击画布中的任意节点以检查其符号、依赖项及被引用情况。',
+      clusterLabel: '模块：',
+      scoreLabel: '权重评分：',
+      openFile: '📂 打开文件',
+      analyzeImpact: '🤖 架构影响分析',
+      symbolsSection: '符号 / 导出定义',
+      importedBySection: '引用者 (下游依赖)',
+      importsSection: '依赖项 (上游引用)',
+      none: '(无)',
+      dependentsTooltip: '下游引用',
+      importsTooltip: '依赖引入',
+      askPrompt: '请使用 <code_graph><action>impact</action><target>{file}</target></code_graph> 分析 {file} 的架构与依赖影响。',
+      injectPrompt: '/graphify 请分析工作区架构、模块耦合情况以及任何循环依赖。'
+    },
+    ja: {
+      title: 'Graphify アーキテクチャスタジオ',
+      files: 'ファイル',
+      edges: '依存関係',
+      symbols: 'シンボル',
+      health: '健全度',
+      searchPlaceholder: 'ファイルまたはシンボルを検索...',
+      sendToAgent: '🤖 エージェントに送信',
+      exportReport: '📝 レポート出力',
+      refresh: '↻ 更新',
+      themeToggle: 'テーマ切替',
+      layoutStar: '⭐ 星座レイアウト',
+      layoutStarTitle: '中心プロジェクトから放射状に広がる星座アーキテクチャ',
+      layoutDiagram: '📦 ブロック図',
+      layoutDiagramTitle: 'コンポーネントカードとモジュールブロック図',
+      layoutHierarchy: '🏛️ 階層レイアウト',
+      layoutHierarchyTitle: '上から下へのレイヤードアーキテクチャ',
+      focusMode: '🎯 1ホップフォーカス',
+      focusModeTitle: '選択ノードの直接の近傍のみを抽出',
+      cycles: '⚠️ 循環依存',
+      cyclesTitle: '循環依存関係を強調表示',
+      zoomIn: '拡大',
+      zoomOut: '縮小',
+      zoomFit: '画面に合わせる',
+      tabInspector: '🔍 インスペクタ',
+      tabHealth: '📊 健全性とハブ',
+      tabExport: '📝 エクスポート',
+      archHealth: 'アーキテクチャ健全度',
+      archHealthSub: '循環依存、ハブノード、結合度メトリクス',
+      hubsTitle: '👑 主要アーキテクチャハブ (God-Nodes)',
+      cyclesTitleSec: '⚠️ 循環依存関係',
+      orphansTitle: '📦 孤立ファイル (デッドコード候補)',
+      loopPrefix: '⚠️ ループ：',
+      linesUnit: '行',
+      exportTitle: 'ナレッジグラフのエクスポート',
+      exportDesc: 'ワークスペースルートに Mermaid 図、メトリクス、結合テーブルを含む ARCHITECTURE.md を生成します。',
+      exportBtn: '📝 ARCHITECTURE.md を生成',
+      clickNodeHint: 'キャンバス上のノードをクリックして、シンボルと依存関係を確認します。',
+      clusterLabel: 'モジュール：',
+      scoreLabel: 'スコア：',
+      openFile: '📂 ファイルを開く',
+      analyzeImpact: '🤖 影響度分析',
+      symbolsSection: 'シンボル / 定義',
+      importedBySection: '被インポート (依存先)',
+      importsSection: 'インポート (依存元)',
+      none: '(なし)',
+      dependentsTooltip: '依存元',
+      importsTooltip: '依存先',
+      askPrompt: '<code_graph><action>impact</action><target>{file}</target></code_graph> を使用して、{file} のアーキテクチャと依存関係の影響を分析してください。',
+      injectPrompt: '/graphify ワークスペースのアーキテクチャ、結合度、循環依存を分析してください。'
+    }
+  };
+
+  let currentLang = (vscode.getState() || {}).lang || defaultLocale;
+  if (!I18N[currentLang]) {
+    const base = currentLang.split('-')[0];
+    currentLang = I18N[base] ? base : 'en';
+  }
+
+  function tr(key, vars) {
+    const dict = I18N[currentLang] || I18N.en;
+    let s = dict[key] || (I18N.en && I18N.en[key]) || key;
+    if (vars) {
+      for (const k of Object.keys(vars)) {
+        s = s.replace(new RegExp('\\{' + k + '\\}', 'g'), String(vars[k]));
+      }
+    }
+    return s;
+  }
+
   const canvas = document.getElementById('graphCanvas');
   const ctx = canvas.getContext('2d');
   const searchEl = document.getElementById('search');
   const tooltipEl = document.getElementById('tooltip');
+  const langSelect = document.getElementById('langSelect');
+  if (langSelect) {
+    langSelect.value = currentLang;
+    langSelect.addEventListener('change', (e) => {
+      currentLang = e.target.value;
+      vscode.setState({ ...(vscode.getState() || {}), lang: currentLang });
+      applyLanguage();
+    });
+  }
+
+  function applyLanguage() {
+    document.title = tr('title') + ': ' + data.workspaceName;
+    const brandEl = document.getElementById('brandTitle');
+    if (brandEl) brandEl.textContent = tr('title');
+
+    const nodesLabel = document.getElementById('statNodesLabel');
+    if (nodesLabel) nodesLabel.textContent = ' ' + tr('files');
+    const edgesLabel = document.getElementById('statEdgesLabel');
+    if (edgesLabel) edgesLabel.textContent = ' ' + tr('edges');
+    const symbolsLabel = document.getElementById('statSymbolsLabel');
+    if (symbolsLabel) symbolsLabel.textContent = ' ' + tr('symbols');
+    const healthLabel = document.getElementById('statHealthLabel');
+    if (healthLabel) healthLabel.textContent = tr('health') + ' ';
+
+    searchEl.placeholder = tr('searchPlaceholder');
+    document.getElementById('injectBtn').textContent = tr('sendToAgent');
+    document.getElementById('exportBtn').textContent = tr('exportReport');
+    document.getElementById('refreshBtn').textContent = tr('refresh');
+    document.getElementById('themeBtn').title = tr('themeToggle');
+
+    const starBtn = document.getElementById('btnLayoutStar');
+    if (starBtn) {
+      starBtn.textContent = tr('layoutStar');
+      starBtn.title = tr('layoutStarTitle');
+    }
+    const diagBtn = document.getElementById('btnLayoutDiagram');
+    if (diagBtn) {
+      diagBtn.textContent = tr('layoutDiagram');
+      diagBtn.title = tr('layoutDiagramTitle');
+    }
+    const hierBtn = document.getElementById('btnLayoutHierarchy');
+    if (hierBtn) {
+      hierBtn.textContent = tr('layoutHierarchy');
+      hierBtn.title = tr('layoutHierarchyTitle');
+    }
+
+    const focusBtn = document.getElementById('focusModeBtn');
+    if (focusBtn) {
+      focusBtn.textContent = tr('focusMode');
+      focusBtn.title = tr('focusModeTitle');
+    }
+    const cyclesBtn = document.getElementById('cyclesBtn');
+    if (cyclesBtn) {
+      cyclesBtn.innerHTML = tr('cycles') + ' (<span id="cycleCountBadge">' + data.cycles.length + '</span>)';
+      cyclesBtn.title = tr('cyclesTitle');
+    }
+
+    document.getElementById('zoomInBtn').title = tr('zoomIn');
+    document.getElementById('zoomOutBtn').title = tr('zoomOut');
+    document.getElementById('zoomFitBtn').title = tr('zoomFit');
+
+    const tabSel = document.getElementById('tabBtnSelected');
+    if (tabSel) tabSel.textContent = tr('tabInspector');
+    const tabHlt = document.getElementById('tabBtnHealth');
+    if (tabHlt) tabHlt.textContent = tr('tabHealth');
+    const tabExp = document.getElementById('tabBtnExport');
+    if (tabExp) tabExp.textContent = tr('tabExport');
+
+    renderInspector(selectedNode);
+  }
 
   let themeState = (vscode.getState() || {}).theme || 'auto';
   function applyTheme() {
@@ -1664,12 +2238,12 @@ export class GraphifyManager implements vscode.Disposable {
     tabHealth.replaceChildren();
     const gauge = document.createElement('div');
     gauge.className = 'gauge-box';
-    gauge.innerHTML = '<div><strong>Architecture Health</strong><div class="sub">Cycles, god-nodes & coupling metric</div></div><span class="gauge-val">' + data.healthScore + '</span>';
+    gauge.innerHTML = '<div><strong>' + tr('archHealth') + '</strong><div class="sub">' + tr('archHealthSub') + '</div></div><span class="gauge-val">' + data.healthScore + '</span>';
     tabHealth.appendChild(gauge);
 
     const hubTitle = document.createElement('div');
     hubTitle.className = 'section-title';
-    hubTitle.textContent = 'Architectural Hubs (God-Nodes)';
+    hubTitle.textContent = tr('hubsTitle');
     tabHealth.appendChild(hubTitle);
     data.hubs.forEach((h) => {
       const row = document.createElement('div');
@@ -1691,12 +2265,12 @@ export class GraphifyManager implements vscode.Disposable {
     if (data.cycles.length > 0) {
       const cycleTitle = document.createElement('div');
       cycleTitle.className = 'section-title';
-      cycleTitle.textContent = 'Circular Dependencies (' + data.cycles.length + ')';
+      cycleTitle.textContent = tr('cyclesTitleSec') + ' (' + data.cycles.length + ')';
       tabHealth.appendChild(cycleTitle);
       data.cycles.forEach((c) => {
         const row = document.createElement('div');
         row.className = 'cycle-row';
-        row.innerHTML = '<strong>⚠️ Loop:</strong> ' + c.join(' ⟷ ');
+        row.innerHTML = '<strong>' + tr('loopPrefix') + '</strong> ' + c.join(' ⟷ ');
         row.addEventListener('click', () => {
           const target = nodeById.get(c[0]);
           if (target) {
@@ -1715,12 +2289,12 @@ export class GraphifyManager implements vscode.Disposable {
     if (data.orphans.length > 0) {
       const orphanTitle = document.createElement('div');
       orphanTitle.className = 'section-title';
-      orphanTitle.textContent = 'Orphan Files (Dead Code Candidates - ' + data.orphans.length + ')';
+      orphanTitle.textContent = tr('orphansTitle') + ' (' + data.orphans.length + ')';
       tabHealth.appendChild(orphanTitle);
       data.orphans.slice(0, 10).forEach((o) => {
         const row = document.createElement('div');
         row.className = 'hub-row';
-        row.innerHTML = '<span>' + o.id + '</span><span class="sub">' + o.lines + ' lines</span>';
+        row.innerHTML = '<span>' + o.id + '</span><span class="sub">' + o.lines + ' ' + tr('linesUnit') + '</span>';
         row.addEventListener('click', () => {
           const target = nodeById.get(o.id);
           if (target) {
@@ -1738,11 +2312,11 @@ export class GraphifyManager implements vscode.Disposable {
     // 2. Render Export tab
     tabExport.replaceChildren();
     const exportCard = document.createElement('div');
-    exportCard.innerHTML = '<div class="section-title">Knowledge Graph Export</div><p class="sub">Generate an ARCHITECTURE.md file in the root of your workspace with complete metrics, Mermaid dependency flowcharts, and coupling tables.</p>';
+    exportCard.innerHTML = '<div class="section-title">' + tr('exportTitle') + '</div><p class="sub">' + tr('exportDesc') + '</p>';
     const exportMdBtn = document.createElement('button');
     exportMdBtn.className = 'btn primary';
     exportMdBtn.style.width = '100%';
-    exportMdBtn.textContent = '📝 Generate ARCHITECTURE.md';
+    exportMdBtn.textContent = tr('exportBtn');
     exportMdBtn.addEventListener('click', () => vscode.postMessage({ type: 'exportArchitectureReport' }));
     tabExport.append(exportCard, exportMdBtn);
 
@@ -1750,13 +2324,13 @@ export class GraphifyManager implements vscode.Disposable {
     tabSelected.replaceChildren();
     if (!node) {
       const placeholder = document.createElement('div');
-      placeholder.innerHTML = '<div class="sub" style="text-align:center;padding:24px 0;">Click on any node in the canvas to inspect its symbols, dependencies, and dependents.</div>';
+      placeholder.innerHTML = '<div class="sub" style="text-align:center;padding:24px 0;">' + tr('clickNodeHint') + '</div>';
       tabSelected.appendChild(placeholder);
       return;
     }
 
     const header = document.createElement('div');
-    header.innerHTML = '<h3>' + (node.isHub ? '👑 ' : '') + node.id + '</h3><div class="sub">Cluster: ' + node.cluster + ' · ' + node.lines + ' lines · Score: ' + node.score + '</div>';
+    header.innerHTML = '<h3>' + (node.isHub ? '👑 ' : '') + node.id + '</h3><div class="sub">' + tr('clusterLabel') + ' ' + node.cluster + ' · ' + node.lines + ' ' + tr('linesUnit') + ' · ' + tr('scoreLabel') + ' ' + node.score + '</div>';
     tabSelected.appendChild(header);
 
     const actions = document.createElement('div');
@@ -1766,16 +2340,16 @@ export class GraphifyManager implements vscode.Disposable {
 
     const openBtn = document.createElement('button');
     openBtn.className = 'btn primary';
-    openBtn.textContent = '📂 Open File';
+    openBtn.textContent = tr('openFile');
     openBtn.addEventListener('click', () => vscode.postMessage({ type: 'openFile', file: node.id }));
 
     const askBtn = document.createElement('button');
     askBtn.className = 'btn';
-    askBtn.textContent = '🤖 Analyze Impact';
+    askBtn.textContent = tr('analyzeImpact');
     askBtn.addEventListener('click', () => {
       vscode.postMessage({
         type: 'askAgent',
-        prompt: 'Analyze the architecture and dependency impact of ' + node.id + ' using <code_graph><action>impact</action><target>' + node.id + '</target></code_graph>.'
+        prompt: tr('askPrompt', { file: node.id })
       });
     });
     actions.append(openBtn, askBtn);
@@ -1791,7 +2365,7 @@ export class GraphifyManager implements vscode.Disposable {
       if (!items.length) {
         const empty = document.createElement('span');
         empty.className = 'sub';
-        empty.textContent = '(none)';
+        empty.textContent = tr('none');
         list.appendChild(empty);
       } else {
         items.forEach((item) => {
@@ -1815,9 +2389,9 @@ export class GraphifyManager implements vscode.Disposable {
       tabSelected.appendChild(list);
     };
 
-    addChipSection('Symbols / Definitions', node.symbols, false);
-    addChipSection('Imported By (Dependents)', node.importedBy, true);
-    addChipSection('Imports (Dependencies)', node.imports, true);
+    addChipSection(tr('symbolsSection'), node.symbols, false);
+    addChipSection(tr('importedBySection'), node.importedBy, true);
+    addChipSection(tr('importsSection'), node.imports, true);
   }
 
   function switchTab(tabId) {
@@ -1904,7 +2478,7 @@ export class GraphifyManager implements vscode.Disposable {
         tooltipEl.style.display = 'block';
         tooltipEl.style.left = (sx + 14) + 'px';
         tooltipEl.style.top = (sy - 10) + 'px';
-        tooltipEl.innerHTML = '<strong>' + hoveredNode.label + '</strong><span>' + hoveredNode.cluster + ' · ' + hoveredNode.lines + ' lines<br>' + hoveredNode.importedBy.length + ' dependents · ' + hoveredNode.imports.length + ' imports</span>';
+        tooltipEl.innerHTML = '<strong>' + hoveredNode.label + '</strong><span>' + hoveredNode.cluster + ' · ' + hoveredNode.lines + ' ' + tr('linesUnit') + '<br>' + hoveredNode.importedBy.length + ' ' + tr('dependentsTooltip') + ' · ' + hoveredNode.imports.length + ' ' + tr('importsTooltip') + '</span>';
       } else {
         tooltipEl.style.display = 'none';
       }
@@ -1938,11 +2512,12 @@ export class GraphifyManager implements vscode.Disposable {
   document.getElementById('injectBtn').addEventListener('click', () => {
     vscode.postMessage({
       type: 'askAgent',
-      prompt: '/graphify Analyze the workspace architecture, cluster coupling, and any circular dependencies.'
+      prompt: tr('injectPrompt')
     });
   });
 
   fitToViewport();
+  applyLanguage();
   renderInspector(selectedNode);
   requestAnimationFrame(draw);
 })();
