@@ -2,7 +2,15 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
-## [0.1.31] - 2026-11-05
+## [0.1.32] - 2026-11-05
+
+### Fixed & Enhanced
+- **Graphify Modular Clustering & Anti-Collision Layouts (`src/agent/graphify.ts`):**
+  - **Granular Cluster Detection:** Fixed an issue where nested workspaces or wrapper folders caused all files to collapse into a single monolithic cluster (e.g. `sovereign-agent (48)`). Files are now accurately separated into their real architectural modules (`src/agent`, `src/ui`, `src/llm`, `src/tests`, `media`, `root`, etc.).
+  - **Multi-Ring Orbital Constellation (`⭐ Yıldız & Kollar`):** Replaced the single-arc 2-ring fan with outward concentric orbital layers (expanding at +65px per ring) and active physical collision relaxation (25 iterations), completely eliminating overlapping nodes and clustered text.
+  - **Spacious Block Architecture Diagram (`📦 Blok Diyagramı`):** Removed arbitrary 260px card height limits. Cards now dynamically expand to comfortably enclose all files, use 2-column distribution for large modules (>8 files), render sleek compact file dots with padded labels, and calculate generous vertical spacing between card rows.
+  - **Quiet Serene Visual Canvas:** Suppressed background import line clutter; dependency curves now illuminate smoothly only when hovering or clicking a node, or for circular dependency loops, keeping all diagram modes tranquil and instantly legible.
+
 
 ### Added & Fixed
 - **Markdown & Chat Presentation Overhaul (`media/chat.js`, `media/chat.css`, `src/ui/chatViewProvider.ts`):**

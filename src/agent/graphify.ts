@@ -197,10 +197,37 @@ function resolveImportTarget(fromFile: string, spec: string, fileSet: Set<string
 }
 
 function getClusterName(relPath: string): string {
-  const parts = relPath.split('/');
-  if (parts.length === 1) return 'root';
-  if (parts[0] === 'src' && parts.length > 2) return `src/${parts[1]}`;
-  return parts[0];
+  const parts = relPath.split(/[/\\]/).filter(Boolean);
+  if (parts.length <= 1) return 'root';
+
+  const srcIdx = parts.indexOf('src');
+  if (srcIdx !== -1 && srcIdx + 1 < parts.length - 1) {
+    return `src/${parts[srcIdx + 1]}`;
+  }
+  if (srcIdx !== -1) {
+    return 'src';
+  }
+
+  for (const seg of ['media', 'tests', 'test', 'lib', 'docs', 'public', 'i18n', 'scripts', 'app', 'components', 'routes', 'services']) {
+    const idx = parts.indexOf(seg);
+    if (idx !== -1) {
+      if (idx + 1 < parts.length - 1 && parts[idx + 1] !== parts[parts.length - 1]) {
+        return `${seg}/${parts[idx + 1]}`;
+      }
+      return seg;
+    }
+  }
+
+  // If path is e.g. sovereign-agent/package.json or root files
+  if (parts.length === 2 && /\.(json|md|txt|yml|yaml|toml|lock|ts|js|html|css)$/i.test(parts[1])) {
+    return 'root';
+  }
+
+  if (parts.length >= 3) {
+    return `${parts[1]}`;
+  }
+
+  return parts[0] || 'root';
 }
 
 export async function buildCodeGraph(root: string): Promise<CodeGraphData> {
@@ -907,7 +934,7 @@ export class GraphifyManager implements vscode.Disposable {
   const totalClusters = Math.max(1, data.clusters.length);
   const moduleHubs = data.clusters.map((c, i) => {
     const angle = (i / totalClusters) * Math.PI * 2 - Math.PI / 2;
-    const r = 210;
+    const r = Math.max(260, 48 * Math.min(10, totalClusters));
     return {
       name: c.name,
       count: c.count,
@@ -973,66 +1000,135 @@ export class GraphifyManager implements vscode.Disposable {
   window.addEventListener('resize', resize);
   resize();
 
+  // Relaxation pass to push any overlapping nodes apart
+  function relaxNodeCollisions() {
+    for (let pass = 0; pass < 25; pass++) {
+      for (let i = 0; i < simNodes.length; i++) {
+        for (let j = i + 1; j < simNodes.length; j++) {
+          const a = simNodes[i];
+          const b = simNodes[j];
+          const dx = b.targetX - a.targetX;
+          const dy = b.targetY - a.targetY;
+          const dist = Math.hypot(dx, dy) || 0.001;
+          const minDist = (a.radius || 10) + (b.radius || 10) + 24;
+          if (dist < minDist) {
+            const overlap = (minDist - dist) * 0.5;
+            const nx = dx / dist;
+            const ny = dy / dist;
+            a.targetX -= nx * overlap;
+            a.targetY -= ny * overlap;
+            b.targetX += nx * overlap;
+            b.targetY += ny * overlap;
+          }
+        }
+      }
+    }
+  }
+
   // Compute Layout Positions
   function applyLayout(layout) {
     currentLayout = layout;
 
     if (layout === 'star') {
-      // 1. STAR CONSTELLATION: Central Star at (0,0), Module Arms at R=220, Files fanning out
+      // 1. STAR CONSTELLATION: Central Star at (0,0), Module Arms at R=260+, Files in spacious concentric rings
       coreStar.targetX = 0;
       coreStar.targetY = 0;
 
       moduleHubs.forEach((m, i) => {
         const angle = (i / totalClusters) * Math.PI * 2 - Math.PI / 2;
-        const r = 210;
+        const r = Math.max(260, 48 * Math.min(10, totalClusters));
         m.targetX = Math.cos(angle) * r;
         m.targetY = Math.sin(angle) * r;
         m.angle = angle;
 
-        // Position satellite files on this module's arm
+        // Position satellite files on this module's arm in concentric orbital layers
         const files = (filesByCluster.get(m.name) || []).map(f => nodeById.get(f.id)).filter(Boolean);
         const count = files.length;
-        const fanSpan = Math.min(Math.PI * 1.1, 0.28 * count);
-        files.forEach((f, j) => {
-          const subAngle = count === 1 ? angle : (angle - fanSpan / 2 + (j / (count - 1)) * fanSpan);
-          const dist = 115 + (j % 2) * 25;
-          f.targetX = m.targetX + Math.cos(subAngle) * dist;
-          f.targetY = m.targetY + Math.sin(subAngle) * dist;
-        });
+        
+        // Multi-ring distribution so nodes never crowd into a single arc
+        const ringCaps = [3, 5, 7, 9, 12];
+        let fIdx = 0;
+        let ring = 0;
+
+        while (fIdx < count) {
+          const cap = ringCaps[ring] || 10;
+          const filesInRing = Math.min(cap, count - fIdx);
+          const ringDist = 85 + ring * 65;
+          const fanSpan = Math.min(Math.PI * 0.9, 0.22 * filesInRing + 0.15);
+
+          for (let j = 0; j < filesInRing; j++) {
+            const f = files[fIdx++];
+            const subAngle = filesInRing === 1 ? angle : (angle - fanSpan / 2 + (j / (filesInRing - 1)) * fanSpan);
+            f.targetX = m.targetX + Math.cos(subAngle) * ringDist;
+            f.targetY = m.targetY + Math.sin(subAngle) * ringDist;
+            f.radius = Math.max(8, Math.min(18, 6 + Math.sqrt(f.score) * 2.2));
+          }
+          ring++;
+        }
       });
+
+      relaxNodeCollisions();
+
     } else if (layout === 'diagram') {
-      // 2. BLOCK DIAGRAM: Neat architectural cards arranged in a grid with columns
+      // 2. BLOCK ARCHITECTURE DIAGRAM: Neat architectural cards arranged in a grid with columns
       clusterBoxes.length = 0;
       const cols = Math.min(3, Math.max(2, Math.ceil(Math.sqrt(totalClusters))));
-      const boxW = 240;
-      const spacingX = 300;
-      const spacingY = 220;
+      const boxW = 320;
+      const spacingX = 380;
 
+      // Group clusters into rows to calculate dynamic row heights
+      const rows = [];
       data.clusters.forEach((c, idx) => {
-        const col = idx % cols;
-        const row = Math.floor(idx / cols);
-        const bx = (col - (cols - 1) / 2) * spacingX;
-        const by = (row - Math.floor(totalClusters / cols) / 2) * spacingY;
-
+        const r = Math.floor(idx / cols);
+        if (!rows[r]) rows[r] = [];
         const files = (filesByCluster.get(c.name) || []).map(f => nodeById.get(f.id)).filter(Boolean);
-        const boxH = Math.max(90, Math.min(260, 42 + files.length * 20));
-
-        clusterBoxes.push({
-          name: c.name,
-          color: clusterColors[c.name] || '#d97757',
-          x: bx - boxW / 2,
-          y: by - boxH / 2,
-          w: boxW,
-          h: boxH,
-          files
-        });
-
-        // Position nodes inside the card box in an orderly list
-        files.forEach((f, fi) => {
-          f.targetX = bx - boxW / 2 + 18;
-          f.targetY = by - boxH / 2 + 40 + fi * 19;
-        });
+        const colsInside = files.length > 8 ? 2 : 1;
+        const rowsInside = Math.ceil(files.length / colsInside);
+        const boxH = Math.max(90, 48 + rowsInside * 26 + 14);
+        rows[r].push({ cluster: c, files, colsInside, boxH });
       });
+
+      // Calculate total height to center the layout
+      let totalGridH = 0;
+      rows.forEach(r => {
+        const maxH = Math.max(...r.map(item => item.boxH), 120);
+        totalGridH += maxH + 70;
+      });
+
+      let currentY = -totalGridH / 2;
+      rows.forEach(rowClusters => {
+        const maxH = Math.max(...rowClusters.map(item => item.boxH), 120);
+        const countInRow = rowClusters.length;
+
+        rowClusters.forEach((item, cIdx) => {
+          const bx = (cIdx - (countInRow - 1) / 2) * spacingX;
+          const by = currentY + item.boxH / 2;
+
+          const box = {
+            name: item.cluster.name,
+            color: clusterColors[item.cluster.name] || '#d97757',
+            x: bx - boxW / 2,
+            y: by - item.boxH / 2,
+            w: boxW,
+            h: item.boxH,
+            files: item.files
+          };
+          clusterBoxes.push(box);
+
+          // Position files cleanly inside the card box
+          const colWidth = (boxW - 36) / item.colsInside;
+          item.files.forEach((f, fi) => {
+            const inCol = fi % item.colsInside;
+            const inRow = Math.floor(fi / item.colsInside);
+            f.targetX = box.x + 22 + inCol * colWidth;
+            f.targetY = box.y + 44 + inRow * 26;
+            f.radius = 6.5; // compact sleek dot in diagram card mode!
+          });
+        });
+
+        currentY += maxH + 70;
+      });
+
     } else if (layout === 'hierarchy') {
       // 3. LAYERED ARCHITECTURE: Top-down tiers
       const levels = new Map();
@@ -1050,13 +1146,25 @@ export class GraphifyManager implements vscode.Disposable {
         levelGroups[lvl].push(n);
       });
       levelGroups.forEach((group, lvlIdx) => {
-        const y = (lvlIdx - 1.5) * 165;
+        const y = (lvlIdx - 1.5) * 200;
         const count = group.length;
+        const wrap = count > 7;
+        const colsTotal = wrap ? Math.ceil(count / 2) : count;
         group.forEach((node, i) => {
-          node.targetX = (i - count / 2) * 95;
-          node.targetY = y;
+          node.radius = Math.max(8, Math.min(18, 6 + Math.sqrt(node.score) * 2.2));
+          if (wrap) {
+            const subRow = i % 2;
+            const colIdx = Math.floor(i / 2);
+            node.targetX = (colIdx - (colsTotal - 1) / 2) * 140;
+            node.targetY = y + subRow * 46;
+          } else {
+            node.targetX = (i - (count - 1) / 2) * 140;
+            node.targetY = y;
+          }
         });
       });
+
+      relaxNodeCollisions();
     }
   }
 
@@ -1108,10 +1216,17 @@ export class GraphifyManager implements vscode.Disposable {
       if (n.y > maxY) maxY = n.y;
     });
     if (currentLayout === 'star') {
-      minX = Math.min(minX, -260);
-      maxX = Math.max(maxX, 260);
-      minY = Math.min(minY, -260);
-      maxY = Math.max(maxY, 260);
+      minX = Math.min(minX, -280);
+      maxX = Math.max(maxX, 280);
+      minY = Math.min(minY, -280);
+      maxY = Math.max(maxY, 280);
+    } else if (currentLayout === 'diagram') {
+      clusterBoxes.forEach(b => {
+        if (b.x < minX) minX = b.x;
+        if (b.x + b.w > maxX) maxX = b.x + b.w;
+        if (b.y < minY) minY = b.y;
+        if (b.y + b.h > maxY) maxY = b.y + b.h;
+      });
     }
     const graphW = Math.max(260, maxX - minX + 120);
     const graphH = Math.max(260, maxY - minY + 120);
@@ -1257,8 +1372,8 @@ export class GraphifyManager implements vscode.Disposable {
       const active = selectedNode && (selectedNode.id === a.id || selectedNode.id === b.id);
       const hovered = hoveredNode && (hoveredNode.id === a.id || hoveredNode.id === b.id);
 
-      // Only draw non-active lines if hovered/selected or cycle, or in hierarchy mode
-      if (!active && !hovered && !isCycle && currentLayout === 'star') continue;
+      // Keep canvas serene and readable: only draw import lines when actively selected, hovered, or in a circular dependency
+      if (!active && !hovered && !isCycle) continue;
 
       ctx.save();
       ctx.globalAlpha = (aVis && bVis) ? (active || hovered || isCycle ? 0.95 : 0.25) : 0.05;
@@ -1337,10 +1452,13 @@ export class GraphifyManager implements vscode.Disposable {
       ctx.stroke();
 
       // Node Label
-      ctx.font = (isSelected || n.isHub ? '600 ' : '') + '11px var(--sans, system-ui)';
+      ctx.font = (isSelected || n.isHub ? '600 ' : '') + (currentLayout === 'diagram' ? '10.5px var(--sans, system-ui)' : '11px var(--sans, system-ui)');
       ctx.fillStyle = isLight ? '#1f1e1d' : '#ece9e4';
       ctx.textAlign = 'left';
-      const labelText = (n.isHub ? '👑 ' : '') + n.label;
+      let labelText = (n.isHub ? '👑 ' : '') + n.label;
+      if (currentLayout === 'diagram' && labelText.length > 18) {
+        labelText = labelText.slice(0, 16) + '…';
+      }
       ctx.fillText(labelText, n.x + n.radius + 5, n.y + 3.5);
     }
 
