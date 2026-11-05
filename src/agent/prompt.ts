@@ -114,6 +114,14 @@ code_graph: build, visualize, and query the Graphify Codebase Knowledge Graph (m
 <target>src/agent/tools.ts</target>
 </code_graph>
 
+run_tests: automatically runs the workspace test suite (npm test, pytest, cargo test, etc.) and returns pass/fail counts and stack traces:
+<run_tests>
+</run_tests>
+Or test a specific command:
+<run_tests>
+<command>npm test</command>
+</run_tests>
+
 RULES
 - One tool call per message. Never invent tool results.
 - For architecture questions, dependency impact, or exploring unfamiliar codebases, call code_graph first to get the deterministic Graphify Knowledge Graph instead of reading every file one by one.

@@ -18,6 +18,9 @@ import { AgentTerminal } from '../agent/terminal';
 import { performWebSearch } from '../agent/webSearch';
 import { BrowserPreviewManager } from '../agent/browserPreview';
 import { GraphifyManager, formatGraphSummary } from '../agent/graphify';
+import { SnapshotManager } from '../agent/snapshot';
+import { TddRunner } from '../agent/tddRunner';
+import { HardwareBenchmark } from '../agent/benchmark';
 
 const execFileAsync = promisify(execFile);
 
@@ -83,11 +86,28 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly graphify = new GraphifyManager((prompt) => {
     void this.handleSend(prompt, 'Code');
   });
+  private readonly snapshotManager: SnapshotManager;
+  private readonly tddRunner: TddRunner;
+  private readonly benchmark: HardwareBenchmark;
 
   constructor(
     private readonly extensionUri: vscode.Uri,
     private readonly extensionContext: vscode.ExtensionContext
   ) {
+    this.snapshotManager = new SnapshotManager(() => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath);
+    this.tddRunner = new TddRunner(() => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath);
+    this.benchmark = new HardwareBenchmark(
+      () => createProvider(this.prepare()),
+      () => this.prepare().model
+    );
+    this.browserPreview.onElementPicked = (info) => {
+      const lineNotice = info.line ? `:${info.line}` : '';
+      const fileNotice = info.file ? ` (${info.file}${lineNotice})` : '';
+      this.post({
+        type: 'insertText',
+        text: `Regarding element <${info.tag}${info.selector ? ` ${info.selector}` : ''}>${fileNotice}: `
+      });
+    };
     this.mcp = new McpManager(this.mcpServers(), (name, command) =>
       this.confirm(t('approval.mcp'), `${name}: ${command}`)
     );
@@ -176,7 +196,82 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     await this.graphify.openInteractive(root);
   }
 
+  async runBenchmarkCommand(): Promise<void> {
+    this.post({ type: 'assistantStart' });
+    this.post({ type: 'assistantText', text: '⚡ Running Hardware Benchmark on active local model...' });
+    try {
+      const report = await this.benchmark.runBenchmark((step) => {
+        this.post({ type: 'assistantText', text: `${step}` });
+      });
+
+      const reportCard = [
+        `### ⚡ Sovereign Hardware & Model Benchmark Report`,
+        `**Model:** \`${report.modelName}\` · **Endpoint:** \`${report.endpoint}\``,
+        `**Overall Grade:** **${report.overallGrade}**`,
+        '',
+        `| Metric | Result | Benchmark Rating |`,
+        `| :--- | :--- | :--- |`,
+        `| **Speed (Tokens / sec)** | \`${report.tokensPerSec.toFixed(1)} tok/s\` | ${report.tokensPerSec > 30 ? '🔥 High Speed' : report.tokensPerSec > 15 ? '⚖️ Moderate' : '🐢 Slow'} |`,
+        `| **Latency (TTFT)** | \`${report.ttftMs} ms\` | ${report.ttftMs < 400 ? '⚡ Ultra-low' : 'Normal'} |`,
+        `| **Tool-Calling Adherence** | \`${report.toolScore}%\` | ${report.toolScore >= 90 ? '✓ Excellent XML compliance' : '⚠️ Minor prompt drift'} |`,
+        `| **Logic & Reasoning** | \`${report.reasoningScore}%\` | ${report.reasoningScore >= 90 ? '✓ Sharp' : 'Adequate'} |`,
+        '',
+        `> **Recommendation:** ${report.recommendations.summary}`,
+        `> - Optimal Temperature: \`${report.recommendations.temperature}\``,
+        `> - Optimal Context Window: \`${report.recommendations.contextSize}\``,
+        '',
+        `*Settings have been auto-tuned and applied to your Sovereign Agent configuration.*`
+      ].join('\n');
+
+      await this.benchmark.applyOptimization(report);
+      this.post({ type: 'assistantText', text: reportCard });
+      this.post({ type: 'assistantEnd' });
+    } catch (err) {
+      this.post({ type: 'assistantEnd' });
+      this.post({ type: 'error', text: `Benchmark failed: ${String(err)}` });
+    }
+  }
+
+  async runTddCommand(customCmd?: string): Promise<void> {
+    this.post({ type: 'assistantStart' });
+    this.post({ type: 'assistantText', text: '🧪 Running workspace test suite...' });
+    try {
+      const res = await this.tddRunner.runTests(customCmd);
+      const card = [
+        `### 🧪 Sovereign Auto-TDD Runner`,
+        `**Status:** ${res.ok ? '🟢 PASSED' : '🔴 FAILED'} · **Framework:** \`${res.framework}\``,
+        `**Results:** \`${res.totalPassed} passed, ${res.totalFailed} failed\` in \`${(res.durationMs / 1000).toFixed(2)}s\``,
+        `**Command:** \`${res.command}\``,
+        '',
+        '```',
+        res.rawOutput.slice(0, 3000),
+        '```',
+        '',
+        res.ok
+          ? '✓ Test suite is completely green!'
+          : '⚠️ Tests failed. Agent will analyze failure trace and auto-fix the code if in agent loop.'
+      ].join('\n');
+      this.post({ type: 'assistantText', text: card });
+      this.post({ type: 'assistantEnd' });
+    } catch (err) {
+      this.post({ type: 'assistantEnd' });
+      this.post({ type: 'error', text: `TDD execution failed: ${String(err)}` });
+    }
+  }
+
   async undo(): Promise<void> {
+    const snapRes = await this.snapshotManager.revertLast();
+    if (snapRes.success && snapRes.restoredFiles.length > 0) {
+      void vscode.window.showInformationMessage(
+        `⏪ Time-Travel: Reverted ${snapRes.label || 'previous turn'} (${snapRes.restoredFiles.length} file(s) restored: ${snapRes.restoredFiles.slice(0, 3).join(', ')}${snapRes.restoredFiles.length > 3 ? '...' : ''})`
+      );
+      this.post({
+        type: 'assistantText',
+        text: `⏪ **Time-Travel Snapshot Restored:** Reverted ${snapRes.label || 'turn'}. Restored files:\n- ` + snapRes.restoredFiles.join('\n- ')
+      });
+      return;
+    }
+
     const checkpoints = this.extensionContext.workspaceState.get<Checkpoint[]>('checkpoints', []);
     const checkpoint = checkpoints.pop();
     if (!checkpoint) {
@@ -579,6 +674,15 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       const rest = text.trim().replace(/^\/graphify\b/i, '').trim();
       effectiveText = rest || 'Summarize the Graphify Knowledge Graph of this workspace, including key module clusters, top architectural hubs, and any potential bottlenecks.';
     }
+    if (/^\/benchmark\b/i.test(text.trim())) {
+      await this.runBenchmarkCommand();
+      return;
+    }
+    if (/^\/tdd\b/i.test(text.trim())) {
+      const rest = text.trim().replace(/^\/tdd\b/i, '').trim();
+      await this.runTddCommand(rest || undefined);
+      return;
+    }
     const workspaceInstructions = webSearch
       ? `${baseInstructions}\n\nWEB SEARCH ACTIVE: The user enabled Web Search for this request. Call <web_search><query>...</query></web_search> first to retrieve current web results before answering.`.trim()
       : baseInstructions;
@@ -599,6 +703,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       this.post({ type: 'assistantText', text: currentReply });
     };
     this.post({ type: 'busy', value: true });
+    this.snapshotManager.beginTurn(this.agent.getHistory().length);
 
     try {
       const provider = createProvider(cfg);
@@ -669,6 +774,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         memory: `${rssMb} MB`
       });
       this.abort = undefined;
+      this.snapshotManager.commitTurn(text.slice(0, 32));
       void this.extensionContext.workspaceState.update('agentHistory', this.agent.getHistory());
       this.post({ type: 'busy', value: false });
       if (assistantReplies > 0) {
@@ -914,7 +1020,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         runCommand: (command: string) => this.terminal.run(command, root ?? process.cwd(), abort.signal),
         webSearch: (query: string) => performWebSearch(query, abort.signal),
         browserAction: (params) => this.browserPreview.execute(params, root),
-        codeGraph: (params) => this.graphify.execute(params, root)
+        codeGraph: (params) => this.graphify.execute(params, root),
+        runTests: (params) => this.tddRunner.executeTool(params),
+        snapshotManager: this.snapshotManager
       };
     }
 
@@ -1265,6 +1373,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     </div>
     <div id="chips" class="chips">
       <button type="button" id="graphifyChipBtn" class="chip graphify-chip" data-icon="graph"><span data-i18n="ui.graphify">Graphify</span></button>
+      <button type="button" id="benchmarkChipBtn" class="chip" data-mode="Code" data-command="/benchmark"><span>⚡ Benchmark</span></button>
+      <button type="button" id="tddChipBtn" class="chip" data-mode="Code" data-command="/tdd"><span>🧪 Auto-TDD</span></button>
       <button type="button" class="chip" data-mode="Code" data-starter="ui.starterCode" data-icon="code"><span data-i18n="ui.chipCode"></span></button>
       <button type="button" class="chip" data-mode="Ask" data-starter="ui.starterLearn" data-icon="cap"><span data-i18n="ui.chipLearn"></span></button>
       <button type="button" class="chip" data-mode="Code" data-starter="ui.starterWrite" data-icon="pencil"><span data-i18n="ui.chipWrite"></span></button>

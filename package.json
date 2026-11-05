@@ -2,7 +2,7 @@
   "name": "sovereign-agent",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.1.27",
+  "version": "0.1.28",
   "publisher": "ertugrul37",
   "icon": "media/logo.png",
   "license": "GPL-3.0-or-later",
@@ -159,6 +159,16 @@
         "command": "sovereignAgent.rateExtension",
         "title": "%command.rateExtension%",
         "icon": "$(star-full)"
+      },
+      {
+        "command": "sovereignAgent.runBenchmark",
+        "title": "%command.runBenchmark%",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "sovereignAgent.runTdd",
+        "title": "%command.runTdd%",
+        "icon": "$(beaker)"
       },
       {
         "command": "sovereignAgent.selectLanguage",

@@ -84,6 +84,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('sovereignAgent.openFeedback', () => provider.openFeedback()),
     vscode.commands.registerCommand('sovereignAgent.openPreview', () => provider.openPreview()),
     vscode.commands.registerCommand('sovereignAgent.openGraphify', () => provider.openGraphify()),
+    vscode.commands.registerCommand('sovereignAgent.runBenchmark', () => provider.runBenchmarkCommand()),
+    vscode.commands.registerCommand('sovereignAgent.runTdd', () => provider.runTddCommand()),
     vscode.commands.registerCommand('sovereignAgent.rateExtension', () => provider.rateExtension()),
     vscode.commands.registerCommand('sovereignAgent.selectLanguage', () => provider.selectLanguage()),
     vscode.commands.registerCommand('sovereignAgent.addSelectionToChat', () => provider.addSelectionToChat()),

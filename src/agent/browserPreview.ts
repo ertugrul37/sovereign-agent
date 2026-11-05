@@ -29,11 +29,21 @@ interface SnapshotResponse {
   errors: string[];
 }
 
+export interface ElementPickEvent {
+  selector: string;
+  tag: string;
+  text: string;
+  htmlSnippet: string;
+  file?: string;
+  line?: number;
+}
+
 export class BrowserPreviewManager implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined;
   private currentTarget = '';
   private pendingWaiters = new Map<string, (res: SnapshotResponse) => void>();
   private reqCounter = 0;
+  public onElementPicked?: (info: ElementPickEvent) => void;
 
   dispose(): void {
     for (const resolve of this.pendingWaiters.values()) {
@@ -82,10 +92,62 @@ export class BrowserPreviewManager implements vscode.Disposable {
       } else if (msg.type === 'reloadPreview' && this.currentTarget) {
         const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         void this.openTarget(this.currentTarget, workspaceRoot);
+      } else if (msg.type === 'elementPicked') {
+        const info = msg as unknown as ElementPickEvent;
+        void this.handleElementPicked(info, root);
       }
     });
     this.panel = panel;
     return panel;
+  }
+
+  private async handleElementPicked(info: ElementPickEvent, root: string | undefined): Promise<void> {
+    let resolvedFile = this.currentTarget;
+    let foundLine: number | undefined;
+
+    if (root && resolvedFile && !resolvedFile.startsWith('http://') && !resolvedFile.startsWith('https://')) {
+      try {
+        const abs = resolveInside(root, resolvedFile);
+        const text = await fs.readFile(abs, 'utf8');
+        const lines = text.split(/\r?\n/);
+
+        // Search for ID or class or tag
+        const cleanSel = (info.selector || '').replace(/^[#.]/, '');
+        for (let i = 0; i < lines.length; i++) {
+          const l = lines[i];
+          if (cleanSel && l.includes(cleanSel)) {
+            foundLine = i + 1;
+            break;
+          }
+          if (info.text && info.text.length > 3 && l.includes(info.text)) {
+            foundLine = i + 1;
+            break;
+          }
+        }
+
+        // Open in editor at line
+        const doc = await vscode.workspace.openTextDocument(abs);
+        const editor = await vscode.window.showTextDocument(doc, {
+          viewColumn: vscode.ViewColumn.One,
+          preserveFocus: true
+        });
+        if (foundLine !== undefined && editor) {
+          const pos = new vscode.Position(foundLine - 1, 0);
+          editor.selection = new vscode.Selection(pos, pos);
+          editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+        }
+      } catch {
+        // Ignore file reading errors
+      }
+    }
+
+    if (this.onElementPicked) {
+      this.onElementPicked({
+        ...info,
+        file: resolvedFile,
+        line: foundLine
+      });
+    }
   }
 
   /**
@@ -391,10 +453,21 @@ export class BrowserPreviewManager implements vscode.Disposable {
     border: 1px solid #38bdf8; font: 12px sans-serif; box-shadow: 0 6px 18px rgba(0,0,0,0.35);
     display: none;
   }
+  .__sov_hover_pick__ {
+    outline: 2px dashed #d97757 !important;
+    outline-offset: 2px !important;
+    cursor: crosshair !important;
+  }
+  .__sov_btn__.active {
+    background: rgba(217, 119, 87, 0.22);
+    border-color: #d97757;
+    color: #d97757;
+  }
 </style>
 <div id="__sov_bar__">
   <span style="font-weight:600">🌐 Live Preview</span>
   <span id="__sov_url__">${safeUrl}</span>
+  <button type="button" id="__sov_pick_btn__" class="__sov_btn__" title="Click any element on page to inspect and prompt agent in chat (or Alt+Click)">🎯 Pick & Prompt</button>
   <button type="button" id="__sov_dom_btn__" class="__sov_btn__ primary" title="Inspect DOM Elements & Console">✓ DOM Ready</button>
   <button type="button" id="__sov_autotest_btn__" class="__sov_btn__" title="Auto-test inputs and buttons on this page">▶ Test UI</button>
   <button type="button" id="__sov_reload_btn__" class="__sov_btn__" title="Reload Page">↻</button>
@@ -578,7 +651,66 @@ export class BrowserPreviewManager implements vscode.Disposable {
     });
   }
 
-  domBtn?.addEventListener('click', () => {
+  const pickBtn = document.getElementById('__sov_pick_btn__');
+  let pickMode = false;
+  let hoveredPickEl = null;
+
+  function setPickMode(active) {
+    pickMode = active;
+    if (pickBtn) {
+      pickBtn.classList.toggle('active', active);
+      pickBtn.textContent = active ? '🎯 Pick Mode ON' : '🎯 Pick & Prompt';
+    }
+    if (!active && hoveredPickEl) {
+      hoveredPickEl.classList.remove('__sov_hover_pick__');
+      hoveredPickEl = null;
+    }
+    showToast(active ? '🎯 Click any element on page' : 'Pick mode off');
+  }
+
+  pickBtn?.addEventListener('click', () => setPickMode(!pickMode));
+
+  document.addEventListener('mouseover', (e) => {
+    if (!pickMode && !e.altKey) return;
+    const target = e.target;
+    if (isHarnessNode(target)) return;
+    if (hoveredPickEl && hoveredPickEl !== target) {
+      hoveredPickEl.classList.remove('__sov_hover_pick__');
+    }
+    hoveredPickEl = target;
+    target.classList.add('__sov_hover_pick__');
+  }, true);
+
+  document.addEventListener('mouseout', (e) => {
+    if (e.target && e.target.classList) {
+      e.target.classList.remove('__sov_hover_pick__');
+    }
+  }, true);
+
+  document.addEventListener('click', (e) => {
+    if (!pickMode && !e.altKey) return;
+    const target = e.target;
+    if (isHarnessNode(target)) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    highlight(target, 'Selected element');
+    const selector = uniqueSelector(target);
+    const tag = target.tagName.toLowerCase();
+    const text = (target.innerText || target.textContent || target.getAttribute('placeholder') || '').trim().slice(0, 80);
+    const htmlSnippet = target.outerHTML ? target.outerHTML.slice(0, 300) : '';
+
+    vscode.postMessage({
+      type: 'elementPicked',
+      selector,
+      tag,
+      text,
+      htmlSnippet
+    });
+
+    setPickMode(false);
+  }, true);
     const nextHidden = !drawerEl.hidden;
     drawerEl.hidden = nextHidden;
     if (!nextHidden) renderDomDrawer();

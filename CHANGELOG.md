@@ -2,6 +2,16 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.28] - 2026-11-05
+
+### Added
+- **5 Killer Features for Local AI Pair Programming:**
+  1. **🛡️ AST Anti-Hallucination Guard (`src/agent/antiHallucination.ts`):** Automatically validates relative file imports and exported symbols before and during file writes/replacements. Warns the model in real time if it attempts to import non-existent files or fake symbols.
+  2. **⏪ Time-Travel Workspace Snapshots (`src/agent/snapshot.ts`):** Git-independent multi-file atomic undo system. Automatically captures pre-mutation snapshots on every turn, allowing instant 1-click restoration to any previous turn.
+  3. **🎯 Live Preview Inspect & Click-to-Prompt (`src/agent/browserPreview.ts`):** Added `🎯 Pick & Prompt` (or `Alt+Click`) mode inside the live browser preview. Clicking any element automatically opens the source code file at that exact line and pre-fills the chat composer with element context.
+  4. **🧪 Auto-TDD Verification Loop (`src/agent/tddRunner.ts`, `<run_tests>` Tool):** Automatically detects workspace test frameworks (`npm test`, `pytest`, `cargo test`, `go test`), runs tests in a sandbox, and reports pass/fail counts and stack traces for autonomous agent self-healing loops. Trigger via `/tdd` command or chip.
+  5. **⚡ Hardware Benchmark & 1-Click Auto-Tuner (`src/agent/benchmark.ts`):** Tests raw token generation speed (tok/s), time-to-first-token (TTFT), protocol XML compliance, and reasoning. Evaluates hardware grade (S/A/B/C/D) and applies optimal temperature & context length with 1 click. Trigger via `/benchmark` command or chip.
+
 ## [0.1.27] - 2026-11-05
 
 ### Changed

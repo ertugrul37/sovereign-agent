@@ -18,7 +18,8 @@ export const TOOL_NAMES = [
   'mcp_call',
   'web_search',
   'browser_action',
-  'code_graph'
+  'code_graph',
+  'run_tests'
 ] as const;
 export type ToolName = (typeof TOOL_NAMES)[number];
 
@@ -33,7 +34,8 @@ export const TOOL_PARAMS: Record<ToolName, string[]> = {
   mcp_call: ['server', 'tool', 'arguments'],
   web_search: ['query'],
   browser_action: ['action', 'target', 'selector', 'text'],
-  code_graph: ['action', 'target', 'query']
+  code_graph: ['action', 'target', 'query'],
+  run_tests: ['command']
 };
 
 export interface ToolCall {
@@ -241,5 +243,7 @@ export function describeCall(call: ToolCall): string {
       return `browser_action ${p.action ?? 'open'} ${p.target || p.selector || ''}`.trim();
     case 'code_graph':
       return `code_graph ${p.action ?? 'map'} ${p.target || p.query || ''}`.trim();
+    case 'run_tests':
+      return `run_tests ${p.command ?? ''}`.trim();
   }
 }

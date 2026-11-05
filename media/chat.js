@@ -639,6 +639,14 @@
         vscode.postMessage({ type: 'openGraphify' });
         return;
       }
+      if (chip.dataset.command) {
+        setMode(chip.dataset.mode || 'Code');
+        input.value = chip.dataset.command;
+        autosize();
+        updateSend();
+        send();
+        return;
+      }
       setMode(chip.dataset.mode);
       input.value = s(chip.dataset.starter);
       autosize();

@@ -15,6 +15,8 @@
   "command.openPreview": "Sovereign Agent: 🌐 Canlı Web Önizleme ve Testi Aç",
   "command.openGraphify": "Sovereign Agent: 🕸️ Graphify Kod Tabanı Bilgi Grafiğini Aç",
   "command.rateExtension": "Sovereign Agent: ⭐ Marketplace'te 5 Yıldız Ver",
+  "command.runBenchmark": "Sovereign Agent: ⚡ Donanım Hız Testi & Otomatik Kalibrasyon",
+  "command.runTdd": "Sovereign Agent: 🧪 Otomatik TDD Test Döngüsünü Çalıştır",
   "command.selectLanguage": "Sovereign Agent: Dil Seç",
   "config.title": "Sovereign Agent",
   "config.provider.ollama": "Ollama yerel API'si",

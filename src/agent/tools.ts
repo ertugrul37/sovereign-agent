@@ -1,6 +1,9 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ToolCall } from './protocol';
+import { validateCodeAgainstWorkspace } from './antiHallucination';
+import type { SnapshotManager } from './snapshot';
+import type { TddRunner } from './tddRunner';
 
 export interface ToolContext {
   root: string | undefined;
@@ -19,6 +22,10 @@ export interface ToolContext {
   browserAction?(params: { action?: string; target?: string; selector?: string; text?: string }): Promise<ToolResult>;
   /** Builds, queries, or visualizes the Graphify codebase Knowledge Graph; see src/agent/graphify.ts. */
   codeGraph?(params: { action?: string; target?: string; query?: string }): Promise<ToolResult>;
+  /** Executes automated test runner suite with self-healing feedback; see src/agent/tddRunner.ts. */
+  runTests?(params: { command?: string }): Promise<ToolResult>;
+  /** Time-travel workspace snapshot manager; see src/agent/snapshot.ts. */
+  snapshotManager?: SnapshotManager;
   signal: AbortSignal;
 }
 
@@ -208,10 +215,13 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
         if (!(await ctx.previewChange(toPosix(path.relative(root, file)), original ?? '', p.content))) {
           return { ok: false, output: 'The user cancelled the diff preview.' };
         }
+        await ctx.snapshotManager?.recordFileBeforeMutation(toPosix(path.relative(root, file)));
         await ctx.checkpoint(toPosix(path.relative(root, file)), original);
         await fs.mkdir(path.dirname(file), { recursive: true });
         await fs.writeFile(file, p.content, 'utf8');
-        return { ok: true, output: `Wrote ${toPosix(path.relative(root, file))} (${bytes} bytes).` };
+        const ah = await validateCodeAgainstWorkspace(toPosix(path.relative(root, file)), p.content, root);
+        const out = `Wrote ${toPosix(path.relative(root, file))} (${bytes} bytes).${ah.warningNotice ? `\n\n${ah.warningNotice}` : ''}`;
+        return { ok: true, output: out };
       }
       case 'replace_in_file': {
         if (!p.path) {
@@ -245,11 +255,14 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
         if (!(await ctx.previewChange(toPosix(path.relative(root, file)), original, updated))) {
           return { ok: false, output: 'The user cancelled the diff preview.' };
         }
+        await ctx.snapshotManager?.recordFileBeforeMutation(toPosix(path.relative(root, file)));
         await ctx.checkpoint(toPosix(path.relative(root, file)), original);
         await fs.writeFile(file, updated, 'utf8');
+        const ah = await validateCodeAgainstWorkspace(toPosix(path.relative(root, file)), updated, root);
+        const out = `Replaced ${replaceAll ? occurrences : 1} occurrence${occurrences === 1 ? '' : 's'} in ${toPosix(path.relative(root, file))}.${ah.warningNotice ? `\n\n${ah.warningNotice}` : ''}`;
         return {
           ok: true,
-          output: `Replaced ${replaceAll ? occurrences : 1} occurrence${occurrences === 1 ? '' : 's'} in ${toPosix(path.relative(root, file))}.`
+          output: out
         };
       }
       case 'search_files': {
@@ -303,6 +316,12 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
           return { ok: false, output: 'The user denied this action.' };
         }
         return await ctx.runCommand(p.command);
+      }
+      case 'run_tests': {
+        if (ctx.runTests) {
+          return await ctx.runTests({ command: p.command });
+        }
+        return { ok: false, output: 'TDD test runner is not configured.' };
       }
     }
   } catch (err) {
