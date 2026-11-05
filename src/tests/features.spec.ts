@@ -103,5 +103,22 @@ test('TddRunner detects test runner and formats comprehensive progress dashboard
   assert.ok(res.dashboard.includes('100%'));
 });
 
+test('system prompt enforces mandatory language directive and native reinforcement', async () => {
+  const { buildSystemPrompt } = await import('../agent/prompt');
+  const { setLocale } = await import('../i18n');
+
+  setLocale('tr');
+  const promptTr = buildSystemPrompt('test-workspace');
+  assert.ok(promptTr.includes('KESİN DİL TALİMATI (ZORUNLU)'), 'includes Turkish native directive');
+  assert.ok(promptTr.includes('Türkçe'), 'enforces Turkish');
+  assert.ok(promptTr.includes('ASLA İngilizceye çevirme'), 'explicitly forbids reverting to English');
+
+  setLocale('de');
+  const promptDe = buildSystemPrompt('test-workspace');
+  assert.ok(promptDe.includes('KRITISCHE SPRACHANWEISUNG'), 'includes German native directive');
+
+  setLocale('en');
+});
+
 
 

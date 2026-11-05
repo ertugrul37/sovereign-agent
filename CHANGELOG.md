@@ -2,7 +2,30 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
-## [0.1.36] - 2026-11-05
+## [0.1.37] - 2026-11-05
+
+### Major Enhancements & Quality-of-Life Upgrades
+- **🌐 Mandatory & Enforced Multi-Language AI Adherence (`src/agent/prompt.ts`):**
+  - **Uncompromising Language Directive:** Completely fortified `buildSystemPrompt` with strict, high-priority language constraints. The AI is strictly instructed to ALWAYS formulate all conversational text, explanations, code analysis, and thoughts in the user's selected language (e.g. `tr` Türkçe, `de` Deutsch, `es` Español, `fr` Français, `az` Azərbaycan, `ru` Русский, `zh` 中文, `ja` 日本語).
+  - **Native Language Reinforcement:** Appends a native reinforcement paragraph in the target language (e.g. Turkish `KESİN DİL TALİMATI (ZORUNLU): ...`) explicitly forbidding reverting to English even when the prompt contains English code snippets, logs, error traces, or file paths.
+  - **Localized Command Injections:** Automated `/graphify`, `/benchmark`, and `/tdd` prompts automatically resolve and format in the active locale.
+
+- **💬 Comprehensive Chat Markdown & Typography Engine (`media/chat.js` & `media/chat.css`):**
+  - **Robust Heading Rendering:** `#` through `######` markdown headings are beautifully parsed into styled `<h1>`–`<h6>` elements with border accents and typography.
+  - **Responsive Markdown Tables:** Multi-column tables (`| ... |`) with alignment syntax (`:---`, `:---:`, `---:`) are seamlessly parsed into responsive, rounded HTML tables with hover highlights and clean padding.
+  - **Vibrant, Clickable File Badges in Plain Text & Code Spans:**
+    - Any file path or directory (such as `i18n/index.ts`, `agent/agent.ts`, `bot.go`, `db.go`, `package.json`, `media/chat.js`) is automatically detected—both inside code spans and in plain conversational text—and rendered as a high-visibility, glowing cyan (`#38bdf8`) badge with file/folder icons.
+    - Clicking any badge instantly opens the file in VS Code via `{ type: 'openFile', file }`.
+  - **Flawless LaTeX & Math Arrow Transformation:**
+    - Eradicated raw LaTeX symbols and unrendered dollar signs (`$\leftrightarrow$`, `$\leftarrow$`, `$\rightarrow$`, `$\times$`, `\leq`, etc.).
+    - Robust regex parser converts them cleanly into beautiful Unicode arrows and math symbols (`↔`, `←`, `→`, `⇐`, `⇒`, `⇔`, `×`, `÷`, `±`, `≤`, `≥`, `≠`, `≈`, `≡`, `∈`, `∉`, `⊆`, `⊂`, `∑`, `∏`, `√`, `∞`) with zero leftover `$` artifacts.
+
+- **🕸️ Graphify Architecture Studio Layout & Clustering Refactor (`src/agent/graphify.ts` & `media/chat.js`):**
+  - **Intelligent Domain Clustering:** Fixed the monolithic 1-cluster issue for workspaces with root-level files (such as `aztu-assistant` or flat projects). Files are automatically partitioned into natural architectural domains: `api` (bot, router, endpoints), `auth` (security, crypto, jwt), `data` (database, models, sql), `frontend` (html, css, js), `core`, `config`, `docs`, and `tests`.
+  - **Collision-Free Star Constellation Layout:** Multi-tier orbital rings and a 25-iteration collision relaxation pass (`relaxEmbedCollisions` / `relaxNodeCollisions`) ensure nodes never bunch together or overlap in tight crescent fans.
+  - **Well-Spaced 4-Tier Hierarchy Layout:** Replaced single vertical column stacking with a balanced 4-tier architectural hierarchy (UI/Entrypoints ➔ Core Orchestrators ➔ Services & Providers ➔ Types, Configs & Assets) with multi-row staggered column wrapping.
+  - **Laser Line Illumination:** Clicking any node illuminates outgoing dependency lines in radiant electric cyan (`#38bdf8`) and incoming lines in emerald green (`#4ade80`) with white core beams and glowing halos.
+
 
 ### Major Architectural Integration
 - **🔗 Unified In-Extension Graphify Studio (No Separate Tab):**

@@ -93,47 +93,46 @@
 
   function replaceLatexMath(str) {
     if (!str) return '';
-    // LaTeX arrows
-    str = str.replace(/\\leftrightarrow/g, '↔');
-    str = str.replace(/\\rightarrow|\\to(?![a-zA-Z])/g, '→');
-    str = str.replace(/\\leftarrow|\\gets(?![a-zA-Z])/g, '←');
-    str = str.replace(/\\Rightarrow/g, '⇒');
-    str = str.replace(/\\Leftarrow/g, '⇐');
-    str = str.replace(/\\Leftrightarrow/g, '⇔');
-    str = str.replace(/\\mapsto/g, '↦');
-    str = str.replace(/\\uparrow/g, '↑');
-    str = str.replace(/\\downarrow/g, '↓');
-    str = str.replace(/\\nearrow/g, '↗');
-    str = str.replace(/\\searrow/g, '↘');
+    // 1. LaTeX arrows (handles $, $$, \, \\, and surrounded or standalone)
+    str = str.replace(/\$?\s*\\+(leftrightarrow|Leftrightarrow)\s*\$?|\\+(leftrightarrow|Leftrightarrow)/g, '↔');
+    str = str.replace(/\$?\s*\\+(rightarrow|to(?![a-zA-Z]))\s*\$?|\\+(rightarrow|to(?![a-zA-Z]))/g, '→');
+    str = str.replace(/\$?\s*\\+(leftarrow|gets(?![a-zA-Z]))\s*\$?|\\+(leftarrow|gets(?![a-zA-Z]))/g, '←');
+    str = str.replace(/\$?\s*\\+(Rightarrow)\s*\$?|\\+(Rightarrow)/g, '⇒');
+    str = str.replace(/\$?\s*\\+(Leftarrow)\s*\$?|\\+(Leftarrow)/g, '⇐');
+    str = str.replace(/\$?\s*\\+(uparrow)\s*\$?|\\+(uparrow)/g, '↑');
+    str = str.replace(/\$?\s*\\+(downarrow)\s*\$?|\\+(downarrow)/g, '↓');
+    str = str.replace(/\$?\s*\\+(nearrow)\s*\$?|\\+(nearrow)/g, '↗');
+    str = str.replace(/\$?\s*\\+(searrow)\s*\$?|\\+(searrow)/g, '↘');
+    str = str.replace(/\$?\s*\\+(mapsto)\s*\$?|\\+(mapsto)/g, '↦');
 
-    // Math comparison & operations
-    str = str.replace(/\\leq?(?![a-zA-Z])/g, '≤');
-    str = str.replace(/\\geq?(?![a-zA-Z])/g, '≥');
-    str = str.replace(/\\neq?(?![a-zA-Z])/g, '≠');
-    str = str.replace(/\\approx/g, '≈');
-    str = str.replace(/\\equiv/g, '≡');
-    str = str.replace(/\\times/g, '×');
-    str = str.replace(/\\div/g, '÷');
-    str = str.replace(/\\pm/g, '±');
-    str = str.replace(/\\mp/g, '∓');
-    str = str.replace(/\\cdot/g, '·');
-    str = str.replace(/\\in(?![a-zA-Z])/g, '∈');
-    str = str.replace(/\\notin/g, '∉');
-    str = str.replace(/\\subseteq?/g, '⊆');
-    str = str.replace(/\\subset(?![a-zA-Z])/g, '⊂');
-    str = str.replace(/\\forall/g, '∀');
-    str = str.replace(/\\exists/g, '∃');
-    str = str.replace(/\\infty/g, '∞');
-    str = str.replace(/\\sum/g, '∑');
-    str = str.replace(/\\prod/g, '∏');
-    str = str.replace(/\\sqrt/g, '√');
+    // 2. Math comparison & operations
+    str = str.replace(/\$?\s*\\+(leq|le(?![a-zA-Z]))\s*\$?|\\+(leq|le(?![a-zA-Z]))/g, '≤');
+    str = str.replace(/\$?\s*\\+(geq|ge(?![a-zA-Z]))\s*\$?|\\+(geq|ge(?![a-zA-Z]))/g, '≥');
+    str = str.replace(/\$?\s*\\+(neq|ne(?![a-zA-Z]))\s*\$?|\\+(neq|ne(?![a-zA-Z]))/g, '≠');
+    str = str.replace(/\$?\s*\\+(approx)\s*\$?|\\+(approx)/g, '≈');
+    str = str.replace(/\$?\s*\\+(equiv)\s*\$?|\\+(equiv)/g, '≡');
+    str = str.replace(/\$?\s*\\+(times)\s*\$?|\\+(times)/g, '×');
+    str = str.replace(/\$?\s*\\+(div)\s*\$?|\\+(div)/g, '÷');
+    str = str.replace(/\$?\s*\\+(pm)\s*\$?|\\+(pm)/g, '±');
+    str = str.replace(/\$?\s*\\+(mp)\s*\$?|\\+(mp)/g, '∓');
+    str = str.replace(/\$?\s*\\+(cdot)\s*\$?|\\+(cdot)/g, '·');
+    str = str.replace(/\$?\s*\\+(in(?![a-zA-Z]))\s*\$?|\\+(in(?![a-zA-Z]))/g, '∈');
+    str = str.replace(/\$?\s*\\+(notin)\s*\$?|\\+(notin)/g, '∉');
+    str = str.replace(/\$?\s*\\+(subseteq)\s*\$?|\\+(subseteq)/g, '⊆');
+    str = str.replace(/\$?\s*\\+(subset(?![a-zA-Z]))\s*\$?|\\+(subset(?![a-zA-Z]))/g, '⊂');
+    str = str.replace(/\$?\s*\\+(forall)\s*\$?|\\+(forall)/g, '∀');
+    str = str.replace(/\$?\s*\\+(exists)\s*\$?|\\+(exists)/g, '∃');
+    str = str.replace(/\$?\s*\\+(infty)\s*\$?|\\+(infty)/g, '∞');
+    str = str.replace(/\$?\s*\\+(sum)\s*\$?|\\+(sum)/g, '∑');
+    str = str.replace(/\$?\s*\\+(prod)\s*\$?|\\+(prod)/g, '∏');
+    str = str.replace(/\$?\s*\\+(sqrt)\s*\$?|\\+(sqrt)/g, '√');
 
-    // Clean $ delimiters around arrows and simple inline math
+    // 3. Clean $ delimiters around arrows and simple inline math
+    str = str.replace(/\$\s*([→←↔⇒⇐⇔↦↑↓↗↘≤≥≠≈≡×÷±∓·∈∉⊆⊂∀∃∞∑∏√\s]+)\s*\$/g, '$1');
+
+    // 4. Any remaining $inline math$ rendered cleanly
     str = str.replace(/\$([^\$\n]+)\$/g, (m, content) => {
       const trimmed = content.trim();
-      if (/^[→←↔⇒⇐⇔↦↑↓≤≥≠≈≡×÷±·∈∉⊆⊂∀∃∞]+$/.test(trimmed)) {
-        return trimmed;
-      }
       return '<span class="chat-math">' + escapeHtml(trimmed) + '</span>';
     });
 
@@ -183,7 +182,14 @@
     // 6. Links: [text](url)
     s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 
-    // 7. Restore inline code spans with file path badge styling
+    // 7. Auto-detect standalone file paths in plain text (so user easily notices them in color)
+    s = s.replace(/(^|[\s(,;:[])((?:[\w.-]+[/\\])+[\w.-]+\.(?:ts|tsx|js|jsx|json|py|html|css|scss|md|rs|go|java|c|cpp|h|hpp|sh|bat|cmd|yml|yaml|toml|sql|svg|png|jpg|ico|vue|svelte|rb|php|xml|env|lock)|[\w.-]+\.(?:ts|tsx|js|jsx|json|py|html|css|scss|rs|go|java|sql|vue|svelte|md))(?=[\s),;:\]]|$)/g, (match, prefix, filepath) => {
+      const isDir = filepath.endsWith('/') || filepath.endsWith('\\');
+      const icon = isDir ? '📁' : '📄';
+      return prefix + '<code class="code-filepath' + (isDir ? ' code-dirpath' : '') + '" data-filepath="' + escapeHtml(filepath) + '" title="Dosyayı aç: ' + escapeHtml(filepath) + '"><span class="filepath-icon">' + icon + '</span><span class="filepath-name">' + escapeHtml(filepath) + '</span></code>';
+    });
+
+    // 8. Restore inline code spans with file path badge styling
     s = s.replace(/___CODESPAN_(\d+)___/g, (match, idx) => {
       const code = codeSpans[Number(idx)];
       const trimmed = (code || '').trim();
@@ -1725,6 +1731,30 @@
     });
   }
 
+  function relaxEmbedCollisions() {
+    for (let pass = 0; pass < 25; pass++) {
+      for (let i = 0; i < embedSimNodes.length; i++) {
+        for (let j = i + 1; j < embedSimNodes.length; j++) {
+          const a = embedSimNodes[i];
+          const b = embedSimNodes[j];
+          const dx = b.targetX - a.targetX;
+          const dy = b.targetY - a.targetY;
+          const dist = Math.hypot(dx, dy) || 0.001;
+          const minDist = (a.radius || 8) + (b.radius || 8) + 20;
+          if (dist < minDist) {
+            const overlap = (minDist - dist) * 0.5;
+            const nx = dx / dist;
+            const ny = dy / dist;
+            a.targetX -= nx * overlap;
+            a.targetY -= ny * overlap;
+            b.targetX += nx * overlap;
+            b.targetY += ny * overlap;
+          }
+        }
+      }
+    }
+  }
+
   function applyEmbedLayout(layout) {
     embedCurrentLayout = layout;
     if (!embeddedGraphData) return;
@@ -1735,20 +1765,20 @@
       embedCoreStar.targetY = 0;
       embedModuleHubs.forEach((m, i) => {
         const angle = (i / totalClusters) * Math.PI * 2 - Math.PI / 2;
-        const r = Math.max(160, 36 * Math.min(8, totalClusters));
+        const r = Math.max(170, 38 * Math.min(8, totalClusters));
         m.targetX = Math.cos(angle) * r;
         m.targetY = Math.sin(angle) * r;
         m.angle = angle;
 
         const files = (embedFilesByCluster.get(m.name) || []).map(f => embedNodeById.get(f.id)).filter(Boolean);
         const count = files.length;
-        const ringCaps = [3, 5, 7, 9, 12];
+        const ringCaps = [4, 6, 8, 10, 12];
         let fIdx = 0, ring = 0;
         while (fIdx < count) {
           const cap = ringCaps[ring] || 8;
           const inRing = Math.min(cap, count - fIdx);
-          const ringDist = 65 + ring * 48;
-          const fanSpan = Math.min(Math.PI * 0.9, 0.24 * inRing + 0.15);
+          const ringDist = 65 + ring * 50;
+          const fanSpan = Math.min(Math.PI * 1.1, 0.28 * inRing + 0.18);
           for (let j = 0; j < inRing; j++) {
             const f = files[fIdx++];
             const subAngle = inRing === 1 ? angle : (angle - fanSpan / 2 + (j / (inRing - 1)) * fanSpan);
@@ -1759,6 +1789,7 @@
           ring++;
         }
       });
+      relaxEmbedCollisions();
     } else if (layout === 'diagram') {
       embedClusterBoxes.length = 0;
       const cols = 2;
@@ -1810,23 +1841,38 @@
     } else if (layout === 'hierarchy') {
       const levels = new Map();
       embedSimNodes.forEach(n => {
-        const depth = n.importedBy.length === 0 ? 0 : (n.imports.length === 0 ? 2 : 1);
+        let depth = 1;
+        const idLower = n.id.toLowerCase();
+        if (n.importedBy.length === 0 || idLower.includes('ui') || idLower.includes('view') || idLower.includes('main') || idLower.includes('index') || idLower.includes('bot')) {
+          depth = 0; // Presentation & Entrypoints
+        } else if (n.imports.length === 0 || idLower.endsWith('.json') || idLower.endsWith('.md') || idLower.endsWith('.sql') || idLower.endsWith('.css') || idLower.endsWith('.html')) {
+          depth = 3; // Leaf configs, assets & docs
+        } else if (n.isHub || n.score >= 5) {
+          depth = 1; // Core hubs & controllers
+        } else {
+          depth = 2; // Mid services & utilities
+        }
         if (!levels.has(depth)) levels.set(depth, []);
         levels.get(depth).push(n);
       });
-      const depths = [0, 1, 2];
-      const rowSpacing = 160;
-      const startY = -rowSpacing;
-      depths.forEach((d, rIdx) => {
+      const depths = [0, 1, 2, 3];
+      const tierSpacing = 160;
+      depths.forEach((d, tierIdx) => {
         const nodesAtLvl = levels.get(d) || [];
         const count = nodesAtLvl.length;
-        const colSpacing = Math.min(65, 520 / Math.max(1, count));
-        nodesAtLvl.forEach((n, cIdx) => {
-          n.targetX = (cIdx - (count - 1) / 2) * colSpacing;
-          n.targetY = startY + rIdx * rowSpacing;
+        const colsPerRow = Math.min(6, Math.max(2, Math.ceil(Math.sqrt(count * 2.2))));
+        const rowsInTier = Math.ceil(count / colsPerRow);
+        const yBase = (tierIdx - 1.5) * tierSpacing;
+        nodesAtLvl.forEach((n, idx) => {
           n.radius = Math.max(6, Math.min(13, 5 + Math.sqrt(n.score) * 1.6));
+          const subRow = Math.floor(idx / colsPerRow);
+          const inRow = idx % colsPerRow;
+          const itemsInThisRow = Math.min(colsPerRow, count - subRow * colsPerRow);
+          n.targetX = (inRow - (itemsInThisRow - 1) / 2) * 105;
+          n.targetY = yBase + (subRow - (rowsInTier - 1) / 2) * 44;
         });
       });
+      relaxEmbedCollisions();
     }
 
     embedSimNodes.forEach(n => {

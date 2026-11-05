@@ -1,4 +1,31 @@
-import { localeName } from '../i18n';
+import { getLocale, localeName } from '../i18n';
+
+function buildLanguageDirective(): string {
+  const code = getLocale();
+  const name = localeName();
+
+  const NATIVE_DIRECTIVES: Record<string, string> = {
+    tr: 'KESİN DİL TALİMATI (ZORUNLU):\nKullanıcı arayüz dilini "Türkçe" olarak seçmiştir. Tüm yanıtlarını, açıklamalarını, mimari analizlerini, kod incelemelerini, hata çözümlerini ve tavsiyelerini istisnasız HER ZAMAN TÜRKÇE olarak vereceksin.\nKullanıcının yazdığı soru, prompt, hata logları veya kod blokları İngilizce olsa dahi, yanıtlarını ASLA İngilizceye çevirme; her şeyi Türkçe anlat ve açıkla.\nSadece kod blokları, terminal komutları, dosya yolları ve aşağıdaki XML araç etiketleri orijinal kalmalıdır.',
+    en: 'CRITICAL LANGUAGE DIRECTIVE:\nThe user has configured Sovereign Agent in English. Formulate all conversational text, explanations, reasoning, and advice strictly in English.\nNever translate code, terminal commands, file paths, or XML tool tags.',
+    de: 'KRITISCHE SPRACHANWEISUNG (VERPFLICHTEND):\nDer Benutzer hat Deutsch gewählt. Formulieren Sie alle Antworten, Erklärungen, architektonischen Analysen und Ratschläge ausnahmslos auf DEUTSCH.\nSelbst wenn Prompts, Code oder Fehlermeldungen auf Englisch sind, antworten Sie stets auf Deutsch. Code, Dateipfade, Befehle und XML-Tags bleiben im Original.',
+    es: 'DIRECTIVA CRÍTICA DE IDIOMA (OBLIGATORIA):\nEl usuario ha seleccionado Español. Redacte todas sus respuestas, explicaciones, análisis arquitectónicos y consejos invariablemente en ESPAÑOL.\nIncluso si el prompt, código o registro de errores está en inglés, explique todo en español. Conserve sin traducir el código, comandos, rutas de archivo y etiquetas XML.',
+    fr: 'DIRECTIVE CRITIQUE SUR LA LANGUE (OBLIGATOIRE):\nL\'utilisateur a choisi le français. Rédigez toutes vos réponses, explications, analyses architecturales et conseils impérativement en FRANÇAIS.\nMême si le code, les invites ou les journaux d\'erreur sont en anglais, expliquez tout en français. Ne traduisez pas le code, les chemins de fichiers, les commandes et les balises XML.',
+    az: 'MÜTLƏQ DİL TƏLİMATI (MƏCBURİ):\nİstifadəçi Azərbaycan dilini seçmişdir. Bütün cavabları, izahatları, memarlıq təhlillərini və tövsiyələri istisnasız olaraq HƏR ZAMAN AZƏRBAYCAN DİLİNDƏ yazın.\nİstifadəçinin sorğusu, səhv qeydləri və ya kodlar ingiliscə olsa belə, əsla ingiliscə cavab verməyin; hər şeyi Azərbaycan dilində izah edin. Kodlar, fayl yolları və XML teqləri orijinal qalmalıdır.',
+    ru: 'КРИТИЧЕСКАЯ ДИРЕКТИВА ПО ЯЗЫКУ (ОБЯЗАТЕЛЬНО):\nПользователь выбрал русский язык. Все ответы, пояснения, архитектурные разборы и рекомендации формулируйте исключительно на РУССКОМ ЯЗЫКЕ.\nДаже если запрос, код или логи содержат английский текст, всегда объясняйте на русском языке. Код, команды терминала, пути к файлам и теги XML инструментов оставляйте в оригинале.',
+    zh: '核心语言指令（强制执行）：\n用户已选择中文界面。所有对话回复、架构分析、代码解释、错误诊断和建议必须始终无条件使用中文撰写。\n即使用户提示词、代码片段或错误日志包含英文，也绝不能使用英文回复，必须全部使用中文进行解释与说明。仅代码本身、终端命令、文件路径和XML工具标签保持原样。',
+    ja: '重要な言語指示（必須）：\nユーザーは日本語を選択しました。すべての回答、説明、アーキテクチャ分析、エラー解決策、アドバイスは例外なく常に日本語で作成してください。\nプロンプト、コード、またはエラーログが英語であっても、英語で返答せず、必ず日本語で説明してください。コード本体、ターミナルコマンド、ファイルパス、およびXMLツールタグのみをそのまま維持してください。'
+  };
+
+  const nativeClause = NATIVE_DIRECTIVES[code] || `CRITICAL: The user has selected "${name}". You MUST formulate all explanations, analysis, and conversational responses strictly in ${name}.`;
+
+  return `LANGUAGE (MANDATORY & ENFORCED)
+CRITICAL: The user has explicitly chosen "${name}" (${code}) as their language.
+You MUST write all conversational replies, explanations, architectural reviews, guidance, and summaries strictly in "${name}".
+Even if user messages contain English code snippets, English file paths, or English terminal output, you must NEVER lapse into English—always communicate and explain in "${name}".
+Never translate code contents, terminal commands, file paths, identifiers, or the tool tags below.
+
+${nativeClause}`;
+}
 
 export function buildSystemPrompt(
   workspaceName: string | undefined,
@@ -8,8 +35,7 @@ export function buildSystemPrompt(
 ): string {
   return `You are Sovereign Agent, a coding assistant inside VS Code. You are powered by a language model that runs entirely on the user's own machine.
 
-LANGUAGE
-Reply in the language the user writes in. If it is unclear, reply in ${localeName()}. Never translate code, file paths, identifiers or the tool tags below.
+${buildLanguageDirective()}
 
 WORKSPACE
 ${workspaceName ? `The open workspace is "${workspaceName}". All paths are relative to its root.` : 'No workspace folder is open, so file tools are unavailable.'}

@@ -753,7 +753,21 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         baseInstructions = `${baseInstructions}\n\nGRAPHIFY KNOWLEDGE GRAPH:\n${formatGraphSummary(graphData)}`.trim();
       }
       const rest = text.trim().replace(/^\/graphify\b/i, '').trim();
-      effectiveText = rest || 'Summarize the Graphify Knowledge Graph of this workspace, including key module clusters, top architectural hubs, and any potential bottlenecks.';
+      const loc = activeLocale(getConfig());
+      const defaultPrompt = loc === 'tr'
+        ? 'Bu çalışma alanının Graphify Bilgi Grafiğini özetle: temel modül kümelerini, mimari merkezleri (hub) ve olası bağımlılık darboğazlarını detaylandır.'
+        : loc === 'de'
+        ? 'Fassen Sie den Graphify-Wissensgraphen dieses Arbeitsbereichs zusammen: Schlüssel-Cluster, architektonische Hubs und Engpässe.'
+        : loc === 'es'
+        ? 'Resuma el grafo de conocimiento Graphify de este espacio de trabajo: módulos clave, centros arquitectónicos y cuellos de botella.'
+        : loc === 'fr'
+        ? 'Résumez le graphe de connaissances Graphify de cet espace de travail : modules clés, hubs architecturaux et goulots d\'étranglement.'
+        : loc === 'az'
+        ? 'Bu iş sahəsinin Graphify Bilik Qrafikini xülasə edin: əsas modul qruplarını, memarlıq mərkəzlərini və potensial darboğazları təhlil edin.'
+        : loc === 'ru'
+        ? 'Обобщите граф знаний Graphify этой рабочей области: ключевые кластеры модулей, архитектурные хабы и узкие места.'
+        : 'Summarize the Graphify Knowledge Graph of this workspace, including key module clusters, top architectural hubs, and any potential bottlenecks.';
+      effectiveText = rest || defaultPrompt;
     }
     if (/^\/benchmark\b/i.test(text.trim())) {
       await this.runBenchmarkCommand();

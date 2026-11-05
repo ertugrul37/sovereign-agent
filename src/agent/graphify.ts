@@ -257,7 +257,20 @@ function resolveImportTarget(fromFile: string, spec: string, fileSet: Set<string
 
 function getClusterName(relPath: string): string {
   const parts = relPath.split(/[/\\]/).filter(Boolean);
-  if (parts.length <= 1) return 'root';
+  const ext = path.extname(relPath).toLowerCase();
+  const base = path.basename(relPath).toLowerCase();
+
+  // Root or single directory files: categorize logically instead of lumping everything into one cluster
+  if (parts.length <= 1) {
+    if (base.includes('test') || base.includes('spec')) return 'tests';
+    if (['.md', '.txt', '.rst', '.adoc'].includes(ext) || base.startsWith('license') || base.startsWith('notice') || base.startsWith('code_of_conduct') || base.startsWith('contributing')) return 'docs';
+    if (['.json', '.yml', '.yaml', '.toml', '.env', '.lock', '.xml', '.ini', '.cfg'].includes(ext) || base.startsWith('dockerfile') || base.startsWith('makefile')) return 'config';
+    if (['.html', '.css', '.scss', '.sass', '.less', '.svg'].includes(ext)) return 'frontend';
+    if (['.sql'].includes(ext) || base.includes('db') || base.includes('model') || base.includes('repo') || base.includes('schema') || base.includes('migrat')) return 'data';
+    if (base.includes('auth') || base.includes('crypto') || base.includes('jwt') || base.includes('security') || base.includes('guard')) return 'auth';
+    if (base.includes('router') || base.includes('route') || base.includes('api') || base.includes('bot') || base.includes('scraper') || base.includes('server') || base.includes('http')) return 'api';
+    return 'core';
+  }
 
   const srcIdx = parts.indexOf('src');
   if (srcIdx !== -1 && srcIdx + 1 < parts.length - 1) {
@@ -267,7 +280,7 @@ function getClusterName(relPath: string): string {
     return 'src';
   }
 
-  for (const seg of ['media', 'tests', 'test', 'lib', 'docs', 'public', 'i18n', 'scripts', 'app', 'components', 'routes', 'services']) {
+  for (const seg of ['media', 'tests', 'test', 'lib', 'docs', 'public', 'i18n', 'scripts', 'app', 'components', 'routes', 'services', 'agent', 'ui', 'llm', 'pkg', 'cmd', 'internal']) {
     const idx = parts.indexOf(seg);
     if (idx !== -1) {
       if (idx + 1 < parts.length - 1 && parts[idx + 1] !== parts[parts.length - 1]) {
@@ -277,9 +290,11 @@ function getClusterName(relPath: string): string {
     }
   }
 
-  // If path is e.g. sovereign-agent/package.json or root files
+  // If path is e.g. root files
   if (parts.length === 2 && /\.(json|md|txt|yml|yaml|toml|lock|ts|js|html|css)$/i.test(parts[1])) {
-    return 'root';
+    if (['.md', '.txt'].includes(ext)) return 'docs';
+    if (['.json', '.yml', '.yaml', '.toml', '.lock'].includes(ext)) return 'config';
+    return parts[0] || 'root';
   }
 
   if (parts.length >= 3) {
@@ -1766,33 +1781,35 @@ export class GraphifyManager implements vscode.Disposable {
       const levels = new Map();
       simNodes.forEach(n => {
         let lvl = 1;
-        if (n.importedBy.length === 0) lvl = 0; // Entrypoints / controllers
-        else if (n.imports.length === 0) lvl = 3; // Core utilities / leaves
-        else if (n.isHub) lvl = 1; // Core hubs
-        else lvl = 2; // Mid services
+        const idLower = n.id.toLowerCase();
+        if (n.importedBy.length === 0 || idLower.includes('ui') || idLower.includes('view') || idLower.includes('main') || idLower.includes('index') || idLower.includes('bot')) {
+          lvl = 0; // Entrypoints / controllers / presentation
+        } else if (n.imports.length === 0 || idLower.endsWith('.json') || idLower.endsWith('.md') || idLower.endsWith('.sql') || idLower.endsWith('.css') || idLower.endsWith('.html')) {
+          lvl = 3; // Leaves / configs / docs / assets
+        } else if (n.isHub || n.score >= 5) {
+          lvl = 1; // Core hubs / orchestrators
+        } else {
+          lvl = 2; // Mid services & utilities
+        }
         levels.set(n.id, lvl);
       });
       const levelGroups = [[], [], [], []];
       simNodes.forEach(n => {
-        const lvl = levels.get(n.id) || 1;
+        const lvl = levels.get(n.id) ?? 1;
         levelGroups[lvl].push(n);
       });
       levelGroups.forEach((group, lvlIdx) => {
-        const y = (lvlIdx - 1.5) * 200;
+        const y = (lvlIdx - 1.5) * 220;
         const count = group.length;
-        const wrap = count > 7;
-        const colsTotal = wrap ? Math.ceil(count / 2) : count;
+        const colsPerRow = Math.min(7, Math.max(3, Math.ceil(Math.sqrt(count * 2.2))));
+        const rowsInGroup = Math.ceil(count / colsPerRow);
         group.forEach((node, i) => {
-          node.radius = Math.max(8, Math.min(18, 6 + Math.sqrt(node.score) * 2.2));
-          if (wrap) {
-            const subRow = i % 2;
-            const colIdx = Math.floor(i / 2);
-            node.targetX = (colIdx - (colsTotal - 1) / 2) * 140;
-            node.targetY = y + subRow * 46;
-          } else {
-            node.targetX = (i - (count - 1) / 2) * 140;
-            node.targetY = y;
-          }
+          node.radius = Math.max(8, Math.min(17, 6 + Math.sqrt(node.score) * 2.0));
+          const subRow = Math.floor(i / colsPerRow);
+          const inRow = i % colsPerRow;
+          const itemsInThisRow = Math.min(colsPerRow, count - subRow * colsPerRow);
+          node.targetX = (inRow - (itemsInThisRow - 1) / 2) * 140;
+          node.targetY = y + (subRow - (rowsInGroup - 1) / 2) * 55;
         });
       });
 
