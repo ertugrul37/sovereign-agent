@@ -144,6 +144,31 @@ function extractRawImports(text: string, ext: string): Array<{ spec: string; kin
       const raw = (m[1] ?? m[2] ?? '').split(',')[0].trim();
       if (raw) results.push({ spec: raw, kind: 'import' });
     }
+  } else if (ext === '.go') {
+    // Go single import: import "package/path"
+    const goSingleRe = /import\s+["']([^"']+)["']/g;
+    let m: RegExpExecArray | null;
+    while ((m = goSingleRe.exec(text)) !== null) {
+      results.push({ spec: m[1].trim(), kind: 'import' });
+    }
+    // Go block import: import ( "..." \n "..." )
+    const goBlockRe = /import\s*\(([\s\S]*?)\)/g;
+    while ((m = goBlockRe.exec(text)) !== null) {
+      const block = m[1];
+      const lines = block.split('\n');
+      for (const line of lines) {
+        const itemMatch = line.match(/["']([^"']+)["']/);
+        if (itemMatch) {
+          results.push({ spec: itemMatch[1].trim(), kind: 'import' });
+        }
+      }
+    }
+  } else if (ext === '.rs') {
+    const rsRe = /\b(?:use|mod)\s+([a-zA-Z0-9_:]+)/g;
+    let m: RegExpExecArray | null;
+    while ((m = rsRe.exec(text)) !== null) {
+      results.push({ spec: m[1].replace(/::/g, '/'), kind: 'import' });
+    }
   } else if (ext === '.html') {
     const assetRe = /\b(?:src|href)=["']([^"':]+)["']/gi;
     let m: RegExpExecArray | null;
@@ -170,6 +195,8 @@ function resolveImportTarget(fromFile: string, spec: string, fileSet: Set<string
       `${joined}.js`,
       `${joined}.jsx`,
       `${joined}.py`,
+      `${joined}.go`,
+      `${joined}.rs`,
       `${joined}/index.ts`,
       `${joined}/index.js`,
       `${joined}/__init__.py`
@@ -182,7 +209,10 @@ function resolveImportTarget(fromFile: string, spec: string, fileSet: Set<string
       `${dotted}.py`,
       `${dotted}.ts`,
       `${dotted}.js`,
+      `${dotted}.go`,
+      `${dotted}.rs`,
       path.posix.normalize(path.posix.join(baseDir, spec)),
+      path.posix.normalize(path.posix.join(baseDir, `${spec}.go`)),
       path.posix.normalize(path.posix.join(baseDir, `${dotted}.py`))
     );
   }
@@ -193,6 +223,34 @@ function resolveImportTarget(fromFile: string, spec: string, fileSet: Set<string
       return clean;
     }
   }
+
+  // Sibling and package match for Go and other languages
+  const specBase = path.posix.basename(spec).replace(/\.[a-zA-Z0-9]+$/, '');
+  for (const f of fileSet) {
+    if (f !== fromFile) {
+      if (f.endsWith('/' + spec) || f.endsWith('/' + spec + '.go') || f.endsWith('/' + spec + '.ts') || f.endsWith('/' + spec + '.js')) {
+        return f;
+      }
+      const fBase = path.posix.basename(f, path.posix.extname(f));
+      if (fBase === specBase && path.posix.dirname(f) === baseDir) {
+        return f;
+      }
+    }
+  }
+
+  // Segment subpaths for Go module paths (e.g. github.com/user/aztu-assistant/db -> db or db.go)
+  const segments = spec.split('/');
+  for (let sIdx = 1; sIdx < segments.length; sIdx++) {
+    const sub = segments.slice(sIdx).join('/');
+    for (const f of fileSet) {
+      if (f !== fromFile) {
+        if (f.endsWith('/' + sub) || f.endsWith('/' + sub + '.go') || f.endsWith('/' + sub + '/index.ts') || f.endsWith('/' + sub + '.ts')) {
+          return f;
+        }
+      }
+    }
+  }
+
   return undefined;
 }
 
@@ -1275,24 +1333,73 @@ export class GraphifyManager implements vscode.Disposable {
       // Major Stellar Arms (Beams from Central Star to Module Stars)
       for (const m of moduleHubs) {
         ctx.save();
+        const isModuleActive = (selectedNode && selectedNode.cluster === m.name) || (hoveredNode && hoveredNode.cluster === m.name);
+
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.lineTo(m.x, m.y);
         ctx.strokeStyle = m.color;
-        ctx.lineWidth = 3.2;
-        ctx.globalAlpha = activeClusterFilter && activeClusterFilter !== m.name ? 0.15 : 0.75;
+        ctx.lineWidth = isModuleActive ? 5.2 : 3.2;
+        if (isModuleActive) {
+          ctx.shadowColor = m.color;
+          ctx.shadowBlur = 18;
+          ctx.globalAlpha = 1;
+        } else {
+          ctx.globalAlpha = activeClusterFilter && activeClusterFilter !== m.name ? 0.15 : 0.65;
+        }
         ctx.stroke();
+
+        if (isModuleActive) {
+          // Luminous laser core
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(m.x, m.y);
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.8;
+          ctx.shadowColor = '#ffffff';
+          ctx.shadowBlur = 6;
+          ctx.stroke();
+        }
 
         // Branch Rays from Module Star to its Satellite Files
         const files = (filesByCluster.get(m.name) || []).map(f => nodeById.get(f.id)).filter(Boolean);
         for (const f of files) {
-          ctx.beginPath();
-          ctx.moveTo(m.x, m.y);
-          ctx.lineTo(f.x, f.y);
-          ctx.strokeStyle = isLight ? 'rgba(31, 30, 29, 0.22)' : 'rgba(236, 233, 228, 0.2)';
-          ctx.lineWidth = 1.2;
-          ctx.globalAlpha = matchesFilter(f) ? 0.6 : 0.08;
-          ctx.stroke();
+          const isSelectedFile = (selectedNode && selectedNode.id === f.id);
+          const isHoveredFile = (hoveredNode && hoveredNode.id === f.id);
+
+          ctx.save();
+          if (isSelectedFile || isHoveredFile) {
+            // Luminous glowing beam for the clicked/selected file!
+            const glowColor = isSelectedFile ? '#38bdf8' : '#67e8f9';
+            ctx.beginPath();
+            ctx.moveTo(m.x, m.y);
+            ctx.lineTo(f.x, f.y);
+            ctx.strokeStyle = glowColor;
+            ctx.lineWidth = 4.2;
+            ctx.shadowColor = glowColor;
+            ctx.shadowBlur = 20;
+            ctx.globalAlpha = 1;
+            ctx.stroke();
+
+            // Core laser beam
+            ctx.beginPath();
+            ctx.moveTo(m.x, m.y);
+            ctx.lineTo(f.x, f.y);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.8;
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 6;
+            ctx.stroke();
+          } else {
+            ctx.beginPath();
+            ctx.moveTo(m.x, m.y);
+            ctx.lineTo(f.x, f.y);
+            ctx.strokeStyle = isLight ? 'rgba(31, 30, 29, 0.22)' : 'rgba(236, 233, 228, 0.2)';
+            ctx.lineWidth = 1.2;
+            ctx.globalAlpha = matchesFilter(f) ? 0.6 : 0.08;
+            ctx.stroke();
+          }
+          ctx.restore();
         }
         ctx.restore();
       }
@@ -1358,6 +1465,19 @@ export class GraphifyManager implements vscode.Disposable {
       }
     }
 
+    // Collect active connected IDs to highlight targets and dim unrelated nodes
+    const outgoingTargets = new Set();
+    const incomingSources = new Set();
+    if (selectedNode) {
+      for (const e of data.edges) {
+        if (e.from === selectedNode.id) {
+          outgoingTargets.add(e.to);
+        } else if (e.to === selectedNode.id) {
+          incomingSources.add(e.from);
+        }
+      }
+    }
+
     // ----------------------------------------------------
     // Inter-file dependencies (Import Arcs)
     // ----------------------------------------------------
@@ -1369,14 +1489,16 @@ export class GraphifyManager implements vscode.Disposable {
       const aVis = matchesFilter(a);
       const bVis = matchesFilter(b);
       const isCycle = cyclePairs.has(edge.from + '<->' + edge.to);
-      const active = selectedNode && (selectedNode.id === a.id || selectedNode.id === b.id);
+      const isOutgoing = selectedNode && selectedNode.id === a.id;
+      const isIncoming = selectedNode && selectedNode.id === b.id;
+      const active = isOutgoing || isIncoming;
       const hovered = hoveredNode && (hoveredNode.id === a.id || hoveredNode.id === b.id);
 
       // Keep canvas serene and readable: only draw import lines when actively selected, hovered, or in a circular dependency
       if (!active && !hovered && !isCycle) continue;
 
       ctx.save();
-      ctx.globalAlpha = (aVis && bVis) ? (active || hovered || isCycle ? 0.95 : 0.25) : 0.05;
+      ctx.globalAlpha = (aVis && bVis) ? (active || hovered || isCycle ? 1 : 0.25) : 0.05;
 
       ctx.beginPath();
       const midX = (a.x + b.x) / 2 + (b.y - a.y) * 0.12;
@@ -1388,17 +1510,38 @@ export class GraphifyManager implements vscode.Disposable {
         ctx.strokeStyle = '#f0746a';
         ctx.lineWidth = 2.4;
         ctx.setLineDash([5, 4]);
+        ctx.stroke();
       } else if (active) {
-        ctx.strokeStyle = selectedNode.id === a.id ? '#d97757' : '#73c991';
-        ctx.lineWidth = 2.4;
+        // RADIANT LASER ILLUMINATION FOR CLICKED/SELECTED NODE!
+        const beamColor = isOutgoing ? '#38bdf8' : '#4ade80';
+
+        // 1st pass: intense neon glow aura
+        ctx.strokeStyle = beamColor;
+        ctx.lineWidth = 3.8;
+        ctx.shadowColor = beamColor;
+        ctx.shadowBlur = 18;
+        ctx.stroke();
+
+        // 2nd pass: crisp white laser core
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.quadraticCurveTo(midX, midY, b.x, b.y);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.6;
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 6;
+        ctx.stroke();
       } else if (hovered) {
         ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 1.8;
+        ctx.lineWidth = 2.2;
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 12;
+        ctx.stroke();
       } else {
         ctx.strokeStyle = isLight ? 'rgba(31, 30, 29, 0.25)' : 'rgba(236, 233, 228, 0.22)';
         ctx.lineWidth = 1;
+        ctx.stroke();
       }
-      ctx.stroke();
 
       // Arrowhead
       const dx = b.x - midX, dy = b.y - midY;
@@ -1409,9 +1552,15 @@ export class GraphifyManager implements vscode.Disposable {
 
       ctx.beginPath();
       ctx.moveTo(ax, ay);
-      ctx.lineTo(ax - Math.cos(angle - 0.4) * 6, ay - Math.sin(angle - 0.4) * 6);
-      ctx.lineTo(ax - Math.cos(angle + 0.4) * 6, ay - Math.sin(angle + 0.4) * 6);
-      ctx.fillStyle = ctx.strokeStyle;
+      ctx.lineTo(ax - Math.cos(angle - 0.4) * 8, ay - Math.sin(angle - 0.4) * 8);
+      ctx.lineTo(ax - Math.cos(angle + 0.4) * 8, ay - Math.sin(angle + 0.4) * 8);
+      if (active) {
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = isOutgoing ? '#38bdf8' : '#4ade80';
+        ctx.shadowBlur = 14;
+      } else {
+        ctx.fillStyle = ctx.strokeStyle;
+      }
       ctx.fill();
       ctx.restore();
     }
@@ -1423,14 +1572,54 @@ export class GraphifyManager implements vscode.Disposable {
       const visible = matchesFilter(n);
       const isSelected = selectedNode && selectedNode.id === n.id;
       const isHovered = hoveredNode && hoveredNode.id === n.id;
-      ctx.globalAlpha = visible ? 1 : 0.12;
+      const isTarget = outgoingTargets.has(n.id);
+      const isSource = incomingSources.has(n.id);
+
+      if (selectedNode) {
+        ctx.globalAlpha = (isSelected || isTarget || isSource) ? 1 : 0.22;
+      } else {
+        ctx.globalAlpha = visible ? 1 : 0.12;
+      }
+
+      // Outgoing Target Halo (laser cyan ring)
+      if (isTarget) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.radius + 7, 0, Math.PI * 2);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.4;
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 16;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Incoming Source Halo (emerald ring)
+      if (isSource) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.radius + 7, 0, Math.PI * 2);
+        ctx.strokeStyle = '#4ade80';
+        ctx.lineWidth = 2.4;
+        ctx.shadowColor = '#4ade80';
+        ctx.shadowBlur = 16;
+        ctx.stroke();
+        ctx.restore();
+      }
 
       // Outer Selection Ring
       if (isSelected || isHovered) {
+        ctx.save();
         ctx.beginPath();
-        ctx.arc(n.x, n.y, n.radius + 6, 0, Math.PI * 2);
-        ctx.fillStyle = isSelected ? 'rgba(217, 119, 87, 0.32)' : 'rgba(56, 189, 248, 0.25)';
+        ctx.arc(n.x, n.y, n.radius + 7, 0, Math.PI * 2);
+        ctx.strokeStyle = isSelected ? '#38bdf8' : '#67e8f9';
+        ctx.lineWidth = 2.6;
+        ctx.shadowColor = isSelected ? '#38bdf8' : '#67e8f9';
+        ctx.shadowBlur = 16;
+        ctx.fillStyle = isSelected ? 'rgba(56, 189, 248, 0.28)' : 'rgba(56, 189, 248, 0.18)';
         ctx.fill();
+        ctx.stroke();
+        ctx.restore();
       }
 
       // God-Node Crown Halo

@@ -2,6 +2,19 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.34] - 2026-11-05
+
+### Enhanced & Fixed
+- **🌟 Radiant Laser Dependency Illumination on Node Selection (`src/agent/graphify.ts`):**
+  - **Click-to-Illuminate Outgoing Lines:** Clicking on any node instantly illuminates its outgoing dependency paths in electric cyan (`#38bdf8`) with an intense neon aura (`shadowBlur = 18`) and double-pass crisp white laser core (`#ffffff`), along with luminous directional arrowheads.
+  - **Connected Target & Source Halos:** Nodes targeted by the outgoing lines receive an electric cyan glowing target ring; incoming sources receive an emerald glowing ring (`#4ade80`).
+  - **Smart Node Dimming:** Unrelated nodes and lines gently dim (`opacity: 0.22`) when a node is selected, making active architecture paths stand out with maximum clarity.
+  - **Stellar Arm & Branch Glow:** In Star Constellation mode, the branch connecting the selected node to its module star shines with cyan laser light, and the major stellar arm to the central project star radiates in warm gold with a white core beam.
+- **🐹 Full Go (`.go`) & Rust (`.rs`) Dependency Graph Parsing (`src/agent/graphify.ts`):**
+  - Added native AST regex parsers for Go single `import "..."` and block `import ( ... )`, as well as Rust `use` / `mod` statements.
+  - Subpath and module segment resolution matches Go package references and sibling files accurately in multi-file Go workspaces.
+
+
 ## [0.1.33] - 2026-11-05
 
 ### Enhanced & Upgraded
