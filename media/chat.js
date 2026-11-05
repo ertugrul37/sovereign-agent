@@ -612,7 +612,8 @@
     star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor"/>',
     monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
     graph: '<circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="12" cy="18" r="3"/><line x1="8.7" y1="7.4" x2="15.3" y2="6"/><line x1="7.3" y1="8.7" x2="10.7" y2="15.3"/><line x1="16.7" y1="8.7" x2="13.3" y2="15.3"/>',
-    chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'
+    chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>'
   };
 
   function icon(name, size) {
@@ -799,10 +800,28 @@
         icon: 'graph',
         label: s('ui.graphify') || 'Graphify Knowledge Graph',
         onClick: () => post({ type: 'openGraphify' })
+      }),
+      menuRow({
+        icon: 'download',
+        label: s('ui.exportChat') || 'Sohbeti Dışa Aktar',
+        end: 'chevron',
+        onClick: () => {
+          subKind = 'export';
+          showSub('ui.exportChat', exportRows());
+        }
       })
     );
     main.hidden = false;
     $('plusSub').hidden = true;
+  }
+
+  function exportRows() {
+    return [
+      menuRow({ icon: 'file', label: s('ui.exportMarkdown') || 'Markdown Olarak Kaydet (.md)', onClick: () => post({ type: 'exportChat', format: 'markdown' }) }),
+      menuRow({ icon: 'code', label: s('ui.exportEditor') || 'Yeni Sekmede Aç', onClick: () => post({ type: 'exportChat', format: 'editor' }) }),
+      menuRow({ icon: 'copy', label: s('ui.exportClipboard') || 'Panoya Kopyala', onClick: () => post({ type: 'exportChat', format: 'clipboard' }) }),
+      menuRow({ icon: 'terminal', label: s('ui.exportJson') || 'JSON Olarak Kaydet (.json)', onClick: () => post({ type: 'exportChat', format: 'json' }) })
+    ];
   }
 
   function showSub(titleKey, rows) {
@@ -994,6 +1013,7 @@
     });
   });
   $('undo').addEventListener('click', () => vscode.postMessage({ type: 'undo' }));
+  $('exportChat')?.addEventListener('click', () => vscode.postMessage({ type: 'exportChat' }));
   $('historyToggle').addEventListener('click', () => showHistory(historyPanel.hidden));
   $('langToggle').addEventListener('click', () => vscode.postMessage({ type: 'selectLanguage' }));
   if ($('rateBtn')) {

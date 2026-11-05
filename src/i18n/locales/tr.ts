@@ -160,4 +160,13 @@ export const tr: Record<MessageKey, string> = {
   ,'review.rateNow': '5 Yıldız Ver ⭐'
   ,'review.starGithub': 'GitHub’da Yıldızla ★'
   ,'review.later': 'Daha Sonra'
+  ,'ui.exportChat': 'Sohbeti Dışa Aktar'
+  ,'ui.exportChatTitle': 'Tüm sohbet geçmişini Markdown veya JSON olarak dışa aktar'
+  ,'ui.exportMarkdown': 'Markdown Olarak Kaydet (.md)'
+  ,'ui.exportJson': 'JSON Olarak Kaydet (.json)'
+  ,'ui.exportClipboard': 'Panoya Kopyala'
+  ,'ui.exportEditor': 'Yeni Sekmede Aç'
+  ,'ui.exportEmpty': 'Dışa aktarılacak sohbet geçmişi bulunmuyor.'
+  ,'ui.exportCopied': '✓ Sohbet geçmişi panoya kopyalandı!'
+  ,'ui.exportSaved': '✓ Sohbet çıktısı {file} dosyasına kaydedildi'
 };

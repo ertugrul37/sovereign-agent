@@ -120,5 +120,17 @@ test('system prompt enforces mandatory language directive and native reinforceme
   setLocale('en');
 });
 
+test('chat export UI controls and download icons exist in media/chat.js and chatViewProvider', async () => {
+  const chatJs = await fs.readFile(path.join(__dirname, '../../media/chat.js'), 'utf8');
+  assert.ok(chatJs.includes('download:'), 'chat.js has download icon');
+  assert.ok(chatJs.includes('exportRows'), 'chat.js has exportRows menu builder');
+  assert.ok(chatJs.includes("exportChat"), 'chat.js handles exportChat');
+
+  const providerTs = await fs.readFile(path.join(__dirname, '../../src/ui/chatViewProvider.ts'), 'utf8');
+  assert.ok(providerTs.includes('id="exportChat"'), 'chatViewProvider has exportChat header button');
+  assert.ok(providerTs.includes('/^\\/export\\b/i'), 'chatViewProvider intercepts /export command');
+  assert.ok(providerTs.includes('handleExportChat'), 'chatViewProvider implements handleExportChat');
+});
+
 
 

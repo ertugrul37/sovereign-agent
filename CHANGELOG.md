@@ -2,7 +2,23 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
-## [0.1.37] - 2026-11-05
+## [0.1.38] - 2026-11-05
+
+### Added & Export Engine
+- **📥 Comprehensive Chat Transcript Export Engine (`src/ui/chatViewProvider.ts` & `media/chat.js`):**
+  - **Full Conversation Export:** Export the entire conversation with all user questions/prompts and AI assistant answers, code snippets, architectural tables, and tool outputs.
+  - **Multiple Export Destinations & Formats:**
+    - 📝 **Save as Markdown (`.md`):** Automatically formats conversation with clean markdown headers (`### 👤 User`, `### 🤖 Sovereign Agent`), fenced code blocks, timestamps, workspace metadata, and prompts file save dialog with default `chat-export-<timestamp>.md` in workspace, then opens the saved file in VS Code.
+    - 📄 **Open in New Editor Tab:** Instantly opens an untitled Markdown document in VS Code containing the full formatted transcript for live inspection, editing, or saving.
+    - 📋 **Copy to Clipboard:** 1-click copy of the entire markdown transcript to the system clipboard with an instant feedback toast notification.
+    - 📦 **Save as JSON (`.json`):** Exports structured metadata (`exportedAt`, `workspace`, `model`, `messages`) for backup, model fine-tuning, or external pipeline ingestion.
+  - **Multiple Convenient Access Points:**
+    - **Header Download Button:** Dedicated download icon button (`#exportChat`) in the top chat header toolbar.
+    - **Plus (`+`) Menu:** `📥 Sohbeti Dışa Aktar / Export Chat` submenu with one-click format selectors.
+    - **Slash Command:** Type `/export`, `/export md`, `/export editor`, `/export copy`, or `/export json` directly in the chat composer.
+    - **Command Palette:** Registered `Sovereign Agent: 📥 Export Chat Transcript (Markdown / JSON)` (`sovereignAgent.exportChat`) command in VS Code.
+  - **Full Multi-Language Localization:** Export labels and notifications are fully localized in Turkish (`tr`), English (`en`), German (`de`), Spanish (`es`), and French (`fr`).
+
 
 ### Major Enhancements & Quality-of-Life Upgrades
 - **🌐 Mandatory & Enforced Multi-Language AI Adherence (`src/agent/prompt.ts`):**

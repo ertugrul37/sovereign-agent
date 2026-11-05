@@ -17,6 +17,7 @@
   "command.rateExtension": "Sovereign Agent: ⭐ Rate 5 Stars on Marketplace",
   "command.runBenchmark": "Sovereign Agent: ⚡ Hardware Benchmark & Auto-Tuner",
   "command.runTdd": "Sovereign Agent: 🧪 Run Auto-TDD Verification Loop",
+  "command.exportChat": "Sovereign Agent: 📥 Export Chat Transcript (Markdown / JSON)",
   "command.selectLanguage": "Sovereign Agent: Select Language",
   "config.title": "Sovereign Agent",
   "config.provider.ollama": "Ollama native API",

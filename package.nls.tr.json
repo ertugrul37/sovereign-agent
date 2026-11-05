@@ -17,6 +17,7 @@
   "command.rateExtension": "Sovereign Agent: ⭐ Marketplace'te 5 Yıldız Ver",
   "command.runBenchmark": "Sovereign Agent: ⚡ Donanım Hız Testi & Otomatik Kalibrasyon",
   "command.runTdd": "Sovereign Agent: 🧪 Otomatik TDD Test Döngüsünü Çalıştır",
+  "command.exportChat": "Sovereign Agent: 📥 Sohbet Çıktısını Dışa Aktar (Markdown / JSON)",
   "command.selectLanguage": "Sovereign Agent: Dil Seç",
   "config.title": "Sovereign Agent",
   "config.provider.ollama": "Ollama yerel API'si",

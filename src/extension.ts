@@ -78,6 +78,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('sovereignAgent.selectCompareModel', () => provider.selectCompareModel()),
     vscode.commands.registerCommand('sovereignAgent.stop', () => provider.stop()),
     vscode.commands.registerCommand('sovereignAgent.undo', () => provider.undo()),
+    vscode.commands.registerCommand('sovereignAgent.exportChat', () => provider.handleExportChat()),
     vscode.commands.registerCommand('sovereignAgent.openSettings', () =>
       vscode.commands.executeCommand('workbench.action.openSettings', '@ext:ertugrul37.sovereign-agent')
     ),

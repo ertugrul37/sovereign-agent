@@ -2,7 +2,7 @@
   "name": "sovereign-agent",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.1.37",
+  "version": "0.1.38",
   "publisher": "ertugrul37",
   "icon": "media/logo.png",
   "license": "GPL-3.0-or-later",
@@ -171,6 +171,11 @@
         "icon": "$(beaker)"
       },
       {
+        "command": "sovereignAgent.exportChat",
+        "title": "%command.exportChat%",
+        "icon": "$(download)"
+      },
+      {
         "command": "sovereignAgent.selectLanguage",
         "title": "%command.selectLanguage%",
         "icon": "$(globe)"
@@ -214,6 +219,11 @@
           "command": "sovereignAgent.undo",
           "when": "view == sovereignAgent.chat",
           "group": "navigation@5"
+        },
+        {
+          "command": "sovereignAgent.exportChat",
+          "when": "view == sovereignAgent.chat",
+          "group": "navigation@6"
         },
         {
           "command": "sovereignAgent.openFeedback",

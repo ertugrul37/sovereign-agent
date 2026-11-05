@@ -15,6 +15,7 @@
   "command.openPreview": "Sovereign Agent : 🌐 Ouvrir l’aperçu web en direct et le testeur",
   "command.openGraphify": "Sovereign Agent : 🕸️ Ouvrir le Graphe de Connaissances Graphify",
   "command.rateExtension": "Sovereign Agent : ⭐ Noter 5 étoiles sur le Marketplace",
+  "command.exportChat": "Sovereign Agent : 📥 Exporter la transcription du chat (Markdown / JSON)",
   "command.selectLanguage": "Sovereign Agent : Choisir la langue",
   "config.title": "Sovereign Agent",
   "config.provider.ollama": "API native Ollama",

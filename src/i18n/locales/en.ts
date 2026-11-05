@@ -163,6 +163,15 @@ export const en = {
   ,'review.rateNow': 'Rate 5 Stars ⭐'
   ,'review.starGithub': 'Star on GitHub ★'
   ,'review.later': 'Maybe Later'
+  ,'ui.exportChat': 'Export Chat'
+  ,'ui.exportChatTitle': 'Export entire chat conversation'
+  ,'ui.exportMarkdown': 'Save as Markdown (.md)'
+  ,'ui.exportJson': 'Save as JSON (.json)'
+  ,'ui.exportClipboard': 'Copy to Clipboard'
+  ,'ui.exportEditor': 'Open in New Editor Tab'
+  ,'ui.exportEmpty': 'No chat messages to export.'
+  ,'ui.exportCopied': '✓ Chat transcript copied to clipboard!'
+  ,'ui.exportSaved': '✓ Chat export saved to {file}'
 };
 
 export type MessageKey = keyof typeof en;

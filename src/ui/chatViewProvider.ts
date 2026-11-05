@@ -71,6 +71,7 @@ type FromWebview =
   | { type: 'openGraphifyInTab' }
   | { type: 'refreshGraphify' }
   | { type: 'exportArchitectureReport' }
+  | { type: 'exportChat'; format?: 'markdown' | 'json' | 'clipboard' | 'editor' }
   | { type: 'openFile'; file?: string; path?: string }
   | { type: 'confirmResponse'; id: string; allow: boolean };
 
@@ -337,6 +338,135 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     void vscode.window.showInformationMessage(t('checkpoint.restored', { path: checkpoint.path }));
   }
 
+  async handleExportChat(format?: 'markdown' | 'json' | 'clipboard' | 'editor'): Promise<void> {
+    this.restoreHistory();
+    const history = this.agent.getHistory();
+    if (!history.length) {
+      void vscode.window.showInformationMessage(t('ui.exportEmpty'));
+      return;
+    }
+
+    if (!format) {
+      const picks = [
+        { label: `$(markdown) ${t('ui.exportMarkdown')}`, id: 'markdown', description: 'Save as .md file in workspace' },
+        { label: `$(link-external) ${t('ui.exportEditor')}`, id: 'editor', description: 'Open transcript in new editor tab' },
+        { label: `$(clippy) ${t('ui.exportClipboard')}`, id: 'clipboard', description: 'Copy full markdown transcript to clipboard' },
+        { label: `$(json) ${t('ui.exportJson')}`, id: 'json', description: 'Save as structured .json file' }
+      ];
+      const picked = await vscode.window.showQuickPick(picks, {
+        placeHolder: t('ui.exportChatTitle')
+      });
+      if (!picked) return;
+      format = picked.id as 'markdown' | 'json' | 'clipboard' | 'editor';
+    }
+
+    const cfg = this.prepare();
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    const wsName = folder ? path.basename(folder.uri.fsPath) : 'Sovereign Agent';
+    const now = new Date();
+    const timeStr = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+
+    if (format === 'json') {
+      const payload = {
+        exportedAt: now.toISOString(),
+        workspace: wsName,
+        model: cfg.model,
+        messages: history
+      };
+      const jsonContent = JSON.stringify(payload, null, 2);
+      const defaultUri = folder
+        ? vscode.Uri.joinPath(folder.uri, `chat-export-${timeStr}.json`)
+        : undefined;
+      const targetUri = await vscode.window.showSaveDialog({
+        defaultUri,
+        filters: { 'JSON Files': ['json'] },
+        saveLabel: t('ui.exportJson')
+      });
+      if (targetUri) {
+        await vscode.workspace.fs.writeFile(targetUri, Buffer.from(jsonContent, 'utf8'));
+        const doc = await vscode.workspace.openTextDocument(targetUri);
+        await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
+        void vscode.window.showInformationMessage(t('ui.exportSaved', { file: path.basename(targetUri.fsPath) }));
+      }
+      return;
+    }
+
+    const md = this.buildChatMarkdown(history, wsName, cfg.model, now);
+
+    if (format === 'clipboard') {
+      await vscode.env.clipboard.writeText(md);
+      void vscode.window.showInformationMessage(t('ui.exportCopied'));
+      return;
+    }
+
+    if (format === 'editor') {
+      const doc = await vscode.workspace.openTextDocument({
+        content: md,
+        language: 'markdown'
+      });
+      await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
+      return;
+    }
+
+    // Default 'markdown': save to file
+    const defaultUri = folder
+      ? vscode.Uri.joinPath(folder.uri, `chat-export-${timeStr}.md`)
+      : undefined;
+    const targetUri = await vscode.window.showSaveDialog({
+      defaultUri,
+      filters: { 'Markdown Files': ['md'] },
+      saveLabel: t('ui.exportMarkdown')
+    });
+    if (targetUri) {
+      await vscode.workspace.fs.writeFile(targetUri, Buffer.from(md, 'utf8'));
+      const doc = await vscode.workspace.openTextDocument(targetUri);
+      await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
+      void vscode.window.showInformationMessage(t('ui.exportSaved', { file: path.basename(targetUri.fsPath) }));
+    }
+  }
+
+  private buildChatMarkdown(history: ChatMessage[], workspaceName: string, model: string, date: Date): string {
+    const lines: string[] = [
+      `# 💬 Sovereign Agent — Chat Export`,
+      ``,
+      `> 📅 **Date:** ${date.toLocaleString()}`,
+      `> 📁 **Workspace:** \`${workspaceName}\``,
+      `> 🤖 **Model:** \`${model || 'Default'}\``,
+      `> 🔢 **Total Messages:** ${history.length}`,
+      ``,
+      `---`,
+      ``
+    ];
+
+    for (const msg of history) {
+      if (msg.role === 'user') {
+        if (msg.content.startsWith('[')) {
+          lines.push(`> ⚙️ **Tool / System Result:**`);
+          lines.push(`> \`\`\``);
+          lines.push(`> ${msg.content.replace(/\n/g, '\n> ')}`);
+          lines.push(`> \`\`\``);
+          lines.push(``);
+        } else {
+          lines.push(`### 👤 User`);
+          lines.push(``);
+          lines.push(msg.content);
+          lines.push(``);
+          lines.push(`---`);
+          lines.push(``);
+        }
+      } else if (msg.role === 'assistant') {
+        lines.push(`### 🤖 Sovereign Agent`);
+        lines.push(``);
+        lines.push(msg.content);
+        lines.push(``);
+        lines.push(`---`);
+        lines.push(``);
+      }
+    }
+
+    return lines.join('\n');
+  }
+
   addSelectionToChat(): void {
     const editor = vscode.window.activeTextEditor;
     const text = editor?.document.getText(editor.selection).trim();
@@ -571,6 +701,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         }
         break;
       }
+      case 'exportChat':
+        await this.handleExportChat(msg.format);
+        break;
       case 'openFile': {
         const fileTarget = String(msg.file || msg.path || '').trim();
         const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -768,6 +901,16 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         ? 'Обобщите граф знаний Graphify этой рабочей области: ключевые кластеры модулей, архитектурные хабы и узкие места.'
         : 'Summarize the Graphify Knowledge Graph of this workspace, including key module clusters, top architectural hubs, and any potential bottlenecks.';
       effectiveText = rest || defaultPrompt;
+    }
+    if (/^\/export\b/i.test(text.trim())) {
+      const rest = text.trim().replace(/^\/export\b/i, '').trim().toLowerCase();
+      let fmt: 'markdown' | 'json' | 'clipboard' | 'editor' | undefined = undefined;
+      if (rest === 'md' || rest === 'markdown') fmt = 'markdown';
+      else if (rest === 'json') fmt = 'json';
+      else if (rest === 'copy' || rest === 'clipboard') fmt = 'clipboard';
+      else if (rest === 'editor' || rest === 'tab') fmt = 'editor';
+      await this.handleExportChat(fmt);
+      return;
     }
     if (/^\/benchmark\b/i.test(text.trim())) {
       await this.runBenchmarkCommand();
@@ -1319,6 +1462,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       <button id="compareModel" class="icon-button" data-icon="columns" data-i18n-title="ui.compareModel" title="" aria-label="Compare models"></button>
       <button id="approval" class="icon-button" data-icon="shield" data-i18n-title="ui.autoApprove" title="" aria-haspopup="true" aria-label="Approvals"></button>
       <button id="undo" class="icon-button" data-icon="undo" data-i18n-title="ui.undo" title="" aria-label="Undo"></button>
+      <button id="exportChat" class="icon-button" data-icon="download" data-i18n-title="ui.exportChat" title="" aria-label="Export Chat"></button>
       <button id="historyToggle" class="icon-button" data-icon="history" data-i18n-title="ui.history" title="" aria-label="History" aria-expanded="false"></button>
       <button id="langToggle" class="icon-button" data-icon="globe" data-i18n-title="ui.menuLanguage" title="" aria-label="Language"></button>
       <button id="rateBtn" class="icon-button rate-star-btn" data-icon="star" data-i18n-title="ui.rateExtension" title="" aria-label="Rate 5 Stars"></button>

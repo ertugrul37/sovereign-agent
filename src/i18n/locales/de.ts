@@ -160,4 +160,13 @@ export const de: Record<MessageKey, string> = {
   ,'review.rateNow': '5 Sterne geben ⭐'
   ,'review.starGithub': 'Auf GitHub ★'
   ,'review.later': 'Später'
+  ,'ui.exportChat': 'Chat exportieren'
+  ,'ui.exportChatTitle': 'Gesamten Chat-Verlauf exportieren'
+  ,'ui.exportMarkdown': 'Als Markdown speichern (.md)'
+  ,'ui.exportJson': 'Als JSON speichern (.json)'
+  ,'ui.exportClipboard': 'In Zwischenablage kopieren'
+  ,'ui.exportEditor': 'In neuem Tab öffnen'
+  ,'ui.exportEmpty': 'Kein Chat-Verlauf zum Exportieren vorhanden.'
+  ,'ui.exportCopied': '✓ Chat-Protokoll in die Zwischenablage kopiert!'
+  ,'ui.exportSaved': '✓ Chat-Export in {file} gespeichert'
 };
