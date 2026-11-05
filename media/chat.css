@@ -1250,7 +1250,23 @@ details.tool[open] .tool-chevron {
 
 /* History */
 .history-panel { position: absolute; z-index: 3; inset: 40px 8px auto 8px; max-height: 72vh; overflow: auto; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--menu); box-shadow: var(--shadow); }
-.panel-heading { display: flex; justify-content: space-between; align-items: flex-start; }
+.panel-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.history-tabs { display: inline-flex; gap: 4px; background: var(--surface-2); padding: 2px; border-radius: 8px; border: 1px solid var(--line-soft); }
+.history-tab-btn { padding: 4px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 11.5px; font-weight: 500; cursor: pointer; }
+.history-tab-btn:hover { color: var(--text); }
+.history-tab-btn.active { background: var(--surface-3); color: var(--accent); font-weight: 600; }
+.history-new-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 8px 12px; margin: 4px 0 10px 0; border: 1px dashed var(--line); border-radius: 8px; background: var(--surface); color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s ease; }
+.history-new-btn:hover { background: var(--surface-2); border-color: var(--accent); }
+.chat-sessions-list { display: flex; flex-direction: column; gap: 5px; max-height: 52vh; overflow-y: auto; }
+.chat-session-card { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line-soft); cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease; }
+.chat-session-card:hover { background: var(--surface-2); border-color: var(--line); }
+.chat-session-card.active { border-left: 3px solid var(--accent); background: var(--surface-2); }
+.chat-session-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.chat-session-title { font-size: 12px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-session-meta { font-size: 10.5px; color: var(--muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.chat-session-badge { padding: 1px 5px; border-radius: 4px; background: rgba(217, 119, 87, 0.15); color: var(--accent); font-size: 9.5px; font-weight: 600; }
+.chat-session-delete { display: grid; place-items: center; width: 22px; height: 22px; border: 0; border-radius: 5px; background: transparent; color: var(--muted); cursor: pointer; opacity: 0.6; flex-shrink: 0; font-size: 13px; }
+.chat-session-delete:hover { opacity: 1; color: var(--danger); background: rgba(248, 81, 73, 0.15); }
 .panel-heading h2 { margin: 2px 0 10px; font-size: 1em; }
 .history-status { margin: 0 0 8px; color: var(--muted); font-size: 0.82em; }
 .history-list { display: grid; gap: 4px; }

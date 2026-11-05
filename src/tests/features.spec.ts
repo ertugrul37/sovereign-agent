@@ -184,5 +184,41 @@ test('Chat PDF visual export engine generates 1:1 chat replication document', as
   }
 });
 
+import { extractSessionTitle } from '../agent/chatSession';
+import { ChatMessage } from '../llm/types';
+
+test('extractSessionTitle derives clean descriptive titles for past chat sessions', () => {
+  const history: ChatMessage[] = [
+    { role: 'user', content: '[tool_name result]\nsome previous output' },
+    { role: 'assistant', content: 'hello' },
+    { role: 'user', content: '### Optimize database queries\nMore details here...' }
+  ];
+  const title = extractSessionTitle(history);
+  assert.equal(title, 'Optimize database queries');
+
+  const longHistory: ChatMessage[] = [
+    { role: 'user', content: 'Bu sorunu kalıcı olarak çözmek için hem test hem de build scriptlerini doğru backend dizinine işaret edecek şekilde package.json dosyasını güncelleyeceğim.' }
+  ];
+  const longTitle = extractSessionTitle(longHistory);
+  assert.ok(longTitle.length <= 45);
+  assert.ok(longTitle.endsWith('...'));
+
+  const emptyTitle = extractSessionTitle([]);
+  assert.equal(emptyTitle, 'New Chat');
+});
+
+test('media/chat.js has resilient restored conversation parser and chat session management', async () => {
+  const chatJs = await fs.readFile(path.join(__dirname, '../../media/chat.js'), 'utf8');
+  assert.ok(chatJs.includes('function stripToolXml'), 'defines stripToolXml');
+  assert.ok(chatJs.includes('function createToolCard'), 'defines createToolCard');
+  assert.ok(chatJs.includes('function renderRestoredConversation'), 'defines renderRestoredConversation');
+  assert.ok(chatJs.includes('function renderChatSessions'), 'defines renderChatSessions');
+  assert.ok(chatJs.includes('case \'chatSessions\':'), 'handles chatSessions message');
+  assert.ok(chatJs.includes('tabChatsBtn'), 'handles chat history tab switching');
+  assert.ok(chatJs.includes('newChatHistoryBtn'), 'handles new chat from history panel');
+  assert.ok(chatJs.includes('newChatBtn'), 'handles new chat from header action');
+});
+
+
 
 

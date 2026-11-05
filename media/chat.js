@@ -359,8 +359,335 @@
     return result;
   }
 
+  const TOOL_NAMES_RE = 'list_files|read_file|write_file|replace_in_file|search_files|get_editor_context|run_command|mcp_call|web_search|browser_action|code_graph|run_tests';
+
+  const TOOL_ICON_MAP = {
+    list_files: 'folder',
+    read_file: 'file',
+    write_file: 'pencil',
+    replace_in_file: 'pencil',
+    search_files: 'search',
+    run_command: 'terminal',
+    mcp_call: 'plug',
+    get_editor_context: 'code',
+    web_search: 'globe',
+    browser_action: 'monitor',
+    code_graph: 'graph',
+    run_tests: 'terminal'
+  };
+
+  function stripToolXml(text) {
+    if (!text) return '';
+    let clean = text.replace(new RegExp('<(' + TOOL_NAMES_RE + ')(?:\\s+[^>]*)?>[\\s\\S]*?<\\/\\1>', 'gi'), '');
+    clean = clean.replace(new RegExp('<(' + TOOL_NAMES_RE + ')(?:\\s+[^>]*)?\\s*\\/>', 'gi'), '');
+    clean = clean.replace(new RegExp('<\\/?(' + TOOL_NAMES_RE + ')(?:\\s+[^>]*)?\\/?>', 'gi'), '');
+    clean = clean.replace(/<\/?(?:path|file|filepath|old_text|new_text|content|command|cmd|query|pattern|replace_all|action|target|selector|server|arguments)>/gi, '');
+    return clean.trim();
+  }
+
+  function extractToolTarget(name, body, attrs) {
+    const pathMatch = (body && body.match(/<(?:path|file|filepath|target)>([\s\S]*?)<\/(?:path|file|filepath|target)>/i))
+      || (attrs && attrs.match(/\b(?:path|file|target)=["']([^"']+)["']/i));
+    if (pathMatch) return pathMatch[1].trim();
+
+    const cmdMatch = (body && body.match(/<(?:command|cmd)>([\s\S]*?)<\/(?:command|cmd)>/i))
+      || (attrs && attrs.match(/\b(?:command|cmd)=["']([^"']+)["']/i));
+    if (cmdMatch) {
+      const c = cmdMatch[1].trim().split('\n')[0].trim();
+      return c.length > 50 ? c.slice(0, 48) + '...' : c;
+    }
+
+    const queryMatch = (body && body.match(/<(?:query|pattern)>([\s\S]*?)<\/(?:query|pattern)>/i))
+      || (attrs && attrs.match(/\b(?:query|pattern)=["']([^"']+)["']/i));
+    if (queryMatch) {
+      const q = queryMatch[1].trim().split('\n')[0].trim();
+      return q.length > 50 ? q.slice(0, 48) + '...' : q;
+    }
+
+    if (name === 'mcp_call') {
+      const server = (body && body.match(/<server>([\s\S]*?)<\/server>/i))?.[1]?.trim() || '';
+      const tool = (body && body.match(/<tool>([\s\S]*?)<\/tool>/i))?.[1]?.trim() || '';
+      if (server || tool) return (server + '/' + tool).trim();
+    }
+
+    if (body) {
+      const trimmed = body.trim();
+      if (!trimmed.startsWith('<')) {
+        const line = trimmed.split('\n')[0].trim();
+        return line.length > 50 ? line.slice(0, 48) + '...' : line;
+      }
+    }
+    return '';
+  }
+
+  function createToolCard(toolName, toolArg, ok, outputText) {
+    const card = document.createElement('details');
+    card.className = 'msg tool ' + (ok ? 'succeeded' : 'failed');
+    card.dataset.tool = toolName;
+    card.open = false;
+
+    const summary = document.createElement('summary');
+    summary.className = 'tool-summary';
+
+    const iconWrap = document.createElement('span');
+    iconWrap.className = 'tool-icon';
+    iconWrap.innerHTML = icon(TOOL_ICON_MAP[toolName] || 'code', 14);
+    summary.appendChild(iconWrap);
+
+    const badge = document.createElement('span');
+    badge.className = 'tool-badge';
+    badge.textContent = toolName;
+    summary.appendChild(badge);
+
+    if (toolArg) {
+      const target = document.createElement('code');
+      target.className = 'tool-target';
+      target.textContent = toolArg;
+      summary.appendChild(target);
+    }
+
+    const meta = document.createElement('span');
+    meta.className = 'tool-meta';
+    const status = document.createElement('span');
+    status.className = 'tool-status';
+    status.textContent = ok ? '✓' : '✕';
+    meta.appendChild(status);
+
+    const chev = document.createElement('span');
+    chev.className = 'tool-chevron';
+    chev.innerHTML = icon('chevronRight', 14);
+    meta.appendChild(chev);
+    summary.appendChild(meta);
+    card.appendChild(summary);
+
+    if (outputText !== undefined && outputText !== null && outputText !== '') {
+      const bodyWrap = document.createElement('div');
+      bodyWrap.className = 'tool-body';
+      if (toolName === 'list_files' && ok && outputText.trim() !== '(empty)') {
+        const entries = outputText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+        status.textContent = entries.length + ' ✓';
+        const grid = document.createElement('div');
+        grid.className = 'tool-file-grid';
+        entries.forEach((entry) => {
+          const isDir = entry.endsWith('/');
+          const chip = document.createElement('span');
+          chip.className = 'tool-file-chip' + (isDir ? ' is-dir' : '');
+          const chipIcon = document.createElement('span');
+          chipIcon.className = 'tool-file-icon';
+          chipIcon.innerHTML = icon(isDir ? 'folder' : 'file', 13);
+          const chipName = document.createElement('span');
+          chipName.className = 'tool-file-name';
+          chipName.textContent = entry;
+          chip.appendChild(chipIcon);
+          chip.appendChild(chipName);
+          grid.appendChild(chip);
+        });
+        bodyWrap.appendChild(grid);
+      } else {
+        const pre = document.createElement('pre');
+        pre.className = 'tool-output';
+        pre.textContent = outputText;
+        bodyWrap.appendChild(pre);
+      }
+      card.appendChild(bodyWrap);
+    }
+
+    return card;
+  }
+
+  function renderAssistantRestored(content) {
+    if (!content) return;
+    const re = new RegExp('<(' + TOOL_NAMES_RE + ')(?:\\s+([^>]*?))?>([\\s\\S]*?)<\\/\\1>|<(' + TOOL_NAMES_RE + ')(?:\\s+([^>]*?))?\\s*\\/>', 'gi');
+    let lastIndex = 0;
+    let match;
+    let foundTools = false;
+
+    while ((match = re.exec(content)) !== null) {
+      foundTools = true;
+      const textBefore = content.slice(lastIndex, match.index).trim();
+      const cleanText = stripToolXml(textBefore);
+      if (cleanText) {
+        const el = document.createElement('div');
+        el.className = 'msg assistant';
+        el.innerHTML = render(cleanText);
+        messages.appendChild(el);
+      }
+
+      const name = (match[1] || match[4] || '').toLowerCase();
+      const attrs = match[2] || match[5] || '';
+      const body = match[3] || '';
+      const target = extractToolTarget(name, body, attrs);
+
+      const card = createToolCard(name, target, true, null);
+      messages.appendChild(card);
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    if (foundTools) {
+      const textAfter = content.slice(lastIndex).trim();
+      const cleanAfter = stripToolXml(textAfter);
+      if (cleanAfter) {
+        const el = document.createElement('div');
+        el.className = 'msg assistant';
+        el.innerHTML = render(cleanAfter);
+        messages.appendChild(el);
+      }
+    } else {
+      const clean = stripToolXml(content);
+      if (clean) {
+        const el = document.createElement('div');
+        el.className = 'msg assistant';
+        el.innerHTML = render(clean);
+        messages.appendChild(el);
+      }
+    }
+  }
+
+  function renderRestoredConversation(msgList) {
+    if (!Array.isArray(msgList)) return;
+    for (let i = 0; i < msgList.length; i++) {
+      const message = msgList[i];
+      if (!message || !message.content) continue;
+
+      if (message.role === 'user') {
+        const toolResMatch = message.content.match(/^\[([a-zA-Z0-9_]+)\s+(result|error)\]\s*([\s\S]*)$/i);
+        if (toolResMatch) {
+          const toolName = toolResMatch[1];
+          const isOk = toolResMatch[2].toLowerCase() === 'result';
+          const output = (toolResMatch[3] || '').trim();
+
+          const lastEl = messages.lastElementChild;
+          if (lastEl && lastEl.classList.contains('tool') && !lastEl.dataset.hasResult) {
+            lastEl.classList.remove('running', 'succeeded', 'failed');
+            lastEl.classList.add(isOk ? 'succeeded' : 'failed');
+            const status = lastEl.querySelector('.tool-status');
+            if (status) status.textContent = isOk ? '✓' : '✕';
+            if (output) {
+              const bodyWrap = document.createElement('div');
+              bodyWrap.className = 'tool-body';
+              if (toolName === 'list_files' && isOk && output !== '(empty)') {
+                const entries = output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+                if (status) status.textContent = entries.length + ' ✓';
+                const grid = document.createElement('div');
+                grid.className = 'tool-file-grid';
+                entries.forEach((entry) => {
+                  const isDir = entry.endsWith('/');
+                  const chip = document.createElement('span');
+                  chip.className = 'tool-file-chip' + (isDir ? ' is-dir' : '');
+                  const chipIcon = document.createElement('span');
+                  chipIcon.className = 'tool-file-icon';
+                  chipIcon.innerHTML = icon(isDir ? 'folder' : 'file', 13);
+                  const chipName = document.createElement('span');
+                  chipName.className = 'tool-file-name';
+                  chipName.textContent = entry;
+                  chip.appendChild(chipIcon);
+                  chip.appendChild(chipName);
+                  grid.appendChild(chip);
+                });
+                bodyWrap.appendChild(grid);
+              } else {
+                const pre = document.createElement('pre');
+                pre.className = 'tool-output';
+                pre.textContent = output;
+                bodyWrap.appendChild(pre);
+              }
+              lastEl.appendChild(bodyWrap);
+            }
+            lastEl.dataset.hasResult = 'true';
+          } else {
+            const card = createToolCard(toolName, '', isOk, output);
+            card.dataset.hasResult = 'true';
+            messages.appendChild(card);
+          }
+        } else {
+          add('user', message.content);
+        }
+      } else if (message.role === 'assistant') {
+        renderAssistantRestored(message.content);
+      }
+    }
+  }
+
+  function renderChatSessions(sessions, activeId) {
+    const listEl = $('chatSessionsList');
+    const statusEl = $('chatSessionsStatus');
+    if (!listEl) return;
+    listEl.replaceChildren();
+
+    if (!sessions || !sessions.length) {
+      if (statusEl) {
+        statusEl.hidden = false;
+        statusEl.textContent = s('ui.noPastChats') || 'Henüz geçmiş sohbet yok';
+      }
+      return;
+    }
+    if (statusEl) statusEl.hidden = true;
+
+    sessions.forEach((sObj) => {
+      const card = document.createElement('div');
+      card.className = 'chat-session-card' + (sObj.isActive ? ' active' : '');
+
+      const info = document.createElement('div');
+      info.className = 'chat-session-info';
+
+      const title = document.createElement('div');
+      title.className = 'chat-session-title';
+      title.textContent = sObj.title || s('ui.newChat') || 'Sohbet';
+
+      const meta = document.createElement('div');
+      meta.className = 'chat-session-meta';
+
+      const dateSpan = document.createElement('span');
+      dateSpan.textContent = sObj.date || '';
+      meta.appendChild(dateSpan);
+
+      if (sObj.count) {
+        const countSpan = document.createElement('span');
+        countSpan.textContent = sObj.count + ' msg';
+        meta.appendChild(countSpan);
+      }
+
+      if (sObj.model) {
+        const modelSpan = document.createElement('span');
+        modelSpan.textContent = sObj.model;
+        meta.appendChild(modelSpan);
+      }
+
+      if (sObj.isActive) {
+        const badge = document.createElement('span');
+        badge.className = 'chat-session-badge';
+        badge.textContent = s('ui.activeChat') || 'Aktif';
+        meta.appendChild(badge);
+      }
+
+      info.append(title, meta);
+      card.appendChild(info);
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'chat-session-delete';
+      delBtn.title = s('ui.deleteChat') || 'Sohbeti Sil';
+      delBtn.textContent = '🗑️';
+      delBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        vscode.postMessage({ type: 'deleteChatSession', id: sObj.id });
+      });
+      card.appendChild(delBtn);
+
+      card.addEventListener('click', () => {
+        vscode.postMessage({ type: 'loadChatSession', id: sObj.id });
+        showHistory(false);
+      });
+
+      listEl.appendChild(card);
+    });
+  }
+
   // Safe rendering: code fences, tables, headers, lists, blockquotes, file paths, latex arrows & math.
   function render(text) {
+    if (!text) return '';
+    text = stripToolXml(text);
     if (!text) return '';
     return text
       .split('```')
@@ -462,9 +789,10 @@
     historyPanel.hidden = !open;
     $('historyToggle').setAttribute('aria-expanded', String(open));
     if (open) {
-      historyStatus.textContent = s('ui.loadingHistory');
-      historyList.replaceChildren();
-      commitDetail.hidden = true;
+      vscode.postMessage({ type: 'getChatSessions' });
+      if (historyStatus) historyStatus.textContent = s('ui.loadingHistory');
+      if (historyList) historyList.replaceChildren();
+      if (commitDetail) commitDetail.hidden = true;
       vscode.postMessage({ type: 'history' });
     }
   }
@@ -1021,6 +1349,29 @@
       option.hidden = !option.textContent.toLowerCase().includes(query);
     });
   });
+  $('newChatBtn')?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'newChat' });
+  });
+  $('newChatHistoryBtn')?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'newChat' });
+    showHistory(false);
+  });
+  $('tabChatsBtn')?.addEventListener('click', () => {
+    $('tabChatsBtn')?.classList.add('active');
+    $('tabCommitsBtn')?.classList.remove('active');
+    const cv = $('chatHistoryView');
+    const gv = $('gitHistoryView');
+    if (cv) cv.hidden = false;
+    if (gv) gv.hidden = true;
+  });
+  $('tabCommitsBtn')?.addEventListener('click', () => {
+    $('tabCommitsBtn')?.classList.add('active');
+    $('tabChatsBtn')?.classList.remove('active');
+    const cv = $('chatHistoryView');
+    const gv = $('gitHistoryView');
+    if (cv) cv.hidden = true;
+    if (gv) gv.hidden = false;
+  });
   $('undo').addEventListener('click', () => vscode.postMessage({ type: 'undo' }));
   $('exportChat')?.addEventListener('click', () => vscode.postMessage({ type: 'exportChat' }));
   $('historyToggle').addEventListener('click', () => showHistory(historyPanel.hidden));
@@ -1150,18 +1501,14 @@
         break;
       case 'conversation':
         messages.querySelectorAll('.msg').forEach((el) => el.remove());
-        (msg.messages || []).forEach((message) => {
-          if (message.role === 'user' && !message.content.startsWith('[')) {
-            add('user', message.content);
-          } else if (message.role === 'assistant') {
-            const el = document.createElement('div');
-            el.className = 'msg assistant';
-            el.innerHTML = render(message.content);
-            messages.appendChild(el);
-          }
-        });
+        bubble = null;
+        lastTool = null;
+        renderRestoredConversation(msg.messages || []);
         empty.hidden = messages.querySelectorAll('.msg').length > 0;
         scrollDown();
+        break;
+      case 'chatSessions':
+        renderChatSessions(msg.sessions || [], msg.activeId);
         break;
       case 'metrics':
         metrics.hidden = false;

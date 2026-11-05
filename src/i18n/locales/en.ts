@@ -176,6 +176,11 @@ export const en = {
   ,'ui.exportPdfDesc': 'Generates pixel-perfect PDF replicating the chat UI'
   ,'ui.exportPdfSaved': '✓ Chat PDF exported to {file}'
   ,'ui.openFile': 'Open File'
+  ,'ui.chatHistory': 'Chat History'
+  ,'ui.gitCommits': 'Git Commits'
+  ,'ui.activeChat': 'Active Chat'
+  ,'ui.deleteChat': 'Delete'
+  ,'ui.noPastChats': 'No saved chats yet.'
 };
 
 export type MessageKey = keyof typeof en;

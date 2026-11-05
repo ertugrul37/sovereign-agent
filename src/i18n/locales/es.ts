@@ -173,4 +173,9 @@ export const es: Record<MessageKey, string> = {
   ,'ui.exportPdfDesc': 'Genera un documento PDF idéntico a la interfaz del chat'
   ,'ui.exportPdfSaved': '✓ PDF del chat exportado a {file}'
   ,'ui.openFile': 'Abrir archivo'
+  ,'ui.chatHistory': 'Historial de chat'
+  ,'ui.gitCommits': 'Confirmaciones Git'
+  ,'ui.activeChat': 'Chat activo'
+  ,'ui.deleteChat': 'Eliminar'
+  ,'ui.noPastChats': 'No hay chats guardados aún.'
 };

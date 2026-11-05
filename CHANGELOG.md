@@ -2,6 +2,22 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.42] - 2026-11-05
+
+### Fixed & Multi-Session Chat History
+- **🛡️ Clean Restored Tool Call & Speech Bubble Parsing (`media/chat.js`):**
+  - Fixed an issue where closing/reloading the extension or restoring past conversations rendered raw XML tool tags (`<replace_in_file>`, `<run_tests>`, `<read_file>`) as markdown italics (`<replace*in*file>`) inside assistant bubbles.
+  - Implemented `stripToolXml()`, `extractToolTarget()`, and `renderAssistantRestored()`. Tool XML tags are completely stripped from assistant speech bubbles, and each tool call is rendered into an interactive, collapsible tool badge (`details.msg.tool`) with its respective icon, parameter target, and status badge.
+  - Tool outputs (`[replace_in_file result]`, `[run_tests error]`, etc.) from following user messages are now cleanly attached inside their parent tool badges (`.tool-body`) rather than displaying as unformatted text.
+- **💬 Multi-Session Chat History & Session Management (`src/agent/chatSession.ts`, `src/ui/chatViewProvider.ts`, `media/chat.js`, `media/chat.css`):**
+  - Past chats are now automatically preserved with auto-extracted descriptive titles derived from the first user request (`extractSessionTitle`).
+  - Added multi-session storage across workspace reloads (`workspaceState: chatSessions` and `activeSessionId`).
+  - History panel (`#historyPanel`) now provides tabs: `[ 💬 Sohbetler ]` (Past Chats) and `[ 🌿 Git Commits ]`.
+  - The `[ 💬 Sohbetler ]` view displays all past chat sessions with their titles, timestamps, active model badge, message counts, active session indicator, and individual delete buttons (`🗑️`). Clicking any past chat seamlessly switches to and restores that conversation.
+  - Added a `+ Yeni Sohbet Başlat` button directly inside the history panel as well as a quick `+` button in the chat header actions for effortless session creation.
+- **🌐 Comprehensive 5-Language Localization (`src/i18n/locales/`):**
+  - Localized chat history tabs, active badges, and session management in Turkish (`tr`), English (`en`), German (`de`), Spanish (`es`), and French (`fr`).
+
 ## [0.1.41] - 2026-11-05
 
 ### Enhanced & Visual Fidelity Upgrades

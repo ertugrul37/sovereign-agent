@@ -173,4 +173,9 @@ export const tr: Record<MessageKey, string> = {
   ,'ui.exportPdfDesc': 'Sohbetin birebir arayüz görüntüsüyle şık PDF dokümanı oluşturur'
   ,'ui.exportPdfSaved': '✓ Sohbet PDF belgesi {file} dosyasına kaydedildi'
   ,'ui.openFile': 'Dosyayı Aç'
+  ,'ui.chatHistory': 'Sohbet Geçmişi'
+  ,'ui.gitCommits': 'Git Geçmişi'
+  ,'ui.activeChat': 'Aktif Sohbet'
+  ,'ui.deleteChat': 'Sil'
+  ,'ui.noPastChats': 'Henüz kayıtlı geçmiş sohbet bulunmuyor.'
 };

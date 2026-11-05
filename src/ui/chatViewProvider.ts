@@ -74,7 +74,12 @@ type FromWebview =
   | { type: 'exportArchitectureReport' }
   | { type: 'exportChat'; format?: 'markdown' | 'json' | 'clipboard' | 'editor' | 'pdf' }
   | { type: 'openFile'; file?: string; path?: string }
-  | { type: 'confirmResponse'; id: string; allow: boolean };
+  | { type: 'confirmResponse'; id: string; allow: boolean }
+  | { type: 'getChatSessions' }
+  | { type: 'loadChatSession'; id: string }
+  | { type: 'deleteChatSession'; id: string };
+
+import { ChatSession, extractSessionTitle } from '../agent/chatSession';
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'sovereignAgent.chat';
@@ -84,6 +89,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private abort?: AbortController;
   private readonly mcp: McpManager;
   private historyLoaded = false;
+  private activeSessionId: string = '';
+  private sessions: ChatSession[] = [];
   private comparison?: Map<string, ComparisonCandidate>;
   private autoApprove = false;
   private readonly pendingConfirms = new Map<string, (allow: boolean) => void>();
@@ -145,9 +152,95 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
   newChat(): void {
     this.abort?.abort();
+    if (this.agent.getHistory().length > 0) {
+      this.saveActiveSession();
+    }
     this.agent.reset();
     this.comparison = undefined;
+    this.activeSessionId = randomUUID();
+    void this.extensionContext.workspaceState.update('activeSessionId', this.activeSessionId);
+    void this.extensionContext.workspaceState.update('agentHistory', []);
     this.post({ type: 'cleared' });
+    this.sendChatSessions();
+  }
+
+  loadChatSession(id: string): void {
+    this.abort?.abort();
+    if (this.agent.getHistory().length > 0) {
+      this.saveActiveSession();
+    }
+    const session = this.sessions.find(s => s.id === id);
+    if (!session) return;
+    this.activeSessionId = session.id;
+    this.agent.reset();
+    this.agent.restoreHistory(session.messages);
+    void this.saveSessions();
+    this.post({ type: 'conversation', messages: session.messages });
+    this.sendChatSessions();
+  }
+
+  deleteChatSession(id: string): void {
+    this.sessions = this.sessions.filter(s => s.id !== id);
+    if (this.activeSessionId === id) {
+      this.agent.reset();
+      this.activeSessionId = randomUUID();
+      void this.extensionContext.workspaceState.update('agentHistory', []);
+      this.post({ type: 'cleared' });
+    }
+    void this.saveSessions();
+    this.sendChatSessions();
+  }
+
+  sendChatSessions(): void {
+    const list = this.sessions.map(s => ({
+      id: s.id,
+      title: s.title,
+      date: new Date(s.updatedAt || s.createdAt).toLocaleString(),
+      model: s.model,
+      count: s.messages.length,
+      isActive: s.id === this.activeSessionId
+    }));
+    this.post({ type: 'chatSessions', sessions: list, activeId: this.activeSessionId });
+  }
+
+  saveActiveSession(): void {
+    const history = this.agent.getHistory();
+    if (!history.length) return;
+    const cfg = this.prepare();
+    let session = this.sessions.find(s => s.id === this.activeSessionId);
+
+    if (!session) {
+      const title = extractSessionTitle(history);
+      session = {
+        id: this.activeSessionId || randomUUID(),
+        title,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        model: cfg.model,
+        messages: history
+      };
+      this.activeSessionId = session.id;
+      this.sessions.unshift(session);
+    } else {
+      session.messages = history;
+      session.updatedAt = Date.now();
+      session.model = cfg.model;
+      if (session.title === 'New Chat' || session.title === 'Chat' || !session.title) {
+        session.title = extractSessionTitle(history);
+      }
+    }
+
+    if (this.sessions.length > 50) {
+      this.sessions = this.sessions.slice(0, 50);
+    }
+
+    void this.saveSessions();
+  }
+
+  private async saveSessions(): Promise<void> {
+    await this.extensionContext.workspaceState.update('chatSessions', this.sessions);
+    await this.extensionContext.workspaceState.update('activeSessionId', this.activeSessionId);
+    await this.extensionContext.workspaceState.update('agentHistory', this.agent.getHistory());
   }
 
   stop(): void {
@@ -586,6 +679,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       locales: LOCALE_NAMES
     });
     this.post({ type: 'conversation', messages: this.agent.getHistory() });
+    this.sendChatSessions();
     if (!cfg.model) {
       void this.autoDetectServer();
     }
@@ -643,6 +737,15 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         break;
       case 'newChat':
         this.newChat();
+        break;
+      case 'getChatSessions':
+        this.sendChatSessions();
+        break;
+      case 'loadChatSession':
+        this.loadChatSession(msg.id);
+        break;
+      case 'deleteChatSession':
+        this.deleteChatSession(msg.id);
         break;
       case 'selectModel':
         await this.selectModel();
@@ -1053,7 +1156,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       });
       this.abort = undefined;
       this.snapshotManager.commitTurn(text.slice(0, 32));
-      void this.extensionContext.workspaceState.update('agentHistory', this.agent.getHistory());
+      this.saveActiveSession();
+      this.sendChatSessions();
       this.post({ type: 'busy', value: false });
       if (assistantReplies > 0) {
         void this.maybePromptReview();
@@ -1309,7 +1413,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       if (!candidate?.done || !candidate.text.trim()) return;
       this.agent.adoptHistory(candidate.agent.getHistory());
       this.comparison = undefined;
-      void this.extensionContext.workspaceState.update('agentHistory', this.agent.getHistory());
+      this.saveActiveSession();
+      this.sendChatSessions();
       this.post({ type: 'compareChosen', id, model: candidate.model, text: candidate.text });
       this.post({ type: 'busy', value: false });
   }
@@ -1403,8 +1508,33 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private restoreHistory(): void {
     if (this.historyLoaded) return;
     this.historyLoaded = true;
-    const history = this.extensionContext.workspaceState.get<ChatMessage[]>('agentHistory', []);
-    this.agent.restoreHistory(history);
+
+    this.sessions = this.extensionContext.workspaceState.get<ChatSession[]>('chatSessions', []);
+    this.activeSessionId = this.extensionContext.workspaceState.get<string>('activeSessionId', '');
+
+    let activeSession = this.sessions.find(s => s.id === this.activeSessionId);
+    if (!activeSession) {
+      const legacyHistory = this.extensionContext.workspaceState.get<ChatMessage[]>('agentHistory', []);
+      if (legacyHistory.length > 0) {
+        activeSession = {
+          id: randomUUID(),
+          title: extractSessionTitle(legacyHistory),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          model: this.prepare().model,
+          messages: legacyHistory
+        };
+        this.sessions = [activeSession, ...this.sessions];
+        this.activeSessionId = activeSession.id;
+        void this.saveSessions();
+      } else {
+        this.activeSessionId = randomUUID();
+      }
+    }
+
+    if (activeSession) {
+      this.agent.restoreHistory(activeSession.messages);
+    }
   }
 
   private async saveCheckpoint(relPath: string, content: string | undefined): Promise<void> {
@@ -1488,6 +1618,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       </button>
     </div>
     <div class="header-actions">
+      <button id="newChatBtn" class="icon-button" data-icon="plus" data-i18n-title="ui.newChat" title="" aria-label="New Chat"></button>
       <button id="previewBtn" class="icon-button" data-icon="monitor" data-i18n-title="ui.livePreview" title="" aria-label="Live Web Preview & Tester"></button>
       <button id="compareModel" class="icon-button" data-icon="columns" data-i18n-title="ui.compareModel" title="" aria-label="Compare models"></button>
       <button id="approval" class="icon-button" data-icon="shield" data-i18n-title="ui.autoApprove" title="" aria-haspopup="true" aria-label="Approvals"></button>
@@ -1591,15 +1722,24 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     </section>
     <aside id="historyPanel" class="history-panel" hidden>
       <div class="panel-heading">
-        <div>
-          <span class="eyebrow" data-i18n="ui.timeline"></span>
-          <h2 data-i18n="ui.history"></h2>
+        <div class="history-tabs">
+          <button type="button" class="history-tab-btn active" id="tabChatsBtn">💬 <span data-i18n="ui.chatHistory">Sohbetler</span></button>
+          <button type="button" class="history-tab-btn" id="tabCommitsBtn">🌿 <span data-i18n="ui.gitCommits">Git</span></button>
         </div>
         <button id="historyClose" class="icon-button" data-i18n-title="ui.close" title="">×</button>
       </div>
-      <p id="historyStatus" class="history-status"></p>
-      <div id="historyList" class="history-list"></div>
-      <pre id="commitDetail" class="commit-detail" hidden></pre>
+      <div id="chatHistoryView">
+        <button type="button" id="newChatHistoryBtn" class="history-new-btn">
+          <span>+</span> <span data-i18n="ui.newChat">Yeni Sohbet Başlat</span>
+        </button>
+        <p id="chatSessionsStatus" class="history-status" hidden></p>
+        <div id="chatSessionsList" class="chat-sessions-list"></div>
+      </div>
+      <div id="gitHistoryView" hidden>
+        <p id="historyStatus" class="history-status"></p>
+        <div id="historyList" class="history-list"></div>
+        <pre id="commitDetail" class="commit-detail" hidden></pre>
+      </div>
     </aside>
     <main id="messages" aria-live="polite">
       <section id="comparison" class="comparison" hidden aria-live="polite">
