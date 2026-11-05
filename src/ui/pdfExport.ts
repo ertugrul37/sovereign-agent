@@ -419,11 +419,11 @@ export function buildChatHtml(options: ChatExportOptions): string {
     padding: 0;
   }
   html {
-    background-color: #141416 !important;
+    background-color: #0d0f12 !important;
   }
   body {
-    background-color: #141416 !important;
-    color: #ece9e4;
+    background-color: #0d0f12 !important;
+    color: #f1f3f7;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     font-size: 13px;
     line-height: 1.6;
@@ -439,8 +439,8 @@ export function buildChatHtml(options: ChatExportOptions): string {
     box-sizing: border-box;
   }
   .header-card {
-    background: #1b1b1e;
-    border: 1px solid #2e2e33;
+    background: #15181e;
+    border: 1px solid #262c36;
     border-radius: 12px;
     padding: 14px 18px;
     margin-bottom: 20px;
@@ -460,7 +460,7 @@ export function buildChatHtml(options: ChatExportOptions): string {
   .logo-icon {
     width: 32px;
     height: 32px;
-    background: linear-gradient(135deg, #d97757 0%, #b85a3c 100%);
+    background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
     border-radius: 8px;
     display: flex;
     align-items: center;
@@ -468,7 +468,7 @@ export function buildChatHtml(options: ChatExportOptions): string {
     color: #fff;
     font-size: 17px;
     font-weight: bold;
-    box-shadow: 0 4px 12px rgba(217, 119, 87, 0.35);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
   }
   .brand-text h1 {
     font-size: 15.5px;
@@ -527,15 +527,15 @@ export function buildChatHtml(options: ChatExportOptions): string {
     position: relative;
   }
   .msg-wrap.user .msg-bubble {
-    background: #2a2926;
-    border: 1px solid #3d3b37;
-    color: #f5f3ef;
+    background: #1c2027;
+    border: 1px solid #262c36;
+    color: #f1f3f7;
     max-width: 95%;
   }
   .msg-wrap.assistant .msg-bubble {
-    background: #1a1a1d;
-    border: 1px solid #2e2e33;
-    color: #ece9e4;
+    background: #15181e;
+    border: 1px solid #262c36;
+    color: #f1f3f7;
     width: 100%;
   }
   .bubble-author {
@@ -546,15 +546,15 @@ export function buildChatHtml(options: ChatExportOptions): string {
     font-size: 12px;
     font-weight: 600;
   }
-  .author-user { color: #e0a952; }
-  .author-bot { color: #d97757; }
+  .author-user { color: #38bdf8; }
+  .author-bot { color: #818cf8; }
   .model-tag {
     font-size: 10.5px;
     padding: 1px 6px;
     border-radius: 4px;
-    background: #2c2420;
-    color: #d97757;
-    border: 1px solid rgba(217, 119, 87, 0.35);
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.35);
     font-weight: 500;
   }
   .msg-content h1, .msg-content h2, .msg-content h3, .msg-content h4 {
@@ -566,7 +566,7 @@ export function buildChatHtml(options: ChatExportOptions): string {
   .msg-content h2 { font-size: 15px; }
   .msg-content h3 {
     font-size: 14px;
-    border-left: 3px solid #d97757;
+    border-left: 3px solid #6366f1;
     padding-left: 8px;
   }
   .msg-content h4 { font-size: 13px; }
@@ -628,9 +628,9 @@ export function buildChatHtml(options: ChatExportOptions): string {
     margin-top: 10px;
     padding: 7px 12px;
     border-radius: 8px;
-    background: #18181b;
-    border: 1px solid #2d2d33;
-    border-left: 3px solid #d97757;
+    background: #15181e;
+    border: 1px solid #262c36;
+    border-left: 3px solid #6366f1;
     display: flex;
     align-items: center;
     gap: 8px;

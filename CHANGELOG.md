@@ -2,6 +2,20 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.43] - 2026-11-05
+
+### Design & Color System Upgrade
+- **🎨 Complete Migration to Linear / Cursor "Obsidian Stealth" Palette:**
+  - Fully transformed the entire project theme from the warm terracotta palette to the industry-standard developer-favorite **Linear / Cursor Obsidian Stealth** color system.
+  - **Canvas & Background (`--bg`):** Deep AMOLED-friendly obsidian `#0d0f12`.
+  - **Surfaces & Cards (`--surface`, `--surface-2`, `--surface-3`):** Sleek slate cards `#15181e`, `#1c2027`, and `#252a34`.
+  - **Borders & Dividers (`--line`, `--line-soft`):** Subtle, crisp borders `#262c36` and `#1e232b`.
+  - **Primary & Secondary Accents (`--accent`, `--accent-secondary`):** Vivid Electric Indigo `#6366f1` with Cyan Teal `#00d2b4` accents.
+  - **Typography (`--text`, `--muted`):** High-contrast crisp white `#f1f3f7` and muted metadata slate `#8b949e`.
+  - **Code Blocks & Syntax:** Dark code container `#101216` with refined borders.
+  - **Graphify Studio & Architecture Visualizer (`src/agent/graphify.ts`, `media/chat.js`):** Updated module star coronas, cluster links, central hub glows, and legend palettes to vibrant cyberpunk indigo/emerald/amber/cyan tones (`#6366f1`, `#00d2b4`, `#38bdf8`, `#a855f7`, etc.).
+  - **1:1 PDF Export (`src/ui/pdfExport.ts`):** PDF exports now reflect the exact Linear Obsidian Stealth aesthetic with matching indigo brand badges and slate user/assistant cards.
+
 ## [0.1.42] - 2026-11-05
 
 ### Fixed & Multi-Session Chat History

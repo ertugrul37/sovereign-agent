@@ -2,14 +2,14 @@
   "name": "sovereign-agent",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.1.42",
+  "version": "0.1.43",
   "publisher": "ertugrul37",
   "icon": "media/logo.png",
   "license": "GPL-3.0-or-later",
   "homepage": "https://github.com/ertugrul37/sovereign-agent#readme",
   "qna": "marketplace",
   "galleryBanner": {
-    "color": "#111827",
+    "color": "#0d0f12",
     "theme": "dark"
   },
   "badges": [

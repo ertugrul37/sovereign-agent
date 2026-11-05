@@ -651,44 +651,46 @@ export class GraphifyManager implements vscode.Disposable {
     --mono: var(--vscode-editor-font-family, ui-monospace, Consolas, monospace);
   }
   body {
-    --bg: #171716;
-    --surface: #1f1f1e;
-    --surface-2: #2a2a28;
-    --surface-3: #373735;
-    --menu: #262624;
-    --line: #3a3a37;
-    --line-soft: #2e2e2c;
-    --text: #ece9e4;
-    --muted: #8f8d87;
-    --faint: #66655f;
-    --accent: #d97757;
+    --bg: #0d0f12;
+    --surface: #15181e;
+    --surface-2: #1c2027;
+    --surface-3: #252a34;
+    --menu: #15181e;
+    --line: #262c36;
+    --line-soft: #1e232b;
+    --text: #f1f3f7;
+    --muted: #8b949e;
+    --faint: #586069;
+    --accent: #6366f1;
+    --accent-secondary: #00d2b4;
     --accent-ink: #ffffff;
-    --danger: #f0746a;
-    --ok: #73c991;
-    --warn: #e0a952;
-    --code: #232322;
-    --shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
+    --danger: #f87171;
+    --ok: #34d399;
+    --warn: #fbbf24;
+    --code: #101216;
+    --shadow: 0 16px 38px rgba(0, 0, 0, 0.65);
   }
   body.theme-light,
   body.vscode-light:not(.theme-dark) {
     color-scheme: light;
-    --bg: #faf9f5;
+    --bg: #f8fafc;
     --surface: #ffffff;
-    --surface-2: #f0eee6;
-    --surface-3: #e5e2d8;
+    --surface-2: #f1f5f9;
+    --surface-3: #e2e8f0;
     --menu: #ffffff;
-    --line: #dcd9ce;
-    --line-soft: #e9e6dc;
-    --text: #1f1e1d;
-    --muted: #6f6d66;
-    --faint: #9b988f;
-    --accent: #d97757;
+    --line: #e2e8f0;
+    --line-soft: #edf2f7;
+    --text: #0f172a;
+    --muted: #64748b;
+    --faint: #94a3b8;
+    --accent: #4f46e5;
+    --accent-secondary: #0d9488;
     --accent-ink: #ffffff;
-    --danger: #c0392b;
-    --ok: #2e7d4f;
-    --warn: #b47818;
-    --code: #f2f0e8;
-    --shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
+    --danger: #ef4444;
+    --ok: #10b981;
+    --warn: #d97706;
+    --code: #f1f5f9;
+    --shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
   }
   * { box-sizing: border-box; }
   body {
@@ -1533,7 +1535,7 @@ export class GraphifyManager implements vscode.Disposable {
   document.getElementById('statHealth').textContent = data.healthScore;
   document.getElementById('cycleCountBadge').textContent = data.cycles.length;
 
-  const PALETTE = ['#d97757', '#73c991', '#e0a952', '#7ba3b8', '#b888c4', '#e07a6a', '#6eb5a5', '#c7926b', '#94a3b8'];
+  const PALETTE = ['#6366f1', '#00d2b4', '#38bdf8', '#a855f7', '#f43f5e', '#f59e0b', '#10b981', '#ec4899', '#94a3b8'];
   const clusterColors = {};
   data.clusters.forEach((c, idx) => { clusterColors[c.name] = PALETTE[idx % PALETTE.length]; });
 
@@ -1586,7 +1588,7 @@ export class GraphifyManager implements vscode.Disposable {
       name: c.name,
       count: c.count,
       angle,
-      color: clusterColors[c.name] || '#d97757',
+      color: clusterColors[c.name] || '#6366f1',
       x: Math.cos(angle) * r,
       y: Math.sin(angle) * r,
       targetX: Math.cos(angle) * r,
@@ -1606,7 +1608,7 @@ export class GraphifyManager implements vscode.Disposable {
       targetX: 0,
       targetY: 0,
       radius: Math.max(7, Math.min(20, 6 + Math.sqrt(n.score) * 2.5)),
-      color: clusterColors[n.cluster] || '#d97757',
+      color: clusterColors[n.cluster] || '#6366f1',
       isHub
     };
   });
@@ -1753,7 +1755,7 @@ export class GraphifyManager implements vscode.Disposable {
 
           const box = {
             name: item.cluster.name,
-            color: clusterColors[item.cluster.name] || '#d97757',
+            color: clusterColors[item.cluster.name] || '#6366f1',
             x: bx - boxW / 2,
             y: by - item.boxH / 2,
             w: boxW,
@@ -1913,9 +1915,9 @@ export class GraphifyManager implements vscode.Disposable {
     if (currentLayout === 'star') {
       // Central Star Solar Corona / Radiance
       const corona = ctx.createRadialGradient(0, 0, 8, 0, 0, 75);
-      corona.addColorStop(0, 'rgba(217, 119, 87, 0.45)');
-      corona.addColorStop(0.5, 'rgba(217, 119, 87, 0.15)');
-      corona.addColorStop(1, 'rgba(217, 119, 87, 0)');
+      corona.addColorStop(0, 'rgba(99, 102, 241, 0.45)');
+      corona.addColorStop(0.5, 'rgba(99, 102, 241, 0.15)');
+      corona.addColorStop(1, 'rgba(99, 102, 241, 0)');
       ctx.beginPath();
       ctx.arc(0, 0, 75, 0, Math.PI * 2);
       ctx.fillStyle = corona;
@@ -1999,7 +2001,7 @@ export class GraphifyManager implements vscode.Disposable {
       ctx.save();
       ctx.beginPath();
       ctx.arc(0, 0, 24, 0, Math.PI * 2);
-      ctx.fillStyle = '#d97757';
+      ctx.fillStyle = '#6366f1';
       ctx.fill();
       ctx.strokeStyle = isLight ? '#ffffff' : '#faf9f5';
       ctx.lineWidth = 2.5;

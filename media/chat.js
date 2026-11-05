@@ -2000,7 +2000,7 @@
   let embedCtx = null;
   let embedRaf = 0;
   let embedClusterColors = {};
-  const EMBED_PALETTE = ['#d97757', '#73c991', '#e0a952', '#7ba3b8', '#b888c4', '#e07a6a', '#6eb5a5', '#c7926b', '#94a3b8'];
+  const EMBED_PALETTE = ['#6366f1', '#00d2b4', '#38bdf8', '#a855f7', '#f43f5e', '#f59e0b', '#10b981', '#ec4899', '#94a3b8'];
 
   function gtr(key, vars) {
     const dict = GRAPHIFY_I18N[embedCurrentLang] || GRAPHIFY_I18N.en;
@@ -2075,7 +2075,7 @@
       x: 0, y: 0, vx: 0, vy: 0,
       targetX: 0, targetY: 0,
       radius: Math.max(6, Math.min(14, 5 + Math.sqrt(n.score) * 1.8)),
-      color: embedClusterColors[n.cluster] || '#d97757',
+      color: embedClusterColors[n.cluster] || '#6366f1',
       isHub: data.hubs.some(h => h.id === n.id)
     }));
 
@@ -2089,7 +2089,7 @@
       return {
         name: c.name,
         count: c.count,
-        color: embedClusterColors[c.name] || '#d97757',
+        color: embedClusterColors[c.name] || '#6366f1',
         x: Math.cos(angle) * r,
         y: Math.sin(angle) * r,
         targetX: Math.cos(angle) * r,
@@ -2198,7 +2198,7 @@
           const by = currentY + item.boxH / 2;
           const box = {
             name: item.cluster.name,
-            color: embedClusterColors[item.cluster.name] || '#d97757',
+            color: embedClusterColors[item.cluster.name] || '#6366f1',
             x: bx - boxW / 2, y: by - item.boxH / 2,
             w: boxW, h: item.boxH,
             files: item.files
@@ -2427,7 +2427,7 @@
       ctx.save();
       ctx.beginPath();
       ctx.arc(0, 0, 18, 0, Math.PI * 2);
-      ctx.fillStyle = '#d97757';
+      ctx.fillStyle = '#6366f1';
       ctx.fill();
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;

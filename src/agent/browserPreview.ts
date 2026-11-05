@@ -454,14 +454,14 @@ export class BrowserPreviewManager implements vscode.Disposable {
     display: none;
   }
   .__sov_hover_pick__ {
-    outline: 2px dashed #d97757 !important;
+    outline: 2px dashed #6366f1 !important;
     outline-offset: 2px !important;
     cursor: crosshair !important;
   }
   .__sov_btn__.active {
-    background: rgba(217, 119, 87, 0.22);
-    border-color: #d97757;
-    color: #d97757;
+    background: rgba(99, 102, 241, 0.22);
+    border-color: #6366f1;
+    color: #818cf8;
   }
 </style>
 <div id="__sov_bar__">
