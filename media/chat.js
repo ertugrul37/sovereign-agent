@@ -977,10 +977,17 @@
     if (isGraph) {
       if (!embeddedGraphData) {
         vscode.postMessage({ type: 'openGraphify' });
-      } else {
-        requestAnimationFrame(() => resizeAndRedrawGraph());
       }
+      requestAnimationFrame(() => {
+        resizeAndRedrawGraph();
+        embedFitToViewport();
+        startEmbeddedLoop();
+      });
     } else {
+      if (embedRaf) {
+        cancelAnimationFrame(embedRaf);
+        embedRaf = 0;
+      }
       scrollDown();
     }
   }
@@ -1748,6 +1755,7 @@
     requestAnimationFrame(() => {
       resizeAndRedrawGraph();
       embedFitToViewport();
+      startEmbeddedLoop();
     });
   }
 
@@ -1906,19 +1914,27 @@
   }
 
   function embedFitToViewport() {
-    if (!embedSimNodes.length || !embedCanvas) return;
+    if (!embedSimNodes.length) return;
+    if (!embedCanvas) embedCanvas = $('embedGraphCanvas');
+    if (!embedCanvas) return;
     const rect = embedCanvas.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
+    const rw = rect.width > 0 ? rect.width : 400;
+    const rh = rect.height > 0 ? rect.height : 400;
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     embedSimNodes.forEach(n => {
-      minX = Math.min(minX, n.x - 30);
-      maxX = Math.max(maxX, n.x + 30);
-      minY = Math.min(minY, n.y - 30);
-      maxY = Math.max(maxY, n.y + 30);
+      const nx = typeof n.x === 'number' && !isNaN(n.x) ? n.x : (n.targetX || 0);
+      const ny = typeof n.y === 'number' && !isNaN(n.y) ? n.y : (n.targetY || 0);
+      minX = Math.min(minX, nx - 35);
+      maxX = Math.max(maxX, nx + 35);
+      minY = Math.min(minY, ny - 35);
+      maxY = Math.max(maxY, ny + 35);
     });
-    const spanX = Math.max(200, maxX - minX);
-    const spanY = Math.max(200, maxY - minY);
-    embedZoom = Math.min(2.2, Math.max(0.35, Math.min((rect.width - 50) / spanX, (rect.height - 50) / spanY)));
+    if (!isFinite(minX) || !isFinite(maxX)) {
+      minX = -200; maxX = 200; minY = -200; maxY = 200;
+    }
+    const spanX = Math.max(220, maxX - minX);
+    const spanY = Math.max(220, maxY - minY);
+    embedZoom = Math.min(2.0, Math.max(0.35, Math.min((rw - 60) / spanX, (rh - 60) / spanY)));
     embedCamX = -(minX + maxX) / 2 * embedZoom;
     embedCamY = -(minY + maxY) / 2 * embedZoom;
   }
@@ -1928,19 +1944,58 @@
     if (!embedCanvas) return;
     embedCtx = embedCanvas.getContext('2d');
     const rect = embedCanvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
     const dpr = window.devicePixelRatio || 1;
-    if (embedCanvas.width !== Math.floor(rect.width * dpr) || embedCanvas.height !== Math.floor(rect.height * dpr)) {
-      embedCanvas.width = Math.floor(rect.width * dpr);
-      embedCanvas.height = Math.floor(rect.height * dpr);
+    const tw = Math.floor(rect.width * dpr);
+    const th = Math.floor(rect.height * dpr);
+    if (embedCanvas.width !== tw || embedCanvas.height !== th) {
+      embedCanvas.width = tw;
+      embedCanvas.height = th;
     }
   }
 
+  function startEmbeddedLoop() {
+    if (embedRaf) {
+      cancelAnimationFrame(embedRaf);
+      embedRaf = 0;
+    }
+    embedCanvas = $('embedGraphCanvas');
+    if (embedCanvas && !embedCtx) {
+      embedCtx = embedCanvas.getContext('2d');
+    }
+    drawEmbeddedGraph();
+  }
+
   function drawEmbeddedGraph() {
+    const graphSec = $('graphifyViewSection');
+    if (graphSec && graphSec.hidden) {
+      embedRaf = 0;
+      return;
+    }
+
+    if (!embedCanvas) embedCanvas = $('embedGraphCanvas');
+    if (embedCanvas && !embedCtx) embedCtx = embedCanvas.getContext('2d');
+
+    // Keep animation loop ticking as long as graphify view is visible
+    embedRaf = requestAnimationFrame(drawEmbeddedGraph);
+
     if (!embedCanvas || !embedCtx || !embeddedGraphData) return;
     const ctx = embedCtx;
     const dpr = window.devicePixelRatio || 1;
     const rect = embedCanvas.getBoundingClientRect();
     const width = rect.width, height = rect.height;
+    if (width <= 0 || height <= 0) return;
+
+    const tw = Math.floor(width * dpr);
+    const th = Math.floor(height * dpr);
+    if (embedCanvas.width !== tw || embedCanvas.height !== th) {
+      embedCanvas.width = tw;
+      embedCanvas.height = th;
+      if (embedCamX === 0 && embedCamY === 0) {
+        embedFitToViewport();
+      }
+    }
+
     const isLight = document.body.classList.contains('vscode-light');
 
     ctx.save();
@@ -2093,7 +2148,21 @@
       const active = isOutgoing || isIncoming;
       const hovered = embedHoveredNode && (embedHoveredNode.id === a.id || embedHoveredNode.id === b.id);
 
-      if (!active && !hovered && !isCycle) continue;
+      if (!active && !hovered && !isCycle) {
+        if (embedSelectedNode) continue;
+        ctx.save();
+        ctx.globalAlpha = 0.16;
+        ctx.beginPath();
+        const midX = (a.x + b.x) / 2 + (b.y - a.y) * 0.12;
+        const midY = (a.y + b.y) / 2 + (a.x - b.x) * 0.12;
+        ctx.moveTo(a.x, a.y);
+        ctx.quadraticCurveTo(midX, midY, b.x, b.y);
+        ctx.strokeStyle = isLight ? '#64748b' : '#94a3b8';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+        continue;
+      }
 
       ctx.save();
       ctx.globalAlpha = active || hovered || isCycle ? 1 : 0.2;
@@ -2235,7 +2304,6 @@
     }
 
     ctx.restore();
-    embedRaf = requestAnimationFrame(drawEmbeddedGraph);
   }
 
   function renderEmbedDrawer(node) {
@@ -2397,6 +2465,10 @@
 
   let embedEventsBound = false;
   function bindEmbedEventsOnce() {
+    embedCanvas = $('embedGraphCanvas');
+    if (embedCanvas && !embedCtx) {
+      embedCtx = embedCanvas.getContext('2d');
+    }
     if (embedEventsBound) return;
     embedEventsBound = true;
 
@@ -2525,11 +2597,12 @@
     window.addEventListener('resize', () => {
       if (!$('graphifyViewSection').hidden) {
         resizeAndRedrawGraph();
+        embedFitToViewport();
+        startEmbeddedLoop();
       }
     });
 
-    cancelAnimationFrame(embedRaf);
-    drawEmbeddedGraph();
+    startEmbeddedLoop();
   }
 
   document.querySelectorAll('.compare-choice').forEach((button) => {

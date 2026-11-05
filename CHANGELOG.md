@@ -2,6 +2,15 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.39] - 2026-11-05
+
+### Fixed
+- **🕸️ Graphify Architecture Studio Canvas Render Loop & Viewport Initialization (`media/chat.js`):**
+  - **Resilient Continuous Animation Loop:** Fixed an issue where the embedded Graphify canvas could remain black/blank when navigating to the Graphify tab. `drawEmbeddedGraph` now immediately initializes context and maintains a robust `requestAnimationFrame` loop that persists as long as the Graphify view is active, dynamically re-measuring physical canvas bounds.
+  - **Tab Switching & Initial Load Redraw:** Added `startEmbeddedLoop()` and coupled it with `switchViewTab('graphify')`, `initOrUpdateEmbeddedGraph()`, and window resize observers so that the architecture graph is immediately drawn when switching tabs or loading graph data.
+  - **Failsafe Viewport Centering:** Upgraded `embedFitToViewport()` with fallback boundaries so star clusters, module hubs, radiating spokes, and file satellite nodes are always centered and auto-fitted without `NaN` or 0-dimension collapses.
+  - **Subtle Background Dependency Laser Lines:** When no node is clicked, subtle dependency curves are drawn with low opacity to reveal relationships cleanly; clicking or hovering any circle lights up vibrant glowing neon cyan/green laser beams and connected module hubs.
+
 ## [0.1.38] - 2026-11-05
 
 ### Added & Export Engine

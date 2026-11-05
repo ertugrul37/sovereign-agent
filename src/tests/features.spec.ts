@@ -132,5 +132,15 @@ test('chat export UI controls and download icons exist in media/chat.js and chat
   assert.ok(providerTs.includes('handleExportChat'), 'chatViewProvider implements handleExportChat');
 });
 
+test('Graphify embedded canvas has resilient render loop and initialization', async () => {
+  const chatJs = await fs.readFile(path.join(__dirname, '../../media/chat.js'), 'utf8');
+  assert.ok(chatJs.includes('startEmbeddedLoop'), 'chat.js defines startEmbeddedLoop');
+  assert.ok(chatJs.includes('embedFitToViewport'), 'chat.js defines embedFitToViewport');
+  assert.ok(chatJs.includes('resizeAndRedrawGraph'), 'chat.js defines resizeAndRedrawGraph');
+  assert.ok(chatJs.includes('drawEmbeddedGraph'), 'chat.js defines drawEmbeddedGraph');
+  assert.ok(chatJs.includes("switchViewTab('graphify')"), 'chat.js handles switching to graphify');
+  assert.ok(chatJs.includes('requestAnimationFrame(drawEmbeddedGraph)'), 'drawEmbeddedGraph continuously ticks RAF');
+});
+
 
 
