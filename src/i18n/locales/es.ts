@@ -169,4 +169,8 @@ export const es: Record<MessageKey, string> = {
   ,'ui.exportEmpty': 'No hay historial de chat para exportar.'
   ,'ui.exportCopied': '✓ ¡Transcripción del chat copiada al portapapeles!'
   ,'ui.exportSaved': '✓ Exportación del chat guardada en {file}'
+  ,'ui.exportPdf': 'Guardar como PDF (.pdf)'
+  ,'ui.exportPdfDesc': 'Genera un documento PDF idéntico a la interfaz del chat'
+  ,'ui.exportPdfSaved': '✓ PDF del chat exportado a {file}'
+  ,'ui.openFile': 'Abrir archivo'
 };

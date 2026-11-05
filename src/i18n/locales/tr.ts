@@ -169,4 +169,8 @@ export const tr: Record<MessageKey, string> = {
   ,'ui.exportEmpty': 'Dışa aktarılacak sohbet geçmişi bulunmuyor.'
   ,'ui.exportCopied': '✓ Sohbet geçmişi panoya kopyalandı!'
   ,'ui.exportSaved': '✓ Sohbet çıktısı {file} dosyasına kaydedildi'
+  ,'ui.exportPdf': 'PDF Olarak Kaydet (.pdf)'
+  ,'ui.exportPdfDesc': 'Sohbetin birebir arayüz görüntüsüyle şık PDF dokümanı oluşturur'
+  ,'ui.exportPdfSaved': '✓ Sohbet PDF belgesi {file} dosyasına kaydedildi'
+  ,'ui.openFile': 'Dosyayı Aç'
 };

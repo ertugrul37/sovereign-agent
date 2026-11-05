@@ -142,5 +142,42 @@ test('Graphify embedded canvas has resilient render loop and initialization', as
   assert.ok(chatJs.includes('requestAnimationFrame(drawEmbeddedGraph)'), 'drawEmbeddedGraph continuously ticks RAF');
 });
 
+test('Chat PDF visual export engine generates 1:1 chat replication document', async () => {
+  const { buildChatHtml, renderMarkdownToHtml, findHeadlessBrowser } = await import('../ui/pdfExport');
+
+  const history = [
+    { role: 'user' as const, content: 'Analyze circular dependencies in `src/agent/agent.ts` $\\rightarrow$ `src/i18n/index.ts`' },
+    { role: 'assistant' as const, content: '### Architecture Overview\n\n| File | Type | Status |\n|---|---|---|\n| agent.ts | Core | Ok |\n\n```typescript\nconst a = 1;\n```' }
+  ];
+
+  const html = buildChatHtml({
+    history,
+    workspaceName: 'test-sovereign',
+    model: 'qwen2.5-coder:7b',
+    date: new Date()
+  });
+
+  assert.ok(html.includes('Sovereign Agent — Chat Transcript'), 'contains branded header');
+  assert.ok(html.includes('test-sovereign'), 'contains workspace name');
+  assert.ok(html.includes('qwen2.5-coder:7b'), 'contains model badge');
+  assert.ok(html.includes('user-bubble'), 'renders user message card');
+  assert.ok(html.includes('assistant-bubble'), 'renders assistant message card');
+  assert.ok(html.includes('code-filepath'), 'highlights source code paths');
+  assert.ok(html.includes('chat-table'), 'renders markdown table');
+  assert.ok(html.includes('code-block'), 'renders code block');
+  assert.ok(html.includes('@page'), 'includes print page rules');
+  assert.ok(html.includes('print-color-adjust: exact'), 'enforces exact color printing');
+
+  const mdHtml = renderMarkdownToHtml('Use `config.ts` $\\rightarrow$ `types.ts`');
+  assert.ok(mdHtml.includes('→'), 'converts LaTeX arrow to Unicode');
+  assert.ok(mdHtml.includes('code-filepath'), 'detects filename in backticks');
+
+  const browser = findHeadlessBrowser();
+  // On Windows, Edge is installed; on other systems browser might be string or null
+  if (process.platform === 'win32') {
+    assert.ok(browser, 'detected Edge or Chrome on Windows');
+  }
+});
+
 
 

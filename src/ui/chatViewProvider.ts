@@ -21,6 +21,7 @@ import { GraphifyManager, formatGraphSummary, buildCodeGraph } from '../agent/gr
 import { SnapshotManager } from '../agent/snapshot';
 import { TddRunner } from '../agent/tddRunner';
 import { HardwareBenchmark } from '../agent/benchmark';
+import { buildChatHtml, exportToPdf } from './pdfExport';
 
 const execFileAsync = promisify(execFile);
 
@@ -71,7 +72,7 @@ type FromWebview =
   | { type: 'openGraphifyInTab' }
   | { type: 'refreshGraphify' }
   | { type: 'exportArchitectureReport' }
-  | { type: 'exportChat'; format?: 'markdown' | 'json' | 'clipboard' | 'editor' }
+  | { type: 'exportChat'; format?: 'markdown' | 'json' | 'clipboard' | 'editor' | 'pdf' }
   | { type: 'openFile'; file?: string; path?: string }
   | { type: 'confirmResponse'; id: string; allow: boolean };
 
@@ -338,7 +339,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     void vscode.window.showInformationMessage(t('checkpoint.restored', { path: checkpoint.path }));
   }
 
-  async handleExportChat(format?: 'markdown' | 'json' | 'clipboard' | 'editor'): Promise<void> {
+  async handleExportChat(format?: 'markdown' | 'json' | 'clipboard' | 'editor' | 'pdf'): Promise<void> {
     this.restoreHistory();
     const history = this.agent.getHistory();
     if (!history.length) {
@@ -348,6 +349,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     if (!format) {
       const picks = [
+        { label: `$(file-pdf) ${t('ui.exportPdf')}`, id: 'pdf', description: t('ui.exportPdfDesc') },
         { label: `$(markdown) ${t('ui.exportMarkdown')}`, id: 'markdown', description: 'Save as .md file in workspace' },
         { label: `$(link-external) ${t('ui.exportEditor')}`, id: 'editor', description: 'Open transcript in new editor tab' },
         { label: `$(clippy) ${t('ui.exportClipboard')}`, id: 'clipboard', description: 'Copy full markdown transcript to clipboard' },
@@ -357,7 +359,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         placeHolder: t('ui.exportChatTitle')
       });
       if (!picked) return;
-      format = picked.id as 'markdown' | 'json' | 'clipboard' | 'editor';
+      format = picked.id as 'markdown' | 'json' | 'clipboard' | 'editor' | 'pdf';
     }
 
     const cfg = this.prepare();
@@ -365,6 +367,33 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const wsName = folder ? path.basename(folder.uri.fsPath) : 'Sovereign Agent';
     const now = new Date();
     const timeStr = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+
+    if (format === 'pdf') {
+      const html = buildChatHtml({ history, workspaceName: wsName, model: cfg.model, date: now });
+      const defaultUri = folder
+        ? vscode.Uri.joinPath(folder.uri, `chat-transcript-${timeStr}.pdf`)
+        : undefined;
+      const targetUri = await vscode.window.showSaveDialog({
+        defaultUri,
+        filters: { 'PDF Documents': ['pdf'], 'HTML Documents': ['html'] },
+        saveLabel: t('ui.exportPdf')
+      });
+      if (targetUri) {
+        const res = await exportToPdf(html, targetUri.fsPath);
+        if (res.ok) {
+          const action = await vscode.window.showInformationMessage(
+            t('ui.exportPdfSaved', { file: path.basename(res.targetPath) }),
+            t('ui.openFile')
+          );
+          if (action === t('ui.openFile')) {
+            await vscode.env.openExternal(vscode.Uri.file(res.targetPath));
+          }
+        } else {
+          void vscode.window.showErrorMessage(`PDF export failed: ${res.error || 'Unknown error'}`);
+        }
+      }
+      return;
+    }
 
     if (format === 'json') {
       const payload = {
@@ -904,8 +933,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
     if (/^\/export\b/i.test(text.trim())) {
       const rest = text.trim().replace(/^\/export\b/i, '').trim().toLowerCase();
-      let fmt: 'markdown' | 'json' | 'clipboard' | 'editor' | undefined = undefined;
-      if (rest === 'md' || rest === 'markdown') fmt = 'markdown';
+      let fmt: 'markdown' | 'json' | 'clipboard' | 'editor' | 'pdf' | undefined = undefined;
+      if (rest === 'pdf') fmt = 'pdf';
+      else if (rest === 'md' || rest === 'markdown') fmt = 'markdown';
       else if (rest === 'json') fmt = 'json';
       else if (rest === 'copy' || rest === 'clipboard') fmt = 'clipboard';
       else if (rest === 'editor' || rest === 'tab') fmt = 'editor';

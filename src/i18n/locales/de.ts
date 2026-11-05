@@ -169,4 +169,8 @@ export const de: Record<MessageKey, string> = {
   ,'ui.exportEmpty': 'Kein Chat-Verlauf zum Exportieren vorhanden.'
   ,'ui.exportCopied': '✓ Chat-Protokoll in die Zwischenablage kopiert!'
   ,'ui.exportSaved': '✓ Chat-Export in {file} gespeichert'
+  ,'ui.exportPdf': 'Als PDF speichern (.pdf)'
+  ,'ui.exportPdfDesc': 'Erstellt ein exaktes PDF im Chat-Design'
+  ,'ui.exportPdfSaved': '✓ Chat als PDF in {file} gespeichert'
+  ,'ui.openFile': 'Datei öffnen'
 };

@@ -2,6 +2,20 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.40] - 2026-11-05
+
+### Added & Visual PDF Export Engine
+- **📕 1:1 Pixel-Perfect Chat PDF Export Engine (`src/ui/pdfExport.ts`, `src/ui/chatViewProvider.ts`, `media/chat.js`):**
+  - **Identical Visual Replication ("Ekran Görüntüsü Gibi"):** Exports the entire chat conversation as a true PDF document styled identically to the active chat UI. Features sleek dark theme backgrounds (`#141416`), glowing author badges, user message cards (`#2a2926`), assistant cards (`#1a1a1d`), fenced syntax-highlighted code blocks, clean markdown tables with alternating zebra striping, `.code-filepath` chips, and Unicode mathematical/LaTeX arrows (`→`).
+  - **Zero External Dependencies / 100% Local:** Uses native headless Chromium engine (Microsoft Edge / Google Chrome / Chromium) with `--headless --print-to-pdf --run-all-compositor-stages-before-draw` to output vector PDFs with selectable text, high-DPI fonts, and strict `@page` print rules (`print-color-adjust: exact`).
+  - **Graceful Portable Fallback:** If a headless browser is not present in standard system directories, automatically produces a standalone self-contained printable HTML document with auto-print scripts and opens it in the browser.
+  - **Multiple Access Points:**
+    - Top header export menu (`#exportChat`) ➔ `📕 PDF Olarak Kaydet (.pdf)`
+    - Plus (`+`) composer action menu ➔ `Sohbeti Dışa Aktar` ➔ `PDF Olarak Kaydet (.pdf)`
+    - Slash command: `/export pdf`
+    - VS Code Command Palette: `Sovereign Agent: 📕 Export Chat Transcript as PDF (.pdf)` (`sovereignAgent.exportChatPdf`)
+  - **Full Multi-Language Localization:** PDF export actions, descriptions, and notification toasts are localized in Turkish (`tr`), English (`en`), German (`de`), Spanish (`es`), and French (`fr`).
+
 ## [0.1.39] - 2026-11-05
 
 ### Fixed

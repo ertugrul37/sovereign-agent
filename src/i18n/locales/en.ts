@@ -172,6 +172,10 @@ export const en = {
   ,'ui.exportEmpty': 'No chat messages to export.'
   ,'ui.exportCopied': '✓ Chat transcript copied to clipboard!'
   ,'ui.exportSaved': '✓ Chat export saved to {file}'
+  ,'ui.exportPdf': 'Save as PDF (.pdf)'
+  ,'ui.exportPdfDesc': 'Generates pixel-perfect PDF replicating the chat UI'
+  ,'ui.exportPdfSaved': '✓ Chat PDF exported to {file}'
+  ,'ui.openFile': 'Open File'
 };
 
 export type MessageKey = keyof typeof en;

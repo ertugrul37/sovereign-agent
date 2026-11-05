@@ -608,6 +608,7 @@
     mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
     folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
     file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
+    pdf: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/><path d="M14 2v6h6"/><path d="M10 12h-1v4h1a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1z"/>',
     terminal: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
     star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor"/>',
     monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
@@ -817,6 +818,7 @@
 
   function exportRows() {
     return [
+      menuRow({ icon: 'pdf', label: s('ui.exportPdf') || 'PDF Olarak Kaydet (.pdf)', onClick: () => post({ type: 'exportChat', format: 'pdf' }) }),
       menuRow({ icon: 'file', label: s('ui.exportMarkdown') || 'Markdown Olarak Kaydet (.md)', onClick: () => post({ type: 'exportChat', format: 'markdown' }) }),
       menuRow({ icon: 'code', label: s('ui.exportEditor') || 'Yeni Sekmede Aç', onClick: () => post({ type: 'exportChat', format: 'editor' }) }),
       menuRow({ icon: 'copy', label: s('ui.exportClipboard') || 'Panoya Kopyala', onClick: () => post({ type: 'exportChat', format: 'clipboard' }) }),
