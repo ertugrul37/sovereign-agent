@@ -265,7 +265,7 @@ export async function buildCodeGraph(root: string): Promise<CodeGraphData> {
     node.score = node.importedBy.length * 2 + node.imports.length + Math.min(5, Math.floor(node.symbols.length / 3));
   }
 
-  // Detect 2-node circular dependencies
+  // Detect circular dependencies
   const cycles: string[][] = [];
   const seenCycles = new Set<string>();
   for (const a of nodes) {
@@ -327,7 +327,6 @@ export function generateArchitectureReportMarkdown(data: CodeGraphData): string 
     ? data.orphans.slice(0, 15).map((o) => `- \`${o.id}\` (${o.lines} lines)`).join('\n')
     : '_None detected._';
 
-  // Build a concise Mermaid diagram for top architectural relationships
   const mermaidEdges = data.edges.slice(0, 45).map((e) => {
     const fromSafe = e.from.replace(/[\/\.-]/g, '_');
     const toSafe = e.to.replace(/[\/\.-]/g, '_');
@@ -357,7 +356,7 @@ ${clusterRows}
 ---
 
 ## 👑 Top Architectural Hubs (High Coupling)
-These files are the critical backbone of the workspace. Changes to these modules will impact the largest portion of the project:
+These files are the critical backbone of the workspace:
 
 | # | Module File | Cluster | Dependents (In) | Dependencies (Out) | Lines |
 | :- | :--- | :--- | :- | :- | :- |
@@ -371,7 +370,6 @@ ${cycleSection}
 ---
 
 ## 🗑️ Orphan Files (Dead Code Candidates)
-Files that neither import workspace modules nor are imported by other files:
 ${orphanSection}
 
 ---
@@ -659,8 +657,9 @@ export class GraphifyManager implements vscode.Disposable {
   }
   .segmented { display: inline-flex; padding: 2px; border-radius: 8px; background: var(--surface-2); gap: 2px; }
   .seg-btn {
-    padding: 3px 8px; border: 0; border-radius: 6px; background: transparent;
-    color: var(--muted); font-size: 11px; font-weight: 500; cursor: pointer;
+    padding: 4px 10px; border: 0; border-radius: 6px; background: transparent;
+    color: var(--muted); font-size: 11.5px; font-weight: 500; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
   }
   .seg-btn:hover { color: var(--text); }
   .seg-btn.active {
@@ -716,7 +715,7 @@ export class GraphifyManager implements vscode.Disposable {
   .node-tooltip {
     position: absolute; pointer-events: none; padding: 6px 10px; border-radius: 8px;
     background: var(--menu); border: 1px solid var(--line); box-shadow: var(--shadow);
-    font-size: 11px; z-index: 20; display: none; max-width: 240px;
+    font-size: 11px; z-index: 20; display: none; max-width: 250px;
   }
   .node-tooltip strong { color: var(--text); display: block; margin-bottom: 2px; }
   .node-tooltip span { color: var(--muted); }
@@ -801,9 +800,9 @@ export class GraphifyManager implements vscode.Disposable {
     <div class="canvas-wrap">
       <div class="canvas-controls">
         <div class="segmented" id="layoutSegmented">
-          <button type="button" class="seg-btn active" data-layout="force" title="Force-directed physics grouped by cluster">⚡ Clusters</button>
-          <button type="button" class="seg-btn" data-layout="hierarchy" title="Layered top-to-bottom architecture tiers">🏛️ Hierarchy</button>
-          <button type="button" class="seg-btn" data-layout="radial" title="Concentric orbits around God-Node hubs">🎯 Radial</button>
+          <button type="button" class="seg-btn active" data-layout="star" title="Ana Yıldız ve Kollar: Çekirdek yıldızdan dallanan temiz takımyıldız mimarisi">⭐ Yıldız & Kollar</button>
+          <button type="button" class="seg-btn" data-layout="diagram" title="Bileşen Blok Diyagramı: Temiz modül kutuları ve kartlar">📦 Blok Diyagramı</button>
+          <button type="button" class="seg-btn" data-layout="hierarchy" title="Yukarıdan aşağıya katmanlı mimari hiyerarşisi">🏛️ Hiyerarşi</button>
         </div>
         <button type="button" id="focusModeBtn" class="filter-toggle" title="Isolate 1-hop neighborhood of selected node">🎯 1-Hop Focus</button>
         <button type="button" id="cyclesBtn" class="filter-toggle warn" title="Highlight circular dependencies">⚠️ Cycles (<span id="cycleCountBadge">0</span>)</button>
@@ -883,31 +882,56 @@ export class GraphifyManager implements vscode.Disposable {
     legendEl.appendChild(item);
   });
 
-  const clusterIndex = {};
-  data.clusters.forEach((c, i) => { clusterIndex[c.name] = i; });
-  const totalClusters = Math.max(1, data.clusters.length);
-
-  // Compute cluster centers
-  const clusterCenters = {};
-  data.clusters.forEach((c, i) => {
-    const angle = (i / totalClusters) * Math.PI * 2;
-    const r = 240 + (i % 3) * 60;
-    clusterCenters[c.name] = { x: Math.cos(angle) * r, y: Math.sin(angle) * r };
+  // Group files by cluster
+  const filesByCluster = new Map();
+  data.clusters.forEach(c => filesByCluster.set(c.name, []));
+  data.nodes.forEach(n => {
+    if (!filesByCluster.has(n.cluster)) filesByCluster.set(n.cluster, []);
+    filesByCluster.get(n.cluster).push(n);
   });
 
+  // Central Star Definition
+  const coreStar = {
+    id: '__core__',
+    label: '⭐ ' + data.workspaceName,
+    cluster: 'core',
+    x: 0,
+    y: 0,
+    targetX: 0,
+    targetY: 0,
+    radius: 32,
+    isCore: true
+  };
+
+  // Module Hub Stars (The planetary branches / major arms)
+  const totalClusters = Math.max(1, data.clusters.length);
+  const moduleHubs = data.clusters.map((c, i) => {
+    const angle = (i / totalClusters) * Math.PI * 2 - Math.PI / 2;
+    const r = 210;
+    return {
+      name: c.name,
+      count: c.count,
+      angle,
+      color: clusterColors[c.name] || '#d97757',
+      x: Math.cos(angle) * r,
+      y: Math.sin(angle) * r,
+      targetX: Math.cos(angle) * r,
+      targetY: Math.sin(angle) * r,
+      radius: 20
+    };
+  });
+  const moduleHubByName = new Map(moduleHubs.map(m => [m.name, m]));
+
+  // Create simulation nodes for all files
   const simNodes = data.nodes.map((n, i) => {
-    const cc = clusterCenters[n.cluster] || { x: 0, y: 0 };
-    const spread = (i % 7) * 22;
     const isHub = data.hubs.some(h => h.id === n.id);
     return {
       ...n,
-      x: cc.x + (Math.random() - 0.5) * 80 + spread,
-      y: cc.y + (Math.random() - 0.5) * 80,
-      targetX: cc.x,
-      targetY: cc.y,
-      vx: 0,
-      vy: 0,
-      radius: Math.max(7, Math.min(22, 6 + Math.sqrt(n.score) * 2.8)),
+      x: 0,
+      y: 0,
+      targetX: 0,
+      targetY: 0,
+      radius: Math.max(7, Math.min(20, 6 + Math.sqrt(n.score) * 2.5)),
       color: clusterColors[n.cluster] || '#d97757',
       isHub
     };
@@ -928,9 +952,12 @@ export class GraphifyManager implements vscode.Disposable {
   let panning = false;
   let lastMouse = { x: 0, y: 0 };
   let filterQuery = '';
-  let currentLayout = 'force';
+  let currentLayout = 'star'; // Default to user-requested Star & Constellation Arms
   let focus1HopMode = false;
   let cyclesHighlightMode = false;
+
+  // Block Diagram Card layout metrics
+  const clusterBoxes = [];
 
   function updateZoomLabel() {
     const el = document.getElementById('zoomPercent');
@@ -946,18 +973,75 @@ export class GraphifyManager implements vscode.Disposable {
   window.addEventListener('resize', resize);
   resize();
 
-  // Layout Algorithms
+  // Compute Layout Positions
   function applyLayout(layout) {
     currentLayout = layout;
-    if (layout === 'hierarchy') {
-      // Compute topological tier levels based on importedBy vs imports
+
+    if (layout === 'star') {
+      // 1. STAR CONSTELLATION: Central Star at (0,0), Module Arms at R=220, Files fanning out
+      coreStar.targetX = 0;
+      coreStar.targetY = 0;
+
+      moduleHubs.forEach((m, i) => {
+        const angle = (i / totalClusters) * Math.PI * 2 - Math.PI / 2;
+        const r = 210;
+        m.targetX = Math.cos(angle) * r;
+        m.targetY = Math.sin(angle) * r;
+        m.angle = angle;
+
+        // Position satellite files on this module's arm
+        const files = (filesByCluster.get(m.name) || []).map(f => nodeById.get(f.id)).filter(Boolean);
+        const count = files.length;
+        const fanSpan = Math.min(Math.PI * 1.1, 0.28 * count);
+        files.forEach((f, j) => {
+          const subAngle = count === 1 ? angle : (angle - fanSpan / 2 + (j / (count - 1)) * fanSpan);
+          const dist = 115 + (j % 2) * 25;
+          f.targetX = m.targetX + Math.cos(subAngle) * dist;
+          f.targetY = m.targetY + Math.sin(subAngle) * dist;
+        });
+      });
+    } else if (layout === 'diagram') {
+      // 2. BLOCK DIAGRAM: Neat architectural cards arranged in a grid with columns
+      clusterBoxes.length = 0;
+      const cols = Math.min(3, Math.max(2, Math.ceil(Math.sqrt(totalClusters))));
+      const boxW = 240;
+      const spacingX = 300;
+      const spacingY = 220;
+
+      data.clusters.forEach((c, idx) => {
+        const col = idx % cols;
+        const row = Math.floor(idx / cols);
+        const bx = (col - (cols - 1) / 2) * spacingX;
+        const by = (row - Math.floor(totalClusters / cols) / 2) * spacingY;
+
+        const files = (filesByCluster.get(c.name) || []).map(f => nodeById.get(f.id)).filter(Boolean);
+        const boxH = Math.max(90, Math.min(260, 42 + files.length * 20));
+
+        clusterBoxes.push({
+          name: c.name,
+          color: clusterColors[c.name] || '#d97757',
+          x: bx - boxW / 2,
+          y: by - boxH / 2,
+          w: boxW,
+          h: boxH,
+          files
+        });
+
+        // Position nodes inside the card box in an orderly list
+        files.forEach((f, fi) => {
+          f.targetX = bx - boxW / 2 + 18;
+          f.targetY = by - boxH / 2 + 40 + fi * 19;
+        });
+      });
+    } else if (layout === 'hierarchy') {
+      // 3. LAYERED ARCHITECTURE: Top-down tiers
       const levels = new Map();
       simNodes.forEach(n => {
         let lvl = 1;
-        if (n.importedBy.length === 0) lvl = 0; // Root entrypoint
-        else if (n.imports.length === 0) lvl = 3; // Leaf utility
-        else if (n.isHub) lvl = 1; // Core service
-        else lvl = 2; // Mid-tier
+        if (n.importedBy.length === 0) lvl = 0; // Entrypoints / controllers
+        else if (n.imports.length === 0) lvl = 3; // Core utilities / leaves
+        else if (n.isHub) lvl = 1; // Core hubs
+        else lvl = 2; // Mid services
         levels.set(n.id, lvl);
       });
       const levelGroups = [[], [], [], []];
@@ -966,75 +1050,26 @@ export class GraphifyManager implements vscode.Disposable {
         levelGroups[lvl].push(n);
       });
       levelGroups.forEach((group, lvlIdx) => {
-        const y = (lvlIdx - 1.5) * 170;
+        const y = (lvlIdx - 1.5) * 165;
         const count = group.length;
         group.forEach((node, i) => {
           node.targetX = (i - count / 2) * 95;
           node.targetY = y;
         });
       });
-    } else if (layout === 'radial') {
-      // Radial orbits around God-nodes
-      const hubList = data.hubs.map(h => nodeById.get(h.id)).filter(Boolean);
-      const hubCount = Math.max(1, hubList.length);
-      hubList.forEach((h, i) => {
-        const angle = (i / hubCount) * Math.PI * 2;
-        h.targetX = Math.cos(angle) * 90;
-        h.targetY = Math.sin(angle) * 90;
-      });
-      const others = simNodes.filter(n => !n.isHub);
-      others.forEach((n, i) => {
-        const angle = (i / others.length) * Math.PI * 2;
-        const dist = 240 + (i % 4) * 45;
-        n.targetX = Math.cos(angle) * dist;
-        n.targetY = Math.sin(angle) * dist;
-      });
-    } else {
-      // Cluster force layout
-      simNodes.forEach((n) => {
-        const cc = clusterCenters[n.cluster] || { x: 0, y: 0 };
-        n.targetX = cc.x;
-        n.targetY = cc.y;
-      });
     }
   }
 
-  // Pre-relax force layout
-  for (let tick = 0; tick < 100; tick++) {
-    for (let i = 0; i < simNodes.length; i++) {
-      const a = simNodes[i];
-      for (let j = i + 1; j < simNodes.length; j++) {
-        const b = simNodes[j];
-        let dx = b.x - a.x, dy = b.y - a.y;
-        let d2 = dx * dx + dy * dy + 1;
-        if (d2 < 18000) {
-          const f = 1100 / d2;
-          a.vx -= dx * f; a.vy -= dy * f;
-          b.vx += dx * f; b.vy += dy * f;
-        }
-      }
-    }
-    for (const edge of data.edges) {
-      const a = nodeById.get(edge.from);
-      const b = nodeById.get(edge.to);
-      if (!a || !b) continue;
-      const dx = b.x - a.x, dy = b.y - a.y;
-      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      const force = (dist - 110) * 0.016;
-      a.vx += (dx / dist) * force; a.vy += (dy / dist) * force;
-      b.vx -= (dx / dist) * force; b.vy -= (dy / dist) * force;
-    }
-    for (const n of simNodes) {
-      const cc = clusterCenters[n.cluster] || { x: 0, y: 0 };
-      n.vx += (cc.x - n.x) * 0.008;
-      n.vy += (cc.y - n.y) * 0.008;
-      n.vx *= 0.65; n.vy *= 0.65;
-      n.x += Math.max(-18, Math.min(18, n.vx));
-      n.y += Math.max(-18, Math.min(18, n.vy));
-      n.targetX = n.x;
-      n.targetY = n.y;
-    }
-  }
+  // Initial layout calculation
+  applyLayout('star');
+  simNodes.forEach(n => {
+    n.x = n.targetX;
+    n.y = n.targetY;
+  });
+  moduleHubs.forEach(m => {
+    m.x = m.targetX;
+    m.y = m.targetY;
+  });
 
   function matchesFilter(n) {
     if (activeClusterFilter && n.cluster !== activeClusterFilter) return false;
@@ -1072,9 +1107,15 @@ export class GraphifyManager implements vscode.Disposable {
       if (n.y < minY) minY = n.y;
       if (n.y > maxY) maxY = n.y;
     });
-    const graphW = Math.max(200, maxX - minX + 100);
-    const graphH = Math.max(200, maxY - minY + 100);
-    const fitZoom = Math.max(0.2, Math.min(1.4, Math.min(rect.width / graphW, rect.height / graphH) * 0.85));
+    if (currentLayout === 'star') {
+      minX = Math.min(minX, -260);
+      maxX = Math.max(maxX, 260);
+      minY = Math.min(minY, -260);
+      maxY = Math.max(maxY, 260);
+    }
+    const graphW = Math.max(260, maxX - minX + 120);
+    const graphH = Math.max(260, maxY - minY + 120);
+    const fitZoom = Math.max(0.25, Math.min(1.2, Math.min(rect.width / graphW, rect.height / graphH) * 0.88));
     zoom = fitZoom;
     camX = -((minX + maxX) / 2) * zoom;
     camY = -((minY + maxY) / 2) * zoom;
@@ -1090,17 +1131,121 @@ export class GraphifyManager implements vscode.Disposable {
 
     const isLight = document.body.classList.contains('theme-light');
 
-    // Interpolate node positions for smooth layout transitions
-    if (currentLayout !== 'force') {
-      for (const n of simNodes) {
-        if (n !== draggingNode) {
-          n.x += (n.targetX - n.x) * 0.12;
-          n.y += (n.targetY - n.y) * 0.12;
+    // Smooth lerp transition to target positions
+    for (const n of simNodes) {
+      if (n !== draggingNode) {
+        n.x += (n.targetX - n.x) * 0.14;
+        n.y += (n.targetY - n.y) * 0.14;
+      }
+    }
+    for (const m of moduleHubs) {
+      m.x += (m.targetX - m.x) * 0.14;
+      m.y += (m.targetY - m.y) * 0.14;
+    }
+
+    // ----------------------------------------------------
+    // 1. STAR & CONSTELLATION ARMS RENDERING (The User's Request!)
+    // ----------------------------------------------------
+    if (currentLayout === 'star') {
+      // Central Star Solar Corona / Radiance
+      const corona = ctx.createRadialGradient(0, 0, 8, 0, 0, 75);
+      corona.addColorStop(0, 'rgba(217, 119, 87, 0.45)');
+      corona.addColorStop(0.5, 'rgba(217, 119, 87, 0.15)');
+      corona.addColorStop(1, 'rgba(217, 119, 87, 0)');
+      ctx.beginPath();
+      ctx.arc(0, 0, 75, 0, Math.PI * 2);
+      ctx.fillStyle = corona;
+      ctx.fill();
+
+      // Major Stellar Arms (Beams from Central Star to Module Stars)
+      for (const m of moduleHubs) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(m.x, m.y);
+        ctx.strokeStyle = m.color;
+        ctx.lineWidth = 3.2;
+        ctx.globalAlpha = activeClusterFilter && activeClusterFilter !== m.name ? 0.15 : 0.75;
+        ctx.stroke();
+
+        // Branch Rays from Module Star to its Satellite Files
+        const files = (filesByCluster.get(m.name) || []).map(f => nodeById.get(f.id)).filter(Boolean);
+        for (const f of files) {
+          ctx.beginPath();
+          ctx.moveTo(m.x, m.y);
+          ctx.lineTo(f.x, f.y);
+          ctx.strokeStyle = isLight ? 'rgba(31, 30, 29, 0.22)' : 'rgba(236, 233, 228, 0.2)';
+          ctx.lineWidth = 1.2;
+          ctx.globalAlpha = matchesFilter(f) ? 0.6 : 0.08;
+          ctx.stroke();
         }
+        ctx.restore();
+      }
+
+      // Draw Central Star Body
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, 24, 0, Math.PI * 2);
+      ctx.fillStyle = '#d97757';
+      ctx.fill();
+      ctx.strokeStyle = isLight ? '#ffffff' : '#faf9f5';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      ctx.font = '600 12.5px var(--serif, Georgia)';
+      ctx.fillStyle = isLight ? '#1f1e1d' : '#ece9e4';
+      ctx.textAlign = 'center';
+      ctx.fillText('⭐ ' + data.workspaceName, 0, 40);
+      ctx.restore();
+
+      // Draw Module Hub Stars
+      for (const m of moduleHubs) {
+        ctx.save();
+        ctx.globalAlpha = activeClusterFilter && activeClusterFilter !== m.name ? 0.2 : 1;
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, 14, 0, Math.PI * 2);
+        ctx.fillStyle = m.color;
+        ctx.fill();
+        ctx.strokeStyle = isLight ? '#ffffff' : '#1f1f1e';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.font = '600 11.5px var(--sans, system-ui)';
+        ctx.fillStyle = isLight ? '#1f1e1d' : '#ece9e4';
+        ctx.textAlign = 'center';
+        ctx.fillText('📦 ' + m.name + ' (' + m.count + ')', m.x, m.y + (m.y >= 0 ? 24 : -18));
+        ctx.restore();
+      }
+    } else if (currentLayout === 'diagram') {
+      // ----------------------------------------------------
+      // 2. BLOCK ARCHITECTURE DIAGRAM (Grouped Component Boxes)
+      // ----------------------------------------------------
+      for (const box of clusterBoxes) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(box.x, box.y, box.w, box.h, 10);
+        ctx.fillStyle = isLight ? '#ffffff' : '#1f1f1e';
+        ctx.fill();
+        ctx.strokeStyle = isLight ? '#dcd9ce' : '#3a3a37';
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+
+        // Box Header Banner
+        ctx.beginPath();
+        ctx.roundRect(box.x, box.y, box.w, 28, [10, 10, 0, 0]);
+        ctx.fillStyle = box.color;
+        ctx.fill();
+
+        ctx.font = '600 11.5px var(--sans, system-ui)';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('📦 ' + box.name + ' (' + box.files.length + ')', box.x + 10, box.y + 18);
+        ctx.restore();
       }
     }
 
-    // Draw edges with directional arrows
+    // ----------------------------------------------------
+    // Inter-file dependencies (Import Arcs)
+    // ----------------------------------------------------
     for (const edge of data.edges) {
       const a = nodeById.get(edge.from);
       const b = nodeById.get(edge.to);
@@ -1112,13 +1257,15 @@ export class GraphifyManager implements vscode.Disposable {
       const active = selectedNode && (selectedNode.id === a.id || selectedNode.id === b.id);
       const hovered = hoveredNode && (hoveredNode.id === a.id || hoveredNode.id === b.id);
 
+      // Only draw non-active lines if hovered/selected or cycle, or in hierarchy mode
+      if (!active && !hovered && !isCycle && currentLayout === 'star') continue;
+
       ctx.save();
-      ctx.globalAlpha = (aVis && bVis) ? (active || hovered || isCycle ? 0.95 : 0.35) : 0.06;
+      ctx.globalAlpha = (aVis && bVis) ? (active || hovered || isCycle ? 0.95 : 0.25) : 0.05;
 
       ctx.beginPath();
-      // Draw smooth quadratic curved edge
-      const midX = (a.x + b.x) / 2 + (b.y - a.y) * 0.1;
-      const midY = (a.y + b.y) / 2 + (a.x - b.x) * 0.1;
+      const midX = (a.x + b.x) / 2 + (b.y - a.y) * 0.12;
+      const midY = (a.y + b.y) / 2 + (a.x - b.x) * 0.12;
       ctx.moveTo(a.x, a.y);
       ctx.quadraticCurveTo(midX, midY, b.x, b.y);
 
@@ -1127,19 +1274,18 @@ export class GraphifyManager implements vscode.Disposable {
         ctx.lineWidth = 2.4;
         ctx.setLineDash([5, 4]);
       } else if (active) {
-        // Highlight import direction
         ctx.strokeStyle = selectedNode.id === a.id ? '#d97757' : '#73c991';
-        ctx.lineWidth = 2.2;
+        ctx.lineWidth = 2.4;
       } else if (hovered) {
         ctx.strokeStyle = '#38bdf8';
         ctx.lineWidth = 1.8;
       } else {
-        ctx.strokeStyle = isLight ? 'rgba(31, 30, 29, 0.22)' : 'rgba(236, 233, 228, 0.2)';
+        ctx.strokeStyle = isLight ? 'rgba(31, 30, 29, 0.25)' : 'rgba(236, 233, 228, 0.22)';
         ctx.lineWidth = 1;
       }
       ctx.stroke();
 
-      // Arrowhead near destination
+      // Arrowhead
       const dx = b.x - midX, dy = b.y - midY;
       const angle = Math.atan2(dy, dx);
       const arrowDist = b.radius + 3;
@@ -1155,14 +1301,16 @@ export class GraphifyManager implements vscode.Disposable {
       ctx.restore();
     }
 
-    // Draw nodes
+    // ----------------------------------------------------
+    // Draw File Nodes
+    // ----------------------------------------------------
     for (const n of simNodes) {
       const visible = matchesFilter(n);
       const isSelected = selectedNode && selectedNode.id === n.id;
       const isHovered = hoveredNode && hoveredNode.id === n.id;
       ctx.globalAlpha = visible ? 1 : 0.12;
 
-      // Outer Selection / Hover Ring
+      // Outer Selection Ring
       if (isSelected || isHovered) {
         ctx.beginPath();
         ctx.arc(n.x, n.y, n.radius + 6, 0, Math.PI * 2);
@@ -1170,16 +1318,16 @@ export class GraphifyManager implements vscode.Disposable {
         ctx.fill();
       }
 
-      // God-Node Outer Halo
+      // God-Node Crown Halo
       if (n.isHub) {
         ctx.beginPath();
         ctx.arc(n.x, n.y, n.radius + 3, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(224, 169, 82, 0.55)';
-        ctx.lineWidth = 1.6;
+        ctx.strokeStyle = 'rgba(224, 169, 82, 0.6)';
+        ctx.lineWidth = 1.8;
         ctx.stroke();
       }
 
-      // Main Node Circle
+      // Node Circle
       ctx.beginPath();
       ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
       ctx.fillStyle = n.color;
@@ -1191,6 +1339,7 @@ export class GraphifyManager implements vscode.Disposable {
       // Node Label
       ctx.font = (isSelected || n.isHub ? '600 ' : '') + '11px var(--sans, system-ui)';
       ctx.fillStyle = isLight ? '#1f1e1d' : '#ece9e4';
+      ctx.textAlign = 'left';
       const labelText = (n.isHub ? '👑 ' : '') + n.label;
       ctx.fillText(labelText, n.x + n.radius + 5, n.y + 3.5);
     }
@@ -1383,6 +1532,7 @@ export class GraphifyManager implements vscode.Disposable {
       document.querySelectorAll('#layoutSegmented .seg-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       applyLayout(btn.dataset.layout);
+      fitToViewport();
     });
   });
 

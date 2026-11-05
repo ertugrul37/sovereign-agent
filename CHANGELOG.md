@@ -2,6 +2,14 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.30] - 2026-11-05
+
+### Added
+- **Graphify Star Constellation Architecture & Clean Block Diagram (`src/agent/graphify.ts`):**
+  - **⭐ Star & Constellation Arms (Default View):** Replaced chaotic floating dots with a magnificent, structured solar constellation. The workspace core sits at the center (`⭐ Core Star`) with glowing stellar beams extending to major module stations (`src/agent`, `src/ui`, `media`, etc.). Files branch out along their respective module arms in clean, non-overlapping arcs.
+  - **📦 Architecture Block Diagram Mode:** A structured system component diagram that renders modules as organized rectangular cards with file lists and orthogonal inter-module dependency channels.
+  - **Streamlined Visual Clutter:** Inter-file import arrows only render on hover/selection in constellation mode, completely eliminating visual spaghetti.
+
 ## [0.1.29] - 2026-11-05
 
 ### Added
