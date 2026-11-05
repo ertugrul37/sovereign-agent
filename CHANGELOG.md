@@ -2,6 +2,15 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.25] - 2026-11-05
+
+### Added
+- **Graphify Codebase Knowledge Graph Engine & Interactive Visualizer (`src/agent/graphify.ts`, `code_graph` Tool, `/graphify` Command):**
+  - Built-in local deterministic Codebase Knowledge Graph analyzer supporting TypeScript, JavaScript, Python, Go, Rust, Java, C#, C/C++, HTML, CSS, SQL, and Markdown.
+  - Extracts module clusters, exported/defined symbols (`function`, `class`, `interface`, `table`), explicit import/dependency edges (`A --> B`), architectural hubs ("god-nodes"), circular dependencies, and codebase health score (`0–100`).
+  - Interactive side-by-side **🕸️ Graphify Knowledge Graph** Force-Directed Canvas Panel inside VS Code with zoom/pan, node dragging, cluster color-coding, live search filter, symbol/dependency inspector, 1-click file opening, and 1-click **"🤖 Send Graph to Agent"**.
+  - Added `/graphify` chat slash command, `<code_graph>` agent tool (`map`, `query`, `impact`), header shortcut button (`🕸️`), and `+` menu entry.
+
 ## [0.1.24] - 2026-11-03
 
 ### Fixed

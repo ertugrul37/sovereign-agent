@@ -152,6 +152,7 @@ export const de: Record<MessageKey, string> = {
   ,'ui.runCode': 'Ausführen'
   ,'ui.webSearch': 'Websuche'
   ,'ui.livePreview': 'Live-Webvorschau & Tester'
+  ,'ui.graphify': 'Graphify Wissensgraph (Knowledge Graph)'
   ,'ui.rateExtension': 'Im Marketplace mit 5 Sternen bewerten ⭐'
   ,'ui.starGithub': 'Auf GitHub markieren ★'
   ,'ui.rateDesc': 'Gefällt Ihnen 100 % lokaler Datenschutz? Eine 5-Sterne-Bewertung hilft anderen Entwicklern, Sovereign Agent zu entdecken!'

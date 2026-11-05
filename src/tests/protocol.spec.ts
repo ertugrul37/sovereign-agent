@@ -88,3 +88,13 @@ test('parses browser_action open, click, and type calls', () => {
   assert.equal(clickCall?.params.action, 'click');
   assert.equal(clickCall?.params.selector, '#calcBtn');
 });
+
+test('parses code_graph calls for Graphify knowledge graph', () => {
+  const mapCall = parseToolCall('<code_graph>\n<action>map</action>\n</code_graph>');
+  assert.equal(mapCall?.name, 'code_graph');
+  assert.equal(mapCall?.params.action, 'map');
+
+  const impactCall = parseToolCall('<code_graph><action>impact</action><target>src/agent/tools.ts</target></code_graph>');
+  assert.equal(impactCall?.params.action, 'impact');
+  assert.equal(impactCall?.params.target, 'src/agent/tools.ts');
+});

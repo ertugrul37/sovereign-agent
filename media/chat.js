@@ -339,7 +339,8 @@
     file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
     terminal: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
     star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor"/>',
-    monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>'
+    monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
+    graph: '<circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="12" cy="18" r="3"/><line x1="8.7" y1="7.4" x2="15.3" y2="6"/><line x1="7.3" y1="8.7" x2="10.7" y2="15.3"/><line x1="16.7" y1="8.7" x2="13.3" y2="15.3"/>'
   };
 
   function icon(name, size) {
@@ -521,6 +522,11 @@
           setWebSearch(!webSearchEnabled);
           closePopovers();
         }
+      }),
+      menuRow({
+        icon: 'graph',
+        label: s('ui.graphify') || 'Graphify Knowledge Graph',
+        onClick: () => post({ type: 'openGraphify' })
       })
     );
     main.hidden = false;
@@ -654,6 +660,9 @@
       vscode.postMessage({ type: 'modelMenu' });
     }
   });
+  if ($('graphifyBtn')) {
+    $('graphifyBtn').addEventListener('click', () => vscode.postMessage({ type: 'openGraphify' }));
+  }
   if ($('previewBtn')) {
     $('previewBtn').addEventListener('click', () => vscode.postMessage({ type: 'openPreview' }));
   }
@@ -938,7 +947,8 @@
           mcp_call: 'plug',
           get_editor_context: 'code',
           web_search: 'globe',
-          browser_action: 'monitor'
+          browser_action: 'monitor',
+          code_graph: 'graph'
         };
         lastTool = document.createElement('details');
         lastTool.className = 'msg tool running';

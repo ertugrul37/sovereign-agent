@@ -17,6 +17,8 @@ export interface ToolContext {
   webSearch(query: string): Promise<ToolResult>;
   /** Opens a web page in the in-editor Live Preview, captures DOM/layout snapshot, clicks buttons, or types into inputs. */
   browserAction?(params: { action?: string; target?: string; selector?: string; text?: string }): Promise<ToolResult>;
+  /** Builds, queries, or visualizes the Graphify codebase Knowledge Graph; see src/agent/graphify.ts. */
+  codeGraph?(params: { action?: string; target?: string; query?: string }): Promise<ToolResult>;
   signal: AbortSignal;
 }
 
@@ -157,6 +159,12 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
       return { ok: false, output: 'Live Browser Preview is not available in this context.' };
     }
     return await ctx.browserAction(p);
+  }
+  if (call.name === 'code_graph') {
+    if (!ctx.codeGraph) {
+      return { ok: false, output: 'Graphify Codebase Knowledge Graph is not available in this context.' };
+    }
+    return await ctx.codeGraph(p);
   }
   if (!ctx.root) {
     return { ok: false, output: 'No workspace folder is open.' };

@@ -98,9 +98,26 @@ browser_action: open a workspace HTML file or local dev server URL inside the VS
 <text>test user</text>
 </browser_action>
 
+code_graph: build, visualize, and query the Graphify Codebase Knowledge Graph (module clusters, symbols, imports, architectural hubs/god-nodes, circular dependencies, and impact analysis).
+- Map & visualize the full project architecture in the Graphify panel:
+<code_graph>
+<action>map</action>
+</code_graph>
+- Query symbols or modules in the Knowledge Graph:
+<code_graph>
+<action>query</action>
+<query>auth</query>
+</code_graph>
+- Analyze dependency impact of a specific file:
+<code_graph>
+<action>impact</action>
+<target>src/agent/tools.ts</target>
+</code_graph>
+
 RULES
 - One tool call per message. Never invent tool results.
-- Never call read_file or replace_in_file on an existing file path you have not first seen via list_files (or via get_editor_context / a previous tool result) in this conversation. If you do not yet know the project layout, call list_files on the root first. You CAN use write_file to create brand-new files.
+- For architecture questions, dependency impact, or exploring unfamiliar codebases, call code_graph first to get the deterministic Graphify Knowledge Graph instead of reading every file one by one.
+- Never call read_file or replace_in_file on an existing file path you have not first seen via list_files or code_graph (or via get_editor_context / a previous tool result) in this conversation. If you do not yet know the project layout, call list_files or code_graph first. You CAN use write_file to create brand-new files.
 - When calling write_file, always put the full file code inside <content>...</content>. Never omit <content>.
 - When you build or update a website / HTML page, use browser_action (open, click, type) to open it inside the editor preview, test buttons/inputs, and verify there are 0 JS errors.
 - Read an existing file before you modify it.

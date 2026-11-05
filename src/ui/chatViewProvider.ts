@@ -17,6 +17,7 @@ import { transcribeAudio } from '../llm/asr';
 import { AgentTerminal } from '../agent/terminal';
 import { performWebSearch } from '../agent/webSearch';
 import { BrowserPreviewManager } from '../agent/browserPreview';
+import { GraphifyManager, formatGraphSummary } from '../agent/graphify';
 
 const execFileAsync = promisify(execFile);
 
@@ -63,6 +64,7 @@ type FromWebview =
   | { type: 'setLanguage'; language: string }
   | { type: 'selectLanguage' }
   | { type: 'openPreview' }
+  | { type: 'openGraphify' }
   | { type: 'confirmResponse'; id: string; allow: boolean };
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
@@ -78,6 +80,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly pendingConfirms = new Map<string, (allow: boolean) => void>();
   private readonly terminal = new AgentTerminal();
   private readonly browserPreview = new BrowserPreviewManager();
+  private readonly graphify = new GraphifyManager((prompt) => {
+    void this.handleSend(prompt, 'Code');
+  });
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -158,11 +163,17 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.mcp.dispose();
     this.terminal.dispose();
     this.browserPreview.dispose();
+    this.graphify.dispose();
   }
 
   async openPreview(): Promise<void> {
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     await this.browserPreview.openInteractive(root);
+  }
+
+  async openGraphify(): Promise<void> {
+    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    await this.graphify.openInteractive(root);
   }
 
   async undo(): Promise<void> {
@@ -395,6 +406,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case 'openPreview':
         await this.openPreview();
         break;
+      case 'openGraphify':
+        await this.openGraphify();
+        break;
       case 'setLanguage':
         await vscode.workspace
           .getConfiguration('sovereignAgent')
@@ -555,7 +569,16 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const folder = vscode.workspace.workspaceFolders?.[0];
     this.restoreHistory();
     const editorContext = this.editorContext();
-    const baseInstructions = await this.loadWorkspaceInstructions(folder?.uri.fsPath);
+    let baseInstructions = await this.loadWorkspaceInstructions(folder?.uri.fsPath);
+    let effectiveText = text;
+    if (/^\/graphify\b/i.test(text.trim())) {
+      const graphData = await this.graphify.openInteractive(folder?.uri.fsPath);
+      if (graphData) {
+        baseInstructions = `${baseInstructions}\n\nGRAPHIFY KNOWLEDGE GRAPH:\n${formatGraphSummary(graphData)}`.trim();
+      }
+      const rest = text.trim().replace(/^\/graphify\b/i, '').trim();
+      effectiveText = rest || 'Summarize the Graphify Knowledge Graph of this workspace, including key module clusters, top architectural hubs, and any potential bottlenecks.';
+    }
     const workspaceInstructions = webSearch
       ? `${baseInstructions}\n\nWEB SEARCH ACTIVE: The user enabled Web Search for this request. Call <web_search><query>...</query></web_search> first to retrieve current web results before answering.`.trim()
       : baseInstructions;
@@ -580,7 +603,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     try {
       const provider = createProvider(cfg);
       await this.agent.run(
-        text,
+        effectiveText,
         provider,
         {
           model: cfg.model,
@@ -890,7 +913,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         callMcp: (server: string, tool: string, argsJson: string) => this.mcp.call(server, tool, argsJson),
         runCommand: (command: string) => this.terminal.run(command, root ?? process.cwd(), abort.signal),
         webSearch: (query: string) => performWebSearch(query, abort.signal),
-        browserAction: (params) => this.browserPreview.execute(params, root)
+        browserAction: (params) => this.browserPreview.execute(params, root),
+        codeGraph: (params) => this.graphify.execute(params, root)
       };
     }
 
@@ -1068,6 +1092,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 <body class="empty">
   <header>
     <div class="header-actions">
+      <button id="graphifyBtn" class="icon-button" data-icon="graph" data-i18n-title="ui.graphify" title="" aria-label="Graphify Codebase Knowledge Graph"></button>
       <button id="previewBtn" class="icon-button" data-icon="monitor" data-i18n-title="ui.livePreview" title="" aria-label="Live Web Preview & Tester"></button>
       <button id="compareModel" class="icon-button" data-icon="columns" data-i18n-title="ui.compareModel" title="" aria-label="Compare models"></button>
       <button id="approval" class="icon-button" data-icon="shield" data-i18n-title="ui.autoApprove" title="" aria-haspopup="true" aria-label="Approvals"></button>

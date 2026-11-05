@@ -13,6 +13,7 @@
   "command.showNetworkPeers": "Sovereign Agent: Netzwerk-Peers anzeigen",
   "command.openFeedback": "Sovereign Agent: Support & Feedback (destekai.sovereign.ai@gmail.com)",
   "command.openPreview": "Sovereign Agent: 🌐 Live-Webvorschau & Tester öffnen",
+  "command.openGraphify": "Sovereign Agent: 🕸️ Graphify Wissensgraph öffnen",
   "command.rateExtension": "Sovereign Agent: ⭐ Im Marketplace mit 5 Sternen bewerten",
   "command.selectLanguage": "Sovereign Agent: Sprache auswählen",
   "config.title": "Sovereign Agent",

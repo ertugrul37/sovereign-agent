@@ -13,6 +13,7 @@
   "command.showNetworkPeers": "Sovereign Agent: Ağdaki Eşleri Göster",
   "command.openFeedback": "Sovereign Agent: Destek ve İstek Bildirimi (destekai.sovereign.ai@gmail.com)",
   "command.openPreview": "Sovereign Agent: 🌐 Canlı Web Önizleme ve Testi Aç",
+  "command.openGraphify": "Sovereign Agent: 🕸️ Graphify Kod Tabanı Bilgi Grafiğini Aç",
   "command.rateExtension": "Sovereign Agent: ⭐ Marketplace'te 5 Yıldız Ver",
   "command.selectLanguage": "Sovereign Agent: Dil Seç",
   "config.title": "Sovereign Agent",
