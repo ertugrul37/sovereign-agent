@@ -2,7 +2,27 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
-## [0.1.32] - 2026-11-05
+## [0.1.33] - 2026-11-05
+
+### Enhanced & Upgraded
+- **⚡ 5-Stage Hardware & Model Diagnostic Benchmark Suite (`src/agent/benchmark.ts`):**
+  - **Comprehensive 5-Stage Diagnostics:** Upgraded from 3 quick checks to a full benchmark measuring:
+    1. Streaming Latency (TTFT in ms) and sustained token generation speed (tok/s).
+    2. Strict XML Tool-Calling Adherence (validating tag structure without markdown backtick hallucinations).
+    3. Multi-Step Mathematical & Logic Reasoning under strict single-token constraints.
+    4. Code Synthesis & AST Syntax Error Correction.
+    5. Needle-In-A-Haystack Context Memory Retention Probe.
+  - **Visual Benchmark Dashboard:** Displays an overall Grade Badge (`👑 Grade S`, `⚡ Grade A`, `⚖️ Grade B`, `🐢 Grade C`, `⚠️ Grade D`), visual progress meters (`[████████░░]`), estimated VRAM usage, and actionable GPU offload recommendations.
+  - **Auto-Tuning & Report Export:** Automatically configures optimal temperature, context window size, and writes a detailed `BENCHMARK.md` report directly into the workspace root.
+  - **Glowing Chip Styling (`media/chat.css`):** Amber ambient glow and hover elevation on the `⚡ Benchmark` starter chip.
+
+- **🧪 Autonomous Auto-TDD Engine (`src/agent/tddRunner.ts`, `src/ui/chatViewProvider.ts`):**
+  - **Autonomous Self-Healing Loop (`/tdd fix`):** When tests fail, Sovereign Agent automatically parses the failure traces, inspects the broken files, repairs the code using `<replace_file_content>`, and re-runs the tests until the test suite is 100% green!
+  - **Autonomous Unit Test Generator (`/tdd gen [file]`):** Inspects the currently active editor file (or specified target module), designs edge-case and boundary unit tests matching the project's native test framework, writes the test file, and runs it to ensure it passes immediately.
+  - **Rich TDD Visual Dashboard:** Shows a live pass/fail meter (`[██████████] 100% Green`), test execution duration, and breakdown of failing assertions with clickable file links and stack traces.
+  - **Expanded Framework Support & Windows Fix:** Seamless support for Vitest, Jest, Node:test, Mocha, Pytest, Cargo test, Go test, Bun test, with Windows `.cmd` binary compatibility.
+  - **Glowing Chip Styling (`media/chat.css`):** Emerald ambient glow on the `🧪 Auto-TDD` starter chip.
+
 
 ### Fixed & Enhanced
 - **Graphify Modular Clustering & Anti-Collision Layouts (`src/agent/graphify.ts`):**

@@ -209,6 +209,28 @@ textarea::placeholder { color: var(--faint); }
 .chip .icon { color: var(--muted); }
 .chip:hover { background: var(--surface-3); }
 
+#benchmarkChipBtn {
+  border-color: rgba(245, 158, 11, 0.35);
+  transition: all 0.18s ease;
+}
+#benchmarkChipBtn:hover {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.14);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.28);
+  transform: translateY(-1px);
+}
+
+#tddChipBtn {
+  border-color: rgba(16, 185, 129, 0.35);
+  transition: all 0.18s ease;
+}
+#tddChipBtn:hover {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.14);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.28);
+  transform: translateY(-1px);
+}
+
 .actions { display: flex; align-items: center; min-height: 0; }
 .status { flex: 1; margin-top: 6px; color: var(--muted); font-size: 12px; }
 .status:empty { display: none; }

@@ -99,7 +99,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.tddRunner = new TddRunner(() => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath);
     this.benchmark = new HardwareBenchmark(
       () => createProvider(this.prepare()),
-      () => this.prepare().model
+      () => this.prepare().model,
+      () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
     );
     this.browserPreview.onElementPicked = (info) => {
       const lineNotice = info.line ? `:${info.line}` : '';
@@ -199,33 +200,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
   async runBenchmarkCommand(): Promise<void> {
     this.post({ type: 'assistantStart' });
-    this.post({ type: 'assistantText', text: '⚡ Running Hardware Benchmark on active local model...' });
+    this.post({ type: 'assistantText', text: '⚡ Initializing 5-stage Hardware & Model Benchmark on active local model...' });
     try {
       const report = await this.benchmark.runBenchmark((step) => {
         this.post({ type: 'assistantText', text: `${step}` });
       });
 
-      const reportCard = [
-        `### ⚡ Sovereign Hardware & Model Benchmark Report`,
-        `**Model:** \`${report.modelName}\` · **Endpoint:** \`${report.endpoint}\``,
-        `**Overall Grade:** **${report.overallGrade}**`,
-        '',
-        `| Metric | Result | Benchmark Rating |`,
-        `| :--- | :--- | :--- |`,
-        `| **Speed (Tokens / sec)** | \`${report.tokensPerSec.toFixed(1)} tok/s\` | ${report.tokensPerSec > 30 ? '🔥 High Speed' : report.tokensPerSec > 15 ? '⚖️ Moderate' : '🐢 Slow'} |`,
-        `| **Latency (TTFT)** | \`${report.ttftMs} ms\` | ${report.ttftMs < 400 ? '⚡ Ultra-low' : 'Normal'} |`,
-        `| **Tool-Calling Adherence** | \`${report.toolScore}%\` | ${report.toolScore >= 90 ? '✓ Excellent XML compliance' : '⚠️ Minor prompt drift'} |`,
-        `| **Logic & Reasoning** | \`${report.reasoningScore}%\` | ${report.reasoningScore >= 90 ? '✓ Sharp' : 'Adequate'} |`,
-        '',
-        `> **Recommendation:** ${report.recommendations.summary}`,
-        `> - Optimal Temperature: \`${report.recommendations.temperature}\``,
-        `> - Optimal Context Window: \`${report.recommendations.contextSize}\``,
-        '',
-        `*Settings have been auto-tuned and applied to your Sovereign Agent configuration.*`
-      ].join('\n');
-
       await this.benchmark.applyOptimization(report);
-      this.post({ type: 'assistantText', text: reportCard });
+      this.post({ type: 'assistantText', text: report.dashboard });
       this.post({ type: 'assistantEnd' });
     } catch (err) {
       this.post({ type: 'assistantEnd' });
@@ -238,26 +220,75 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.post({ type: 'assistantText', text: '🧪 Running workspace test suite...' });
     try {
       const res = await this.tddRunner.runTests(customCmd);
-      const card = [
-        `### 🧪 Sovereign Auto-TDD Runner`,
-        `**Status:** ${res.ok ? '🟢 PASSED' : '🔴 FAILED'} · **Framework:** \`${res.framework}\``,
-        `**Results:** \`${res.totalPassed} passed, ${res.totalFailed} failed\` in \`${(res.durationMs / 1000).toFixed(2)}s\``,
-        `**Command:** \`${res.command}\``,
-        '',
-        '```',
-        res.rawOutput.slice(0, 3000),
-        '```',
-        '',
-        res.ok
-          ? '✓ Test suite is completely green!'
-          : '⚠️ Tests failed. Agent will analyze failure trace and auto-fix the code if in agent loop.'
-      ].join('\n');
-      this.post({ type: 'assistantText', text: card });
+      this.post({ type: 'assistantText', text: res.dashboard });
       this.post({ type: 'assistantEnd' });
     } catch (err) {
       this.post({ type: 'assistantEnd' });
       this.post({ type: 'error', text: `TDD execution failed: ${String(err)}` });
     }
+  }
+
+  async runTddFixCommand(): Promise<void> {
+    this.post({ type: 'assistantStart' });
+    this.post({ type: 'assistantText', text: '🧪 Running tests to inspect failures...' });
+    const res = await this.tddRunner.runTests();
+    this.post({ type: 'assistantEnd' });
+
+    if (res.ok) {
+      this.post({ type: 'assistantStart' });
+      this.post({
+        type: 'assistantText',
+        text: `### 🧪 Sovereign Auto-TDD Runner\n\n🟢 **All tests are already passing (100% Green)!** (${res.totalPassed} tests passed in ${(res.durationMs / 1000).toFixed(2)}s). No fixes needed.`
+      });
+      this.post({ type: 'assistantEnd' });
+      return;
+    }
+
+    const failureTrace = res.rawOutput.slice(0, 8000);
+    const fixPrompt = [
+      `The workspace test suite is currently FAILING with the errors below.`,
+      `Please act as an autonomous software engineer in an Auto-TDD loop:`,
+      `1. Read the failing test trace and identify the exact root causes in the codebase.`,
+      `2. Modify the workspace code to fix the bugs using <replace_file_content> or <write_file>.`,
+      `3. Execute the test suite using <run_tests></run_tests> to verify all tests pass.`,
+      '',
+      '```',
+      failureTrace,
+      '```'
+    ].join('\n');
+
+    await this.handleSend(fixPrompt, 'Code', false);
+  }
+
+  async runTddGenerateCommand(targetFile?: string): Promise<void> {
+    let target = targetFile?.trim();
+    if (!target) {
+      const activeDoc = vscode.window.activeTextEditor?.document;
+      if (activeDoc && !activeDoc.isUntitled) {
+        target = vscode.workspace.asRelativePath(activeDoc.uri);
+      }
+    }
+
+    if (!target) {
+      this.post({ type: 'assistantStart' });
+      this.post({
+        type: 'assistantText',
+        text: '### 🧪 Sovereign Auto-TDD: Test Generator\n\n⚠️ Please open a source file in the editor or specify a target file: e.g. `/tdd gen src/utils.ts`'
+      });
+      this.post({ type: 'assistantEnd' });
+      return;
+    }
+
+    const genPrompt = [
+      `Please act as a senior test automation engineer in an Auto-TDD loop:`,
+      `1. Read and analyze the implementation in \`${target}\`.`,
+      `2. Identify edge cases, boundary conditions, and primary functionality.`,
+      `3. Generate a comprehensive unit test suite matching the workspace framework.`,
+      `4. Save the tests to the appropriate test directory using <write_file>.`,
+      `5. Run the tests using <run_tests></run_tests> to verify that the newly generated tests pass.`
+    ].join('\n');
+
+    await this.handleSend(genPrompt, 'Code', false);
   }
 
   async undo(): Promise<void> {
@@ -695,6 +726,16 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
     if (/^\/tdd\b/i.test(text.trim())) {
       const rest = text.trim().replace(/^\/tdd\b/i, '').trim();
+      const lower = rest.toLowerCase();
+      if (lower === 'fix' || lower.startsWith('fix')) {
+        await this.runTddFixCommand();
+        return;
+      }
+      if (lower === 'gen' || lower === 'generate' || lower.startsWith('gen ') || lower.startsWith('generate ')) {
+        const target = rest.replace(/^(gen|generate)\s*/i, '').trim();
+        await this.runTddGenerateCommand(target || undefined);
+        return;
+      }
       await this.runTddCommand(rest || undefined);
       return;
     }

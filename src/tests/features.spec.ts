@@ -89,4 +89,19 @@ test('media chat parser includes table, heading, filepath, and latex arrow rende
   assert.ok(chatCss.includes('.msg h3'), 'chat.css has .msg h3');
 });
 
+test('TddRunner detects test runner and formats comprehensive progress dashboard', async () => {
+  const { TddRunner } = await import('../agent/tddRunner');
+  const runner = new TddRunner(() => path.join(__dirname, '../..'));
+  const cmd = await runner.detectTestCommand();
+  assert.ok(cmd, 'detected test command for workspace');
+  assert.ok(cmd.command.includes('test'), 'command runs tests');
+
+  const res = await runner.runTests('node -e "console.log(\'✔ test 1 ok (1ms)\\n✔ test 2 ok (2ms)\\nℹ pass 2\')"');
+  assert.equal(res.ok, true);
+  assert.equal(res.totalPassed, 2);
+  assert.ok(res.dashboard.includes('Sovereign Auto-TDD Runner'));
+  assert.ok(res.dashboard.includes('100%'));
+});
+
+
 
