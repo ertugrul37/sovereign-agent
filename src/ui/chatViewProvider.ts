@@ -17,7 +17,7 @@ import { transcribeAudio } from '../llm/asr';
 import { AgentTerminal } from '../agent/terminal';
 import { performWebSearch } from '../agent/webSearch';
 import { BrowserPreviewManager } from '../agent/browserPreview';
-import { GraphifyManager, formatGraphSummary } from '../agent/graphify';
+import { GraphifyManager, formatGraphSummary, buildCodeGraph } from '../agent/graphify';
 import { SnapshotManager } from '../agent/snapshot';
 import { TddRunner } from '../agent/tddRunner';
 import { HardwareBenchmark } from '../agent/benchmark';
@@ -68,6 +68,9 @@ type FromWebview =
   | { type: 'selectLanguage' }
   | { type: 'openPreview' }
   | { type: 'openGraphify' }
+  | { type: 'openGraphifyInTab' }
+  | { type: 'refreshGraphify' }
+  | { type: 'exportArchitectureReport' }
   | { type: 'openFile'; file?: string; path?: string }
   | { type: 'confirmResponse'; id: string; allow: boolean };
 
@@ -193,9 +196,20 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     await this.browserPreview.openInteractive(root);
   }
 
-  async openGraphify(): Promise<void> {
+  async openGraphify(forceEditorTab: boolean = false): Promise<void> {
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    await this.graphify.openInteractive(root);
+    if (!root) {
+      void vscode.window.showWarningMessage('Sovereign Agent: Open a workspace folder to view Graphify.');
+      return;
+    }
+    if (forceEditorTab) {
+      await this.graphify.openInteractive(root);
+      return;
+    }
+    const data = await buildCodeGraph(root);
+    const cfg = this.prepare();
+    const locale = activeLocale(cfg);
+    this.post({ type: 'showGraphifyTab', data, root, locale });
   }
 
   async runBenchmarkCommand(): Promise<void> {
@@ -536,6 +550,27 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case 'openGraphify':
         await this.openGraphify();
         break;
+      case 'openGraphifyInTab':
+        await this.openGraphify(true);
+        break;
+      case 'refreshGraphify': {
+        const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        if (root) {
+          const fresh = await buildCodeGraph(root);
+          const cfg = this.prepare();
+          const locale = activeLocale(cfg);
+          this.post({ type: 'graphifyData', data: fresh, root, locale });
+        }
+        break;
+      }
+      case 'exportArchitectureReport': {
+        const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        if (root) {
+          const fresh = await buildCodeGraph(root);
+          await this.graphify.exportArchitectureReport(fresh, root);
+        }
+        break;
+      }
       case 'openFile': {
         const fileTarget = String(msg.file || msg.path || '').trim();
         const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -1255,10 +1290,17 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 </head>
 <body class="empty">
   <header>
-    <div class="header-actions">
-      <button id="graphifyBtn" class="icon-button graphify-header-btn" data-icon="graph" data-i18n-title="ui.graphify" title="Graphify Knowledge Graph" aria-label="Graphify Codebase Knowledge Graph">
-        <span class="header-pill-label">Graphify</span>
+    <div class="nav-segmented" role="tablist">
+      <button id="navChatBtn" class="nav-tab active" role="tab" type="button" aria-selected="true" title="AI Chat">
+        <span class="nav-tab-icon" data-icon="chat"></span>
+        <span class="nav-tab-label">Chat</span>
       </button>
+      <button id="navGraphifyBtn" class="nav-tab" role="tab" type="button" aria-selected="false" title="Graphify Architecture Studio">
+        <span class="nav-tab-icon" data-icon="graph"></span>
+        <span class="nav-tab-label">Graphify</span>
+      </button>
+    </div>
+    <div class="header-actions">
       <button id="previewBtn" class="icon-button" data-icon="monitor" data-i18n-title="ui.livePreview" title="" aria-label="Live Web Preview & Tester"></button>
       <button id="compareModel" class="icon-button" data-icon="columns" data-i18n-title="ui.compareModel" title="" aria-label="Compare models"></button>
       <button id="approval" class="icon-button" data-icon="shield" data-i18n-title="ui.autoApprove" title="" aria-haspopup="true" aria-label="Approvals"></button>
@@ -1269,176 +1311,237 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       <button id="feedbackToggle" class="icon-button" data-icon="alertCircle" data-i18n-title="ui.feedback" title="" aria-label="Support & Feedback" aria-expanded="false"></button>
     </div>
   </header>
-  <div id="approvalPanel" class="popover approval-panel" hidden>
-    <p data-i18n="ui.approvalHint"></p>
-    <button id="approvalToggle" type="button" data-i18n="ui.approveNext"></button>
-  </div>
-  <div id="feedbackPanel" class="popover feedback-panel" hidden>
-    <div class="feedback-header">
-      <div class="feedback-title">
-        <span class="feedback-icon" data-icon="alertCircle"></span>
-        <span data-i18n="ui.feedbackTitle"></span>
-      </div>
-      <button id="feedbackClose" class="icon-button close-button" data-icon="x" title="Close" aria-label="Close"></button>
+
+  <div id="chatViewSection" class="view-section">
+    <div id="approvalPanel" class="popover approval-panel" hidden>
+      <p data-i18n="ui.approvalHint"></p>
+      <button id="approvalToggle" type="button" data-i18n="ui.approveNext"></button>
     </div>
-    <div class="rate-banner">
-      <div class="rate-stars" id="rateStarsRow" role="group" aria-label="5 Star Rating">
-        <button type="button" class="star-pick" data-star="1">★</button>
-        <button type="button" class="star-pick" data-star="2">★</button>
-        <button type="button" class="star-pick" data-star="3">★</button>
-        <button type="button" class="star-pick" data-star="4">★</button>
-        <button type="button" class="star-pick" data-star="5">★</button>
+    <div id="feedbackPanel" class="popover feedback-panel" hidden>
+      <div class="feedback-header">
+        <div class="feedback-title">
+          <span class="feedback-icon" data-icon="alertCircle"></span>
+          <span data-i18n="ui.feedbackTitle"></span>
+        </div>
+        <button id="feedbackClose" class="icon-button close-button" data-icon="x" title="Close" aria-label="Close"></button>
       </div>
-      <p class="rate-desc" data-i18n="ui.rateDesc"></p>
-      <div class="rate-actions">
-        <button id="rateMarketplaceBtn" type="button" class="rate-cta-btn" data-i18n="ui.rateExtension"></button>
-        <button id="starGithubBtn" type="button" class="rate-gh-btn" data-i18n="ui.starGithub"></button>
+      <div class="rate-banner">
+        <div class="rate-stars" id="rateStarsRow" role="group" aria-label="5 Star Rating">
+          <button type="button" class="star-pick" data-star="1">★</button>
+          <button type="button" class="star-pick" data-star="2">★</button>
+          <button type="button" class="star-pick" data-star="3">★</button>
+          <button type="button" class="star-pick" data-star="4">★</button>
+          <button type="button" class="star-pick" data-star="5">★</button>
+        </div>
+        <p class="rate-desc" data-i18n="ui.rateDesc"></p>
+        <div class="rate-actions">
+          <button id="rateMarketplaceBtn" type="button" class="rate-cta-btn" data-i18n="ui.rateExtension"></button>
+          <button id="starGithubBtn" type="button" class="rate-gh-btn" data-i18n="ui.starGithub"></button>
+        </div>
       </div>
-    </div>
-    <p class="feedback-desc" data-i18n="ui.feedbackDesc"></p>
-    <div class="feedback-email-card">
-      <div class="feedback-email-meta">
-        <span class="feedback-email-badge">E-mail</span>
-        <span class="feedback-email-addr">destekai.sovereign.ai@gmail.com</span>
+      <p class="feedback-desc" data-i18n="ui.feedbackDesc"></p>
+      <div class="feedback-email-card">
+        <div class="feedback-email-meta">
+          <span class="feedback-email-badge">E-mail</span>
+          <span class="feedback-email-addr">destekai.sovereign.ai@gmail.com</span>
+        </div>
+        <button id="copyEmailBtn" class="icon-button feedback-copy-btn" data-icon="copy" data-i18n-title="ui.copyEmail" title="Copy Email" aria-label="Copy Email"></button>
       </div>
-      <button id="copyEmailBtn" class="icon-button feedback-copy-btn" data-icon="copy" data-i18n-title="ui.copyEmail" title="Copy Email" aria-label="Copy Email"></button>
-    </div>
-    <div class="feedback-form">
-      <textarea id="feedbackText" rows="4" data-i18n-placeholder="ui.feedbackPlaceholder"></textarea>
-      <div class="feedback-footer">
-        <button id="sendEmailBtn" type="button" class="feedback-send-btn">
-          <span class="feedback-btn-icon" data-icon="mail"></span>
-          <span data-i18n="ui.sendEmail"></span>
-        </button>
-      </div>
-    </div>
-  </div>
-  <section id="metrics" class="metrics collapsed" aria-label="Response metrics" hidden>
-    <button id="metricsToggle" type="button" class="metrics-heading" aria-expanded="false" aria-controls="metricsBody">
-      <span class="eyebrow" data-i18n="ui.performance"></span>
-      <span class="metrics-live" data-i18n="ui.live"></span>
-      <span class="metrics-chevron" data-icon="chevronRight"></span>
-    </button>
-    <div id="metricsBody" class="metrics-body">
-    <div class="metric-grid">
-      <div class="metric-card metric-card-accent">
-        <span data-i18n="ui.response"></span><strong id="metricTime">—</strong>
-        <small data-i18n="ui.durationHint"></small>
-      </div>
-      <div class="metric-card">
-        <span data-i18n="ui.tokens"></span><strong id="metricTokens">—</strong>
-        <small data-i18n="ui.tokenHint"></small>
-      </div>
-      <div class="metric-card">
-        <span data-i18n="ui.speed"></span><strong id="metricSpeed">—</strong>
-        <small data-i18n="ui.speedHint"></small>
-      </div>
-      <div class="metric-card">
-        <span data-i18n="ui.memory"></span><strong id="metricMemory">—</strong>
-        <small data-i18n="ui.memoryHint"></small>
+      <div class="feedback-form">
+        <textarea id="feedbackText" rows="4" data-i18n-placeholder="ui.feedbackPlaceholder"></textarea>
+        <div class="feedback-footer">
+          <button id="sendEmailBtn" type="button" class="feedback-send-btn">
+            <span class="feedback-btn-icon" data-icon="mail"></span>
+            <span data-i18n="ui.sendEmail"></span>
+          </button>
+        </div>
       </div>
     </div>
-    <div class="trend">
-      <div class="trend-heading">
-        <span data-i18n="ui.trend"></span>
-        <span id="trendSummary"></span>
+    <section id="metrics" class="metrics collapsed" aria-label="Response metrics" hidden>
+      <button id="metricsToggle" type="button" class="metrics-heading" aria-expanded="false" aria-controls="metricsBody">
+        <span class="eyebrow" data-i18n="ui.performance"></span>
+        <span class="metrics-live" data-i18n="ui.live"></span>
+        <span class="metrics-chevron" data-icon="chevronRight"></span>
+      </button>
+      <div id="metricsBody" class="metrics-body">
+      <div class="metric-grid">
+        <div class="metric-card metric-card-accent">
+          <span data-i18n="ui.response"></span><strong id="metricTime">—</strong>
+          <small data-i18n="ui.durationHint"></small>
+        </div>
+        <div class="metric-card">
+          <span data-i18n="ui.tokens"></span><strong id="metricTokens">—</strong>
+          <small data-i18n="ui.tokenHint"></small>
+        </div>
+        <div class="metric-card">
+          <span data-i18n="ui.speed"></span><strong id="metricSpeed">—</strong>
+          <small data-i18n="ui.speedHint"></small>
+        </div>
+        <div class="metric-card">
+          <span data-i18n="ui.memory"></span><strong id="metricMemory">—</strong>
+          <small data-i18n="ui.memoryHint"></small>
+        </div>
       </div>
-      <svg id="trendChart" class="trend-chart" viewBox="0 0 320 72" role="img" aria-label="Response speed trend">
-        <line class="chart-grid" x1="8" y1="60" x2="312" y2="60"></line>
-        <line class="chart-grid" x1="8" y1="36" x2="312" y2="36"></line>
-        <line class="chart-grid" x1="8" y1="12" x2="312" y2="12"></line>
-        <polyline id="speedLine" class="chart-line" points=""></polyline>
-        <polyline id="durationLine" class="chart-line chart-line-secondary" points=""></polyline>
-      </svg>
-      <div class="chart-legend">
-        <span><i class="legend-dot speed-dot"></i><span data-i18n="ui.chartSpeed"></span></span>
-        <span><i class="legend-dot duration-dot"></i><span data-i18n="ui.chartDuration"></span></span>
+      <div class="trend">
+        <div class="trend-heading">
+          <span data-i18n="ui.trend"></span>
+          <span id="trendSummary"></span>
+        </div>
+        <svg id="trendChart" class="trend-chart" viewBox="0 0 320 72" role="img" aria-label="Response speed trend">
+          <line class="chart-grid" x1="8" y1="60" x2="312" y2="60"></line>
+          <line class="chart-grid" x1="8" y1="36" x2="312" y2="36"></line>
+          <line class="chart-grid" x1="8" y1="12" x2="312" y2="12"></line>
+          <polyline id="speedLine" class="chart-line" points=""></polyline>
+          <polyline id="durationLine" class="chart-line chart-line-secondary" points=""></polyline>
+        </svg>
+        <div class="chart-legend">
+          <span><i class="legend-dot speed-dot"></i><span data-i18n="ui.chartSpeed"></span></span>
+          <span><i class="legend-dot duration-dot"></i><span data-i18n="ui.chartDuration"></span></span>
+        </div>
       </div>
-    </div>
-    </div>
-  </section>
-  <aside id="historyPanel" class="history-panel" hidden>
-    <div class="panel-heading">
-      <div>
-        <span class="eyebrow" data-i18n="ui.timeline"></span>
-        <h2 data-i18n="ui.history"></h2>
-      </div>
-      <button id="historyClose" class="icon-button" data-i18n-title="ui.close" title="">×</button>
-    </div>
-    <p id="historyStatus" class="history-status"></p>
-    <div id="historyList" class="history-list"></div>
-    <pre id="commitDetail" class="commit-detail" hidden></pre>
-  </aside>
-  <main id="messages" aria-live="polite">
-    <section id="comparison" class="comparison" hidden aria-live="polite">
-      <div class="comparison-heading">
-        <span class="eyebrow" data-i18n="ui.compareTitle"></span>
-        <span id="comparisonStatus"></span>
-      </div>
-      <div class="comparison-grid">
-        <article class="comparison-card" data-id="primary">
-          <header><strong id="compareModelPrimary"></strong><span id="compareStatePrimary"></span></header>
-          <div id="compareTextPrimary" class="comparison-text"></div>
-          <button class="compare-choice" data-id="primary" disabled data-i18n="ui.chooseAnswer"></button>
-        </article>
-        <article class="comparison-card" data-id="secondary">
-          <header><strong id="compareModelSecondary"></strong><span id="compareStateSecondary"></span></header>
-          <div id="compareTextSecondary" class="comparison-text"></div>
-          <button class="compare-choice" data-id="secondary" disabled data-i18n="ui.chooseAnswer"></button>
-        </article>
       </div>
     </section>
-  </main>
-  <footer>
-    <div id="hero" class="hero">
-      <img class="hero-mark" src="${media('logo.svg')}" alt="" />
-      <h1 id="greeting"></h1>
-    </div>
-    <div class="composer-wrap">
-      <div id="plusMenu" class="popover plus-menu" role="menu" hidden>
-        <div id="plusMain"></div>
-        <div id="plusSub" hidden></div>
-      </div>
-      <section id="modelPanel" class="popover model-panel" hidden>
-        <div class="popover-search">
-          <span data-icon="search"></span>
-          <input id="modelSearch" type="search" data-i18n-placeholder="ui.searchModels" />
+    <aside id="historyPanel" class="history-panel" hidden>
+      <div class="panel-heading">
+        <div>
+          <span class="eyebrow" data-i18n="ui.timeline"></span>
+          <h2 data-i18n="ui.history"></h2>
         </div>
-        <div id="modelOptions" class="model-options"></div>
-        <button id="compareModelOption" class="popover-link" data-i18n="ui.configureCompare"></button>
+        <button id="historyClose" class="icon-button" data-i18n-title="ui.close" title="">×</button>
+      </div>
+      <p id="historyStatus" class="history-status"></p>
+      <div id="historyList" class="history-list"></div>
+      <pre id="commitDetail" class="commit-detail" hidden></pre>
+    </aside>
+    <main id="messages" aria-live="polite">
+      <section id="comparison" class="comparison" hidden aria-live="polite">
+        <div class="comparison-heading">
+          <span class="eyebrow" data-i18n="ui.compareTitle"></span>
+          <span id="comparisonStatus"></span>
+        </div>
+        <div class="comparison-grid">
+          <article class="comparison-card" data-id="primary">
+            <header><strong id="compareModelPrimary"></strong><span id="compareStatePrimary"></span></header>
+            <div id="compareTextPrimary" class="comparison-text"></div>
+            <button class="compare-choice" data-id="primary" disabled data-i18n="ui.chooseAnswer"></button>
+          </article>
+          <article class="comparison-card" data-id="secondary">
+            <header><strong id="compareModelSecondary"></strong><span id="compareStateSecondary"></span></header>
+            <div id="compareTextSecondary" class="comparison-text"></div>
+            <button class="compare-choice" data-id="secondary" disabled data-i18n="ui.chooseAnswer"></button>
+          </article>
+        </div>
       </section>
-      <div class="composer">
-        <div id="attachments" class="attachments" hidden></div>
-        <textarea id="input" rows="2" data-i18n-placeholder="ui.placeholder"></textarea>
-        <div class="composer-toolbar">
-          <button id="plus" class="toolbar-button" data-icon="plus" data-i18n-title="ui.attach" title="" aria-haspopup="true" aria-expanded="false" aria-label="Add"></button>
-          <button id="webSearchToggle" type="button" class="toolbar-button web-toggle" data-icon="globe" data-i18n-title="ui.webSearch" title="" aria-pressed="false" aria-label="Web Search"></button>
-          <button id="graphifyComposerBtn" type="button" class="toolbar-button graphify-toolbar-btn" data-icon="graph" data-i18n-title="ui.graphify" title="Graphify Knowledge Graph" aria-label="Graphify Knowledge Graph"></button>
-          <div class="segmented" role="group">
-            <button id="segChat" type="button" data-mode="Ask" data-i18n="ui.modeChat"></button>
-            <button id="segAgent" type="button" data-mode="Code" data-i18n="ui.modeAgent"></button>
+    </main>
+    <footer>
+      <div id="hero" class="hero">
+        <img class="hero-mark" src="${media('logo.svg')}" alt="" />
+        <h1 id="greeting"></h1>
+      </div>
+      <div class="composer-wrap">
+        <div id="plusMenu" class="popover plus-menu" role="menu" hidden>
+          <div id="plusMain"></div>
+          <div id="plusSub" hidden></div>
+        </div>
+        <section id="modelPanel" class="popover model-panel" hidden>
+          <div class="popover-search">
+            <span data-icon="search"></span>
+            <input id="modelSearch" type="search" data-i18n-placeholder="ui.searchModels" />
           </div>
-          <span class="composer-spacer"></span>
-          <button id="model" class="model-trigger" data-i18n-title="ui.changeModel" title="" aria-haspopup="true" aria-expanded="false">
-            <span id="modelName"></span>
-          </button>
-          <button id="send" class="send-button" data-icon="arrowUp" data-i18n-title="ui.send" title="" aria-label="Send" disabled></button>
-          <button id="stop" class="send-button stop-button" data-icon="stop" data-i18n-title="ui.stop" title="" aria-label="Stop" hidden></button>
+          <div id="modelOptions" class="model-options"></div>
+          <button id="compareModelOption" class="popover-link" data-i18n="ui.configureCompare"></button>
+        </section>
+        <div class="composer">
+          <div id="attachments" class="attachments" hidden></div>
+          <textarea id="input" rows="2" data-i18n-placeholder="ui.placeholder"></textarea>
+          <div class="composer-toolbar">
+            <button id="plus" class="toolbar-button" data-icon="plus" data-i18n-title="ui.attach" title="" aria-haspopup="true" aria-expanded="false" aria-label="Add"></button>
+            <button id="webSearchToggle" type="button" class="toolbar-button web-toggle" data-icon="globe" data-i18n-title="ui.webSearch" title="" aria-pressed="false" aria-label="Web Search"></button>
+            <button id="graphifyComposerBtn" type="button" class="toolbar-button graphify-toolbar-btn" data-icon="graph" data-i18n-title="ui.graphify" title="Graphify Knowledge Graph" aria-label="Graphify Knowledge Graph"></button>
+            <div class="segmented" role="group">
+              <button id="segChat" type="button" data-mode="Ask" data-i18n="ui.modeChat"></button>
+              <button id="segAgent" type="button" data-mode="Code" data-i18n="ui.modeAgent"></button>
+            </div>
+            <span class="composer-spacer"></span>
+            <button id="model" class="model-trigger" data-i18n-title="ui.changeModel" title="" aria-haspopup="true" aria-expanded="false">
+              <span id="modelName"></span>
+            </button>
+            <button id="send" class="send-button" data-icon="arrowUp" data-i18n-title="ui.send" title="" aria-label="Send" disabled></button>
+            <button id="stop" class="send-button stop-button" data-icon="stop" data-i18n-title="ui.stop" title="" aria-label="Stop" hidden></button>
+          </div>
+        </div>
+      </div>
+      <div id="chips" class="chips">
+        <button type="button" id="graphifyChipBtn" class="chip graphify-chip" data-icon="graph"><span data-i18n="ui.graphify">Graphify</span></button>
+        <button type="button" id="benchmarkChipBtn" class="chip" data-mode="Code" data-command="/benchmark"><span>⚡ Benchmark</span></button>
+        <button type="button" id="tddChipBtn" class="chip" data-mode="Code" data-command="/tdd"><span>🧪 Auto-TDD</span></button>
+        <button type="button" class="chip" data-mode="Code" data-starter="ui.starterCode" data-icon="code"><span data-i18n="ui.chipCode"></span></button>
+        <button type="button" class="chip" data-mode="Ask" data-starter="ui.starterLearn" data-icon="cap"><span data-i18n="ui.chipLearn"></span></button>
+        <button type="button" class="chip" data-mode="Code" data-starter="ui.starterWrite" data-icon="pencil"><span data-i18n="ui.chipWrite"></span></button>
+        <button type="button" class="chip" data-mode="Debug" data-starter="ui.starterDebug" data-icon="bug"><span data-i18n="ui.chipDebug"></span></button>
+        <button type="button" class="chip" data-mode="Plan" data-starter="ui.starterPlan" data-icon="list"><span data-i18n="ui.chipPlan"></span></button>
+      </div>
+      <div class="actions"><span id="status" class="status"></span></div>
+    </footer>
+  </div>
+
+  <div id="graphifyViewSection" class="view-section graphify-section" hidden>
+    <div class="embed-graph-header">
+      <div class="embed-stats">
+        <span class="embed-stat-pill"><strong id="embedStatNodes">0</strong> <span id="embedNodesLabel">Files</span></span>
+        <span class="embed-stat-pill"><strong id="embedStatEdges">0</strong> <span id="embedEdgesLabel">Edges</span></span>
+        <span class="embed-stat-pill health"><span id="embedHealthLabel">Health</span> <strong id="embedStatHealth">100</strong>/100</span>
+      </div>
+      <div class="embed-header-tools">
+        <select id="embedLangSelect" class="embed-lang-select" title="Dil / Language">
+          <option value="tr">🇹🇷 TR</option>
+          <option value="en">🇬🇧 EN</option>
+          <option value="de">🇩🇪 DE</option>
+          <option value="es">🇪🇸 ES</option>
+          <option value="fr">🇫🇷 FR</option>
+          <option value="az">🇦🇿 AZ</option>
+          <option value="ru">🇷🇺 RU</option>
+          <option value="zh">🇨🇳 ZH</option>
+          <option value="ja">🇯🇵 JA</option>
+        </select>
+        <button id="embedRefreshBtn" class="icon-button" title="Yenile / Refresh" type="button">↻</button>
+        <button id="embedPopoutBtn" class="icon-button" title="Ayrı Sekmede Aç / Open in Tab" type="button">⛶</button>
+      </div>
+    </div>
+    <div class="embed-graph-body">
+      <div class="embed-canvas-wrap">
+        <div class="embed-floating-toolbar">
+          <div class="embed-seg-group" id="embedLayoutSegmented">
+            <button type="button" class="embed-seg-btn active" data-layout="star" id="embedBtnStar" title="Yıldız & Kollar">⭐</button>
+            <button type="button" class="embed-seg-btn" data-layout="diagram" id="embedBtnDiagram" title="Blok Diyagramı">📦</button>
+            <button type="button" class="embed-seg-btn" data-layout="hierarchy" id="embedBtnHierarchy" title="Hiyerarşi">🏛️</button>
+          </div>
+          <button type="button" id="embedFocusBtn" class="embed-filter-btn" title="1-Hop Odak">🎯 1-Hop</button>
+          <button type="button" id="embedCyclesBtn" class="embed-filter-btn warn" title="Döngüler">⚠️ (<span id="embedCycleBadge">0</span>)</button>
+          <div class="embed-zoom-group">
+            <button type="button" id="embedZoomIn" class="embed-zoom-btn" title="Yakınlaştır">+</button>
+            <button type="button" id="embedZoomOut" class="embed-zoom-btn" title="Uzaklaştır">−</button>
+            <button type="button" id="embedZoomFit" class="embed-zoom-btn" title="Ekrana Sığdır">⛶</button>
+          </div>
+        </div>
+        <canvas id="embedGraphCanvas"></canvas>
+        <div id="embedTooltip" class="node-tooltip"></div>
+      </div>
+      <div class="embed-drawer" id="embedInspectorDrawer">
+        <div class="embed-drawer-tabs">
+          <button type="button" class="embed-drawer-tab active" data-tab="embedTabSelected" id="embedTabBtnSelected">🔍 <span id="embedTabSelLabel">İnceleyici</span></button>
+          <button type="button" class="embed-drawer-tab" data-tab="embedTabHealth" id="embedTabBtnHealth">📊 <span id="embedTabHltLabel">Sağlık</span></button>
+          <button type="button" class="embed-drawer-tab" data-tab="embedTabExport" id="embedTabBtnExport">📝 <span id="embedTabExpLabel">Dışa Aktar</span></button>
+          <button type="button" id="embedDrawerToggle" class="embed-drawer-toggle" title="Çekmeceyi Aç / Kapat">▼</button>
+        </div>
+        <div class="embed-drawer-content">
+          <div id="embedTabSelected" class="embed-pane"></div>
+          <div id="embedTabHealth" class="embed-pane" hidden></div>
+          <div id="embedTabExport" class="embed-pane" hidden></div>
         </div>
       </div>
     </div>
-    <div id="chips" class="chips">
-      <button type="button" id="graphifyChipBtn" class="chip graphify-chip" data-icon="graph"><span data-i18n="ui.graphify">Graphify</span></button>
-      <button type="button" id="benchmarkChipBtn" class="chip" data-mode="Code" data-command="/benchmark"><span>⚡ Benchmark</span></button>
-      <button type="button" id="tddChipBtn" class="chip" data-mode="Code" data-command="/tdd"><span>🧪 Auto-TDD</span></button>
-      <button type="button" class="chip" data-mode="Code" data-starter="ui.starterCode" data-icon="code"><span data-i18n="ui.chipCode"></span></button>
-      <button type="button" class="chip" data-mode="Ask" data-starter="ui.starterLearn" data-icon="cap"><span data-i18n="ui.chipLearn"></span></button>
-      <button type="button" class="chip" data-mode="Code" data-starter="ui.starterWrite" data-icon="pencil"><span data-i18n="ui.chipWrite"></span></button>
-      <button type="button" class="chip" data-mode="Debug" data-starter="ui.starterDebug" data-icon="bug"><span data-i18n="ui.chipDebug"></span></button>
-      <button type="button" class="chip" data-mode="Plan" data-starter="ui.starterPlan" data-icon="list"><span data-i18n="ui.chipPlan"></span></button>
-    </div>
-    <div class="actions"><span id="status" class="status"></span></div>
-  </footer>
+  </div>
   <script nonce="${nonce}" src="${media('chat.js')}"></script>
 </body>
 </html>`;

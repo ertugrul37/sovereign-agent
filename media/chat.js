@@ -605,7 +605,8 @@
     terminal: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
     star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor"/>',
     monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
-    graph: '<circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="12" cy="18" r="3"/><line x1="8.7" y1="7.4" x2="15.3" y2="6"/><line x1="7.3" y1="8.7" x2="10.7" y2="15.3"/><line x1="16.7" y1="8.7" x2="13.3" y2="15.3"/>'
+    graph: '<circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="12" cy="18" r="3"/><line x1="8.7" y1="7.4" x2="15.3" y2="6"/><line x1="7.3" y1="8.7" x2="10.7" y2="15.3"/><line x1="16.7" y1="8.7" x2="13.3" y2="15.3"/>',
+    chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'
   };
 
   function icon(name, size) {
@@ -937,12 +938,34 @@
       vscode.postMessage({ type: 'modelMenu' });
     }
   });
-  if ($('graphifyBtn')) {
-    $('graphifyBtn').addEventListener('click', () => vscode.postMessage({ type: 'openGraphify' }));
+  function switchViewTab(tab) {
+    const isGraph = tab === 'graphify';
+    $('navChatBtn')?.classList.toggle('active', !isGraph);
+    $('navGraphifyBtn')?.classList.toggle('active', isGraph);
+    $('navChatBtn')?.setAttribute('aria-selected', String(!isGraph));
+    $('navGraphifyBtn')?.setAttribute('aria-selected', String(isGraph));
+    const chatSec = $('chatViewSection');
+    const graphSec = $('graphifyViewSection');
+    if (chatSec) chatSec.hidden = isGraph;
+    if (graphSec) graphSec.hidden = !isGraph;
+
+    if (isGraph) {
+      if (!embeddedGraphData) {
+        vscode.postMessage({ type: 'openGraphify' });
+      } else {
+        requestAnimationFrame(() => resizeAndRedrawGraph());
+      }
+    } else {
+      scrollDown();
+    }
   }
-  if ($('graphifyComposerBtn')) {
-    $('graphifyComposerBtn').addEventListener('click', () => vscode.postMessage({ type: 'openGraphify' }));
-  }
+
+  $('navChatBtn')?.addEventListener('click', () => switchViewTab('chat'));
+  $('navGraphifyBtn')?.addEventListener('click', () => switchViewTab('graphify'));
+  $('graphifyBtn')?.addEventListener('click', () => switchViewTab('graphify'));
+  $('graphifyComposerBtn')?.addEventListener('click', () => switchViewTab('graphify'));
+  $('graphifyChipBtn')?.addEventListener('click', () => switchViewTab('graphify'));
+
   if ($('previewBtn')) {
     $('previewBtn').addEventListener('click', () => vscode.postMessage({ type: 'openPreview' }));
   }
@@ -1423,8 +1446,1025 @@
         lastTool = null;
         comparison.hidden = true;
         break;
+      case 'showGraphifyTab':
+        switchViewTab('graphify');
+        if (msg.data) initOrUpdateEmbeddedGraph(msg.data, msg.locale);
+        break;
+      case 'graphifyData':
+        if (msg.data) initOrUpdateEmbeddedGraph(msg.data, msg.locale);
+        break;
     }
   });
+
+  // ====================================================
+  // Embedded Graphify Architecture Studio (Unified In-Extension View)
+  // ====================================================
+  const GRAPHIFY_I18N = {
+    tr: {
+      files: 'Dosya', edges: 'Bağlantı', health: 'Sağlık',
+      star: '⭐ Yıldız & Kollar', diagram: '📦 Blok Diyagramı', hierarchy: '🏛️ Hiyerarşi',
+      focus: '🎯 1-Hop Odak', cycles: '⚠️ Döngüler',
+      tabInspector: 'İnceleyici', tabHealth: 'Sağlık', tabExport: 'Dışa Aktar',
+      archHealth: 'Mimari Sağlığı', archHealthSub: 'Döngüler, dev düğümler ve bağlantı metriği',
+      hubsTitle: '👑 Mimari Merkezler (God-Nodes)', cyclesTitleSec: '⚠️ Döngüsel Bağımlılıklar',
+      orphansTitle: '📦 İzole Dosyalar (Ölü Kod)', loopPrefix: '⚠️ Döngü:', linesUnit: 'satır',
+      exportTitle: 'Bilgi Grafiği Dışa Aktarma', exportDesc: 'Mermaid diyagramları ve metrik tabloları içeren ARCHITECTURE.md oluşturur.',
+      exportBtn: '📝 ARCHITECTURE.md Oluştur', clickNodeHint: 'Sembolleri ve bağımlılıkları incelemek için tuvaldeki bir düğüme tıklayın.',
+      clusterLabel: 'Modül:', scoreLabel: 'Skor:', openFile: '📂 Dosyayı Aç', analyzeImpact: '🤖 Etki Analizi Yap',
+      symbolsSection: 'Semboller / Tanımlar', importedBySection: 'Import Edenler (Bağımlı)', importsSection: 'Import Edilenler (Bağımlılık)',
+      none: '(yok)', dependentsTooltip: 'bağımlı dosya', importsTooltip: 'import',
+      askPrompt: '{file} dosyasının mimari ve bağımlılık etkisini <code_graph><action>impact</action><target>{file}</target></code_graph> kullanarak analiz et.'
+    },
+    en: {
+      files: 'Files', edges: 'Edges', health: 'Health',
+      star: '⭐ Star & Arms', diagram: '📦 Block Diagram', hierarchy: '🏛️ Hierarchy',
+      focus: '🎯 1-Hop Focus', cycles: '⚠️ Cycles',
+      tabInspector: 'Inspector', tabHealth: 'Health', tabExport: 'Export',
+      archHealth: 'Architecture Health', archHealthSub: 'Cycles, god-nodes & coupling metric',
+      hubsTitle: '👑 Architectural Hubs (God-Nodes)', cyclesTitleSec: '⚠️ Circular Dependencies',
+      orphansTitle: '📦 Orphan Files (Dead Code)', loopPrefix: '⚠️ Loop:', linesUnit: 'lines',
+      exportTitle: 'Knowledge Graph Export', exportDesc: 'Generate ARCHITECTURE.md with Mermaid diagrams and metrics.',
+      exportBtn: '📝 Generate ARCHITECTURE.md', clickNodeHint: 'Click on any node in the canvas to inspect its symbols and dependencies.',
+      clusterLabel: 'Cluster:', scoreLabel: 'Score:', openFile: '📂 Open File', analyzeImpact: '🤖 Analyze Impact',
+      symbolsSection: 'Symbols / Definitions', importedBySection: 'Imported By (Dependents)', importsSection: 'Imports (Dependencies)',
+      none: '(none)', dependentsTooltip: 'dependents', importsTooltip: 'imports',
+      askPrompt: 'Analyze the architecture and dependency impact of {file} using <code_graph><action>impact</action><target>{file}</target></code_graph>.'
+    },
+    de: {
+      files: 'Dateien', edges: 'Kanten', health: 'Gesundheit',
+      star: '⭐ Stern & Arme', diagram: '📦 Blockdiagramm', hierarchy: '🏛️ Hierarchie',
+      focus: '🎯 1-Hop Fokus', cycles: '⚠️ Zyklen',
+      tabInspector: 'Inspektor', tabHealth: 'Gesundheit', tabExport: 'Exportieren',
+      archHealth: 'Architektur-Gesundheit', archHealthSub: 'Zyklen, Gott-Knoten und Kopplung',
+      hubsTitle: '👑 Architektur-Knotenpunkte', cyclesTitleSec: '⚠️ Zyklische Abhängigkeiten',
+      orphansTitle: '📦 Verwaiste Dateien', loopPrefix: '⚠️ Schleife:', linesUnit: 'Zeilen',
+      exportTitle: 'Wissensgraph exportieren', exportDesc: 'Erstellen Sie ARCHITECTURE.md mit Mermaid-Diagrammen.',
+      exportBtn: '📝 ARCHITECTURE.md generieren', clickNodeHint: 'Klicken Sie auf einen Knoten auf der Leinwand.',
+      clusterLabel: 'Cluster:', scoreLabel: 'Score:', openFile: '📂 Datei öffnen', analyzeImpact: '🤖 Auswirkung analysieren',
+      symbolsSection: 'Symbole / Definitionen', importedBySection: 'Importiert von', importsSection: 'Importe',
+      none: '(keine)', dependentsTooltip: 'Abhängige', importsTooltip: 'Importe',
+      askPrompt: 'Analysieren Sie die Architektur- und Abhängigkeitsauswirkungen von {file} mit <code_graph><action>impact</action><target>{file}</target></code_graph>.'
+    },
+    es: {
+      files: 'Archivos', edges: 'Conexiones', health: 'Salud',
+      star: '⭐ Estrella y Brazos', diagram: '📦 Diagrama de Bloques', hierarchy: '🏛️ Jerarquía',
+      focus: '🎯 Foco 1-Salto', cycles: '⚠️ Ciclos',
+      tabInspector: 'Inspector', tabHealth: 'Salud', tabExport: 'Exportar',
+      archHealth: 'Salud de Arquitectura', archHealthSub: 'Métricas de ciclos y acoplamiento',
+      hubsTitle: '👑 Centros Arquitectónicos', cyclesTitleSec: '⚠️ Dependencias Circulares',
+      orphansTitle: '📦 Archivos Huérfanos', loopPrefix: '⚠️ Bucle:', linesUnit: 'líneas',
+      exportTitle: 'Exportar Grafo de Conocimiento', exportDesc: 'Genere ARCHITECTURE.md con diagramas Mermaid.',
+      exportBtn: '📝 Generar ARCHITECTURE.md', clickNodeHint: 'Haga clic en cualquier nodo para inspeccionar.',
+      clusterLabel: 'Módulo:', scoreLabel: 'Puntaje:', openFile: '📂 Abrir Archivo', analyzeImpact: '🤖 Analizar Impacto',
+      symbolsSection: 'Símbolos / Definiciones', importedBySection: 'Importado por', importsSection: 'Importaciones',
+      none: '(ninguno)', dependentsTooltip: 'dependientes', importsTooltip: 'importaciones',
+      askPrompt: 'Analice el impacto de arquitectura de {file} usando <code_graph><action>impact</action><target>{file}</target></code_graph>.'
+    },
+    fr: {
+      files: 'Fichiers', edges: 'Connexions', health: 'Santé',
+      star: '⭐ Étoile & Bras', diagram: '📦 Diagramme de Blocs', hierarchy: '🏛️ Hiérarchie',
+      focus: '🎯 Focus 1-Saut', cycles: '⚠️ Boucles',
+      tabInspector: 'Inspecteur', tabHealth: 'Santé', tabExport: 'Exporter',
+      archHealth: 'Santé Architecturale', archHealthSub: 'Métriques de boucles et de couplage',
+      hubsTitle: '👑 Pôles Architecturaux', cyclesTitleSec: '⚠️ Dépendances Circulaires',
+      orphansTitle: '📦 Fichiers Orphelins', loopPrefix: '⚠️ Boucle :', linesUnit: 'lignes',
+      exportTitle: 'Exporter Graphe de Connaissance', exportDesc: 'Générez ARCHITECTURE.md avec diagrammes Mermaid.',
+      exportBtn: '📝 Générer ARCHITECTURE.md', clickNodeHint: 'Cliquez sur un nœud pour inspecter ses dépendances.',
+      clusterLabel: 'Module :', scoreLabel: 'Score :', openFile: '📂 Ouvrir Fichier', analyzeImpact: '🤖 Analyser Impact',
+      symbolsSection: 'Symboles / Définitions', importedBySection: 'Importé par', importsSection: 'Imports',
+      none: '(aucun)', dependentsTooltip: 'dépendants', importsTooltip: 'imports',
+      askPrompt: 'Analysez l’impact architectural de {file} avec <code_graph><action>impact</action><target>{file}</target></code_graph>.'
+    },
+    az: {
+      files: 'Fayl', edges: 'Əlaqə', health: 'Sağlamlıq',
+      star: '⭐ Ulduz & Qollar', diagram: '📦 Blok Diaqramı', hierarchy: '🏛️ Hiyerarxiya',
+      focus: '🎯 1-Addım Fokus', cycles: '⚠️ Dövrlər',
+      tabInspector: 'Müfəttiş', tabHealth: 'Sağlamlıq', tabExport: 'İxrac Et',
+      archHealth: 'Memarlıq Sağlamlığı', archHealthSub: 'Dövrlər və əlaqə metriki',
+      hubsTitle: '👑 Memarlıq Mərkəzləri', cyclesTitleSec: '⚠️ Dövri Asılılıqlar',
+      orphansTitle: '📦 Təcrid Olunmuş Fayllar', loopPrefix: '⚠️ Dövr:', linesUnit: 'sətir',
+      exportTitle: 'Bilik Qrafiki İxracı', exportDesc: 'Mermaid diaqramları ilə ARCHITECTURE.md yaradın.',
+      exportBtn: '📝 ARCHITECTURE.md Yarat', clickNodeHint: 'Düyünü yoxlamaq üçün kətan üzərində klikləyin.',
+      clusterLabel: 'Modul:', scoreLabel: 'Xal:', openFile: '📂 Faylı Aç', analyzeImpact: '🤖 Təsirini Təhlil Et',
+      symbolsSection: 'Simvollar / Təriflər', importedBySection: 'İdxal Edənlər', importsSection: 'İdxal Edilənlər',
+      none: '(yoxdur)', dependentsTooltip: 'asılı fayl', importsTooltip: 'idxal',
+      askPrompt: '{file} faylının memarlıq təsirini <code_graph><action>impact</action><target>{file}</target></code_graph> istifadə edərək təhlil edin.'
+    },
+    ru: {
+      files: 'Файлов', edges: 'Связей', health: 'Здоровье',
+      star: '⭐ Звезда и рукава', diagram: '📦 Блок-схема', hierarchy: '🏛️ Иерархия',
+      focus: '🎯 1 шаг', cycles: '⚠️ Циклы',
+      tabInspector: 'Инспектор', tabHealth: 'Здоровье', tabExport: 'Экспорт',
+      archHealth: 'Архитектурное здоровье', archHealthSub: 'Метрики циклов и связности',
+      hubsTitle: '👑 Архитектурные центры', cyclesTitleSec: '⚠️ Циклические зависимости',
+      orphansTitle: '📦 Изолированные файлы', loopPrefix: '⚠️ Цикл:', linesUnit: 'строк',
+      exportTitle: 'Экспорт графа знаний', exportDesc: 'Создать ARCHITECTURE.md с диаграммами Mermaid.',
+      exportBtn: '📝 Сгенерировать ARCHITECTURE.md', clickNodeHint: 'Нажмите на узел для просмотра связей.',
+      clusterLabel: 'Модуль:', scoreLabel: 'Оценка:', openFile: '📂 Открыть файл', analyzeImpact: '🤖 Анализ влияния',
+      symbolsSection: 'Символы / Определения', importedBySection: 'Кем импортируется', importsSection: 'Импортирует',
+      none: '(нет)', dependentsTooltip: 'зависимых', importsTooltip: 'импортов',
+      askPrompt: 'Проанализируйте архитектурное влияние {file} с помощью <code_graph><action>impact</action><target>{file}</target></code_graph>.'
+    },
+    zh: {
+      files: '文件', edges: '关联', health: '健康度',
+      star: '⭐ 核心星系', diagram: '📦 模块方块图', hierarchy: '🏛️ 层次结构',
+      focus: '🎯 1度关注', cycles: '⚠️ 循环依赖',
+      tabInspector: '检查器', tabHealth: '健康', tabExport: '导出',
+      archHealth: '架构健康度', archHealthSub: '循环依赖与耦合度指标',
+      hubsTitle: '👑 关键架构枢纽', cyclesTitleSec: '⚠️ 循环依赖',
+      orphansTitle: '📦 孤立文件', loopPrefix: '⚠️ 环路：', linesUnit: '行',
+      exportTitle: '知识图谱导出', exportDesc: '生成包含 Mermaid 图的 ARCHITECTURE.md 文件。',
+      exportBtn: '📝 生成 ARCHITECTURE.md', clickNodeHint: '点击画布中的节点检查其依赖关系。',
+      clusterLabel: '模块：', scoreLabel: '评分：', openFile: '📂 打开文件', analyzeImpact: '🤖 影响分析',
+      symbolsSection: '符号 / 导出', importedBySection: '下游引用', importsSection: '依赖项',
+      none: '(无)', dependentsTooltip: '下游引用', importsTooltip: '依赖项',
+      askPrompt: '请使用 <code_graph><action>impact</action><target>{file}</target></code_graph> 分析 {file} 的架构影响。'
+    },
+    ja: {
+      files: 'ファイル', edges: '依存', health: '健全度',
+      star: '⭐ 星座', diagram: '📦 ブロック図', hierarchy: '🏛️ 階層',
+      focus: '🎯 1ホップ', cycles: '⚠️ 循環依存',
+      tabInspector: 'インスペクタ', tabHealth: '健全性', tabExport: 'エクスポート',
+      archHealth: 'アーキテクチャ健全度', archHealthSub: '循環依存と結合度メトリクス',
+      hubsTitle: '👑 主要ハブ', cyclesTitleSec: '⚠️ 循環依存関係',
+      orphansTitle: '📦 孤立ファイル', loopPrefix: '⚠️ ループ：', linesUnit: '行',
+      exportTitle: 'ナレッジグラフ出力', exportDesc: 'Mermaid 図を含む ARCHITECTURE.md を生成します。',
+      exportBtn: '📝 ARCHITECTURE.md を生成', clickNodeHint: 'ノードをクリックして依存関係を確認します。',
+      clusterLabel: 'モジュール：', scoreLabel: 'スコア：', openFile: '📂 ファイルを開く', analyzeImpact: '🤖 影響度分析',
+      symbolsSection: 'シンボル / 定義', importedBySection: '依存先', importsSection: '依存元',
+      none: '(なし)', dependentsTooltip: '依存元', importsTooltip: '依存先',
+      askPrompt: '<code_graph><action>impact</action><target>{file}</target></code_graph> で {file} の影響を分析してください。'
+    }
+  };
+
+  let embeddedGraphData = null;
+  let embedSimNodes = [];
+  let embedNodeById = new Map();
+  let embedFilesByCluster = new Map();
+  let embedModuleHubs = [];
+  let embedCoreStar = { x: 0, y: 0, targetX: 0, targetY: 0 };
+  let embedClusterBoxes = [];
+  let embedCyclePairs = new Set();
+  let embedSelectedNode = null;
+  let embedHoveredNode = null;
+  let embedDraggingNode = null;
+  let embedCamX = 0, embedCamY = 0, embedZoom = 0.9;
+  let embedLastMouse = { x: 0, y: 0 }, embedPanning = false;
+  let embedCurrentLayout = 'star';
+  let embedFocus1HopMode = false;
+  let embedCyclesHighlightMode = false;
+  let embedCurrentLang = 'tr';
+  let embedCanvas = null;
+  let embedCtx = null;
+  let embedRaf = 0;
+  let embedClusterColors = {};
+  const EMBED_PALETTE = ['#d97757', '#73c991', '#e0a952', '#7ba3b8', '#b888c4', '#e07a6a', '#6eb5a5', '#c7926b', '#94a3b8'];
+
+  function gtr(key, vars) {
+    const dict = GRAPHIFY_I18N[embedCurrentLang] || GRAPHIFY_I18N.en;
+    let s = dict[key] || (GRAPHIFY_I18N.en && GRAPHIFY_I18N.en[key]) || key;
+    if (vars) {
+      for (const k of Object.keys(vars)) {
+        s = s.replace(new RegExp('\\{' + k + '\\}', 'g'), String(vars[k]));
+      }
+    }
+    return s;
+  }
+
+  function applyEmbeddedLang() {
+    $('embedNodesLabel') && ($('embedNodesLabel').textContent = gtr('files'));
+    $('embedEdgesLabel') && ($('embedEdgesLabel').textContent = gtr('edges'));
+    $('embedHealthLabel') && ($('embedHealthLabel').textContent = gtr('health'));
+    $('embedBtnStar') && ($('embedBtnStar').title = gtr('star'));
+    $('embedBtnDiagram') && ($('embedBtnDiagram').title = gtr('diagram'));
+    $('embedBtnHierarchy') && ($('embedBtnHierarchy').title = gtr('hierarchy'));
+    $('embedFocusBtn') && ($('embedFocusBtn').title = gtr('focus'));
+    $('embedCyclesBtn') && ($('embedCyclesBtn').title = gtr('cycles'));
+    $('embedTabSelLabel') && ($('embedTabSelLabel').textContent = gtr('tabInspector'));
+    $('embedTabHltLabel') && ($('embedTabHltLabel').textContent = gtr('tabHealth'));
+    $('embedTabExpLabel') && ($('embedTabExpLabel').textContent = gtr('tabExport'));
+    renderEmbedDrawer(embedSelectedNode);
+  }
+
+  function initOrUpdateEmbeddedGraph(data, locale) {
+    embeddedGraphData = data;
+    if (locale && GRAPHIFY_I18N[locale]) {
+      embedCurrentLang = locale;
+    } else if (currentLanguage && GRAPHIFY_I18N[currentLanguage]) {
+      embedCurrentLang = currentLanguage;
+    }
+
+    $('embedStatNodes').textContent = data.nodes.length;
+    $('embedStatEdges').textContent = data.edges.length;
+    $('embedStatHealth').textContent = data.healthScore;
+    $('embedCycleBadge').textContent = data.cycles.length;
+
+    const langSel = $('embedLangSelect');
+    if (langSel) {
+      langSel.value = embedCurrentLang;
+      langSel.onchange = (e) => {
+        embedCurrentLang = e.target.value;
+        applyEmbeddedLang();
+      };
+    }
+
+    embedClusterColors = {};
+    data.clusters.forEach((c, idx) => {
+      embedClusterColors[c.name] = EMBED_PALETTE[idx % EMBED_PALETTE.length];
+    });
+
+    embedCyclePairs.clear();
+    data.cycles.forEach(c => {
+      for (let i = 0; i < c.length - 1; i++) {
+        embedCyclePairs.add(c[i] + '<->' + c[i + 1]);
+        embedCyclePairs.add(c[i + 1] + '<->' + c[i]);
+      }
+    });
+
+    embedFilesByCluster.clear();
+    data.clusters.forEach(c => embedFilesByCluster.set(c.name, []));
+    data.nodes.forEach(n => {
+      if (!embedFilesByCluster.has(n.cluster)) embedFilesByCluster.set(n.cluster, []);
+      embedFilesByCluster.get(n.cluster).push(n);
+    });
+
+    embedSimNodes = data.nodes.map(n => ({
+      ...n,
+      x: 0, y: 0, vx: 0, vy: 0,
+      targetX: 0, targetY: 0,
+      radius: Math.max(6, Math.min(14, 5 + Math.sqrt(n.score) * 1.8)),
+      color: embedClusterColors[n.cluster] || '#d97757',
+      isHub: data.hubs.some(h => h.id === n.id)
+    }));
+
+    embedNodeById.clear();
+    embedSimNodes.forEach(n => embedNodeById.set(n.id, n));
+
+    const totalClusters = data.clusters.length;
+    embedModuleHubs = data.clusters.map((c, i) => {
+      const angle = (i / totalClusters) * Math.PI * 2 - Math.PI / 2;
+      const r = Math.max(160, 36 * Math.min(8, totalClusters));
+      return {
+        name: c.name,
+        count: c.count,
+        color: embedClusterColors[c.name] || '#d97757',
+        x: Math.cos(angle) * r,
+        y: Math.sin(angle) * r,
+        targetX: Math.cos(angle) * r,
+        targetY: Math.sin(angle) * r,
+        angle
+      };
+    });
+
+    applyEmbedLayout(embedCurrentLayout);
+    applyEmbeddedLang();
+    bindEmbedEventsOnce();
+    requestAnimationFrame(() => {
+      resizeAndRedrawGraph();
+      embedFitToViewport();
+    });
+  }
+
+  function applyEmbedLayout(layout) {
+    embedCurrentLayout = layout;
+    if (!embeddedGraphData) return;
+    const totalClusters = embeddedGraphData.clusters.length;
+
+    if (layout === 'star') {
+      embedCoreStar.targetX = 0;
+      embedCoreStar.targetY = 0;
+      embedModuleHubs.forEach((m, i) => {
+        const angle = (i / totalClusters) * Math.PI * 2 - Math.PI / 2;
+        const r = Math.max(160, 36 * Math.min(8, totalClusters));
+        m.targetX = Math.cos(angle) * r;
+        m.targetY = Math.sin(angle) * r;
+        m.angle = angle;
+
+        const files = (embedFilesByCluster.get(m.name) || []).map(f => embedNodeById.get(f.id)).filter(Boolean);
+        const count = files.length;
+        const ringCaps = [3, 5, 7, 9, 12];
+        let fIdx = 0, ring = 0;
+        while (fIdx < count) {
+          const cap = ringCaps[ring] || 8;
+          const inRing = Math.min(cap, count - fIdx);
+          const ringDist = 65 + ring * 48;
+          const fanSpan = Math.min(Math.PI * 0.9, 0.24 * inRing + 0.15);
+          for (let j = 0; j < inRing; j++) {
+            const f = files[fIdx++];
+            const subAngle = inRing === 1 ? angle : (angle - fanSpan / 2 + (j / (inRing - 1)) * fanSpan);
+            f.targetX = m.targetX + Math.cos(subAngle) * ringDist;
+            f.targetY = m.targetY + Math.sin(subAngle) * ringDist;
+            f.radius = Math.max(6, Math.min(13, 5 + Math.sqrt(f.score) * 1.6));
+          }
+          ring++;
+        }
+      });
+    } else if (layout === 'diagram') {
+      embedClusterBoxes.length = 0;
+      const cols = 2;
+      const boxW = 220;
+      const spacingX = 250;
+      const rows = [];
+      embeddedGraphData.clusters.forEach((c, idx) => {
+        const r = Math.floor(idx / cols);
+        if (!rows[r]) rows[r] = [];
+        const files = (embedFilesByCluster.get(c.name) || []).map(f => embedNodeById.get(f.id)).filter(Boolean);
+        const colsInside = files.length > 6 ? 2 : 1;
+        const rowsInside = Math.ceil(files.length / colsInside);
+        const boxH = Math.max(80, 40 + rowsInside * 22 + 10);
+        rows[r].push({ cluster: c, files, colsInside, boxH });
+      });
+
+      let totalGridH = 0;
+      rows.forEach(r => {
+        const maxH = Math.max(...r.map(item => item.boxH), 100);
+        totalGridH += maxH + 50;
+      });
+
+      let currentY = -totalGridH / 2;
+      rows.forEach(rowClusters => {
+        const maxH = Math.max(...rowClusters.map(item => item.boxH), 100);
+        const countInRow = rowClusters.length;
+        rowClusters.forEach((item, cIdx) => {
+          const bx = (cIdx - (countInRow - 1) / 2) * spacingX;
+          const by = currentY + item.boxH / 2;
+          const box = {
+            name: item.cluster.name,
+            color: embedClusterColors[item.cluster.name] || '#d97757',
+            x: bx - boxW / 2, y: by - item.boxH / 2,
+            w: boxW, h: item.boxH,
+            files: item.files
+          };
+          embedClusterBoxes.push(box);
+          const colWidth = (boxW - 24) / item.colsInside;
+          item.files.forEach((f, fi) => {
+            const inCol = fi % item.colsInside;
+            const inRow = Math.floor(fi / item.colsInside);
+            f.targetX = box.x + 16 + inCol * colWidth;
+            f.targetY = box.y + 36 + inRow * 22;
+            f.radius = 5.5;
+          });
+        });
+        currentY += maxH + 50;
+      });
+    } else if (layout === 'hierarchy') {
+      const levels = new Map();
+      embedSimNodes.forEach(n => {
+        const depth = n.importedBy.length === 0 ? 0 : (n.imports.length === 0 ? 2 : 1);
+        if (!levels.has(depth)) levels.set(depth, []);
+        levels.get(depth).push(n);
+      });
+      const depths = [0, 1, 2];
+      const rowSpacing = 160;
+      const startY = -rowSpacing;
+      depths.forEach((d, rIdx) => {
+        const nodesAtLvl = levels.get(d) || [];
+        const count = nodesAtLvl.length;
+        const colSpacing = Math.min(65, 520 / Math.max(1, count));
+        nodesAtLvl.forEach((n, cIdx) => {
+          n.targetX = (cIdx - (count - 1) / 2) * colSpacing;
+          n.targetY = startY + rIdx * rowSpacing;
+          n.radius = Math.max(6, Math.min(13, 5 + Math.sqrt(n.score) * 1.6));
+        });
+      });
+    }
+
+    embedSimNodes.forEach(n => {
+      n.x = n.targetX;
+      n.y = n.targetY;
+    });
+    embedModuleHubs.forEach(m => {
+      m.x = m.targetX;
+      m.y = m.targetY;
+    });
+  }
+
+  function embedFitToViewport() {
+    if (!embedSimNodes.length || !embedCanvas) return;
+    const rect = embedCanvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    embedSimNodes.forEach(n => {
+      minX = Math.min(minX, n.x - 30);
+      maxX = Math.max(maxX, n.x + 30);
+      minY = Math.min(minY, n.y - 30);
+      maxY = Math.max(maxY, n.y + 30);
+    });
+    const spanX = Math.max(200, maxX - minX);
+    const spanY = Math.max(200, maxY - minY);
+    embedZoom = Math.min(2.2, Math.max(0.35, Math.min((rect.width - 50) / spanX, (rect.height - 50) / spanY)));
+    embedCamX = -(minX + maxX) / 2 * embedZoom;
+    embedCamY = -(minY + maxY) / 2 * embedZoom;
+  }
+
+  function resizeAndRedrawGraph() {
+    embedCanvas = $('embedGraphCanvas');
+    if (!embedCanvas) return;
+    embedCtx = embedCanvas.getContext('2d');
+    const rect = embedCanvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    if (embedCanvas.width !== Math.floor(rect.width * dpr) || embedCanvas.height !== Math.floor(rect.height * dpr)) {
+      embedCanvas.width = Math.floor(rect.width * dpr);
+      embedCanvas.height = Math.floor(rect.height * dpr);
+    }
+  }
+
+  function drawEmbeddedGraph() {
+    if (!embedCanvas || !embedCtx || !embeddedGraphData) return;
+    const ctx = embedCtx;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = embedCanvas.getBoundingClientRect();
+    const width = rect.width, height = rect.height;
+    const isLight = document.body.classList.contains('vscode-light');
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, height);
+
+    ctx.translate(width / 2 + embedCamX, height / 2 + embedCamY);
+    ctx.scale(embedZoom, embedZoom);
+
+    // 1. Layout Mode Specific Background Elements
+    if (embedCurrentLayout === 'star') {
+      for (const m of embedModuleHubs) {
+        ctx.save();
+        const isModuleActive = (embedSelectedNode && embedSelectedNode.cluster === m.name) || (embedHoveredNode && embedHoveredNode.cluster === m.name);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(m.x, m.y);
+        ctx.strokeStyle = m.color;
+        ctx.lineWidth = isModuleActive ? 4.8 : 2.6;
+        if (isModuleActive) {
+          ctx.shadowColor = m.color;
+          ctx.shadowBlur = 16;
+          ctx.globalAlpha = 1;
+        } else {
+          ctx.globalAlpha = 0.55;
+        }
+        ctx.stroke();
+
+        if (isModuleActive) {
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(m.x, m.y);
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.6;
+          ctx.shadowColor = '#ffffff';
+          ctx.shadowBlur = 6;
+          ctx.stroke();
+        }
+
+        const files = (embedFilesByCluster.get(m.name) || []).map(f => embedNodeById.get(f.id)).filter(Boolean);
+        for (const f of files) {
+          const isSelectedFile = (embedSelectedNode && embedSelectedNode.id === f.id);
+          const isHoveredFile = (embedHoveredNode && embedHoveredNode.id === f.id);
+          ctx.save();
+          if (isSelectedFile || isHoveredFile) {
+            const glowColor = isSelectedFile ? '#38bdf8' : '#67e8f9';
+            ctx.beginPath();
+            ctx.moveTo(m.x, m.y);
+            ctx.lineTo(f.x, f.y);
+            ctx.strokeStyle = glowColor;
+            ctx.lineWidth = 3.8;
+            ctx.shadowColor = glowColor;
+            ctx.shadowBlur = 18;
+            ctx.globalAlpha = 1;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(m.x, m.y);
+            ctx.lineTo(f.x, f.y);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.6;
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 6;
+            ctx.stroke();
+          } else {
+            ctx.beginPath();
+            ctx.moveTo(m.x, m.y);
+            ctx.lineTo(f.x, f.y);
+            ctx.strokeStyle = isLight ? 'rgba(31, 30, 29, 0.2)' : 'rgba(236, 233, 228, 0.18)';
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.5;
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+        ctx.restore();
+      }
+
+      // Draw Center Star
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, 18, 0, Math.PI * 2);
+      ctx.fillStyle = '#d97757';
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = '600 11px system-ui';
+      ctx.fillStyle = isLight ? '#1f1e1d' : '#ece9e4';
+      ctx.textAlign = 'center';
+      ctx.fillText('⭐ ' + embeddedGraphData.workspaceName, 0, 32);
+      ctx.restore();
+
+      // Draw Module Hubs
+      for (const m of embedModuleHubs) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, 11, 0, Math.PI * 2);
+        ctx.fillStyle = m.color;
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.font = '600 10px system-ui';
+        ctx.fillStyle = isLight ? '#1f1e1d' : '#ece9e4';
+        ctx.textAlign = 'center';
+        ctx.fillText('📦 ' + m.name + ' (' + m.count + ')', m.x, m.y + (m.y >= 0 ? 20 : -14));
+        ctx.restore();
+      }
+    } else if (embedCurrentLayout === 'diagram') {
+      for (const box of embedClusterBoxes) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(box.x, box.y, box.w, box.h, 8);
+        ctx.fillStyle = isLight ? '#ffffff' : '#1f1f1e';
+        ctx.fill();
+        ctx.strokeStyle = isLight ? '#dcd9ce' : '#3a3a37';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.roundRect(box.x, box.y, box.w, 24, [8, 8, 0, 0]);
+        ctx.fillStyle = box.color;
+        ctx.fill();
+        ctx.font = '600 10.5px system-ui';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('📦 ' + box.name + ' (' + box.files.length + ')', box.x + 8, box.y + 16);
+        ctx.restore();
+      }
+    }
+
+    // 2. Inter-file Dependencies (Luminous Glowing Laser Lines)
+    const outgoingTargets = new Set();
+    const incomingSources = new Set();
+    if (embedSelectedNode) {
+      for (const e of embeddedGraphData.edges) {
+        if (e.from === embedSelectedNode.id) outgoingTargets.add(e.to);
+        else if (e.to === embedSelectedNode.id) incomingSources.add(e.from);
+      }
+    }
+
+    for (const edge of embeddedGraphData.edges) {
+      const a = embedNodeById.get(edge.from);
+      const b = embedNodeById.get(edge.to);
+      if (!a || !b) continue;
+
+      const isCycle = embedCyclePairs.has(edge.from + '<->' + edge.to);
+      const isOutgoing = embedSelectedNode && embedSelectedNode.id === a.id;
+      const isIncoming = embedSelectedNode && embedSelectedNode.id === b.id;
+      const active = isOutgoing || isIncoming;
+      const hovered = embedHoveredNode && (embedHoveredNode.id === a.id || embedHoveredNode.id === b.id);
+
+      if (!active && !hovered && !isCycle) continue;
+
+      ctx.save();
+      ctx.globalAlpha = active || hovered || isCycle ? 1 : 0.2;
+      ctx.beginPath();
+      const midX = (a.x + b.x) / 2 + (b.y - a.y) * 0.12;
+      const midY = (a.y + b.y) / 2 + (a.x - b.x) * 0.12;
+      ctx.moveTo(a.x, a.y);
+      ctx.quadraticCurveTo(midX, midY, b.x, b.y);
+
+      if (isCycle) {
+        ctx.strokeStyle = '#f0746a';
+        ctx.lineWidth = 2.2;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+      } else if (active) {
+        const beamColor = isOutgoing ? '#38bdf8' : '#4ade80';
+        ctx.strokeStyle = beamColor;
+        ctx.lineWidth = 3.6;
+        ctx.shadowColor = beamColor;
+        ctx.shadowBlur = 16;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.quadraticCurveTo(midX, midY, b.x, b.y);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 6;
+        ctx.stroke();
+      } else if (hovered) {
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 10;
+        ctx.stroke();
+      }
+
+      // Arrowhead
+      const dx = b.x - midX, dy = b.y - midY;
+      const angle = Math.atan2(dy, dx);
+      const arrowDist = b.radius + 2;
+      const ax = b.x - Math.cos(angle) * arrowDist;
+      const ay = b.y - Math.sin(angle) * arrowDist;
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(ax - Math.cos(angle - 0.4) * 7, ay - Math.sin(angle - 0.4) * 7);
+      ctx.lineTo(ax - Math.cos(angle + 0.4) * 7, ay - Math.sin(angle + 0.4) * 7);
+      if (active) {
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = isOutgoing ? '#38bdf8' : '#4ade80';
+        ctx.shadowBlur = 12;
+      } else {
+        ctx.fillStyle = ctx.strokeStyle;
+      }
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 3. Draw File Nodes
+    for (const n of embedSimNodes) {
+      const isSelected = embedSelectedNode && embedSelectedNode.id === n.id;
+      const isHovered = embedHoveredNode && embedHoveredNode.id === n.id;
+      const isTarget = outgoingTargets.has(n.id);
+      const isSource = incomingSources.has(n.id);
+
+      if (embedSelectedNode) {
+        ctx.globalAlpha = (isSelected || isTarget || isSource) ? 1 : 0.22;
+      } else {
+        ctx.globalAlpha = 1;
+      }
+
+      // Target Halo (cyan)
+      if (isTarget) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.radius + 6, 0, Math.PI * 2);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.2;
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 14;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Source Halo (green)
+      if (isSource) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.radius + 6, 0, Math.PI * 2);
+        ctx.strokeStyle = '#4ade80';
+        ctx.lineWidth = 2.2;
+        ctx.shadowColor = '#4ade80';
+        ctx.shadowBlur = 14;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Outer Selection Ring
+      if (isSelected || isHovered) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.radius + 6, 0, Math.PI * 2);
+        ctx.strokeStyle = isSelected ? '#38bdf8' : '#67e8f9';
+        ctx.lineWidth = 2.4;
+        ctx.shadowColor = isSelected ? '#38bdf8' : '#67e8f9';
+        ctx.shadowBlur = 14;
+        ctx.fillStyle = isSelected ? 'rgba(56, 189, 248, 0.28)' : 'rgba(56, 189, 248, 0.16)';
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // God-Node Crown Halo
+      if (n.isHub) {
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.radius + 3, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(224, 169, 82, 0.6)';
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+      }
+
+      // Circle Body
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+      ctx.fillStyle = n.color;
+      ctx.fill();
+      ctx.strokeStyle = isSelected ? '#ffffff' : (isLight ? '#faf9f5' : '#171716');
+      ctx.lineWidth = isSelected ? 2.2 : 1.1;
+      ctx.stroke();
+
+      // Label
+      ctx.font = (isSelected || n.isHub ? '600 ' : '') + '10px system-ui';
+      ctx.fillStyle = isLight ? '#1f1e1d' : '#ece9e4';
+      ctx.textAlign = 'left';
+      let label = (n.isHub ? '👑 ' : '') + n.label;
+      if (label.length > 16) label = label.slice(0, 14) + '…';
+      ctx.fillText(label, n.x + n.radius + 4, n.y + 3);
+    }
+
+    ctx.restore();
+    embedRaf = requestAnimationFrame(drawEmbeddedGraph);
+  }
+
+  function renderEmbedDrawer(node) {
+    const tabSelected = $('embedTabSelected');
+    const tabHealth = $('embedTabHealth');
+    const tabExport = $('embedTabExport');
+    if (!tabSelected || !tabHealth || !tabExport || !embeddedGraphData) return;
+
+    // 1. Health Tab
+    tabHealth.replaceChildren();
+    const gauge = document.createElement('div');
+    gauge.className = 'gauge-box';
+    gauge.style.padding = '8px 10px';
+    gauge.innerHTML = '<div><strong>' + gtr('archHealth') + '</strong><div class="sub">' + gtr('archHealthSub') + '</div></div><span class="gauge-val" style="font-size:18px;">' + embeddedGraphData.healthScore + '</span>';
+    tabHealth.appendChild(gauge);
+
+    const hubTitle = document.createElement('div');
+    hubTitle.className = 'section-title';
+    hubTitle.textContent = gtr('hubsTitle');
+    tabHealth.appendChild(hubTitle);
+    embeddedGraphData.hubs.forEach(h => {
+      const row = document.createElement('div');
+      row.className = 'hub-row';
+      row.innerHTML = '<span>' + h.id + '</span><strong>' + h.score + '</strong>';
+      row.onclick = () => {
+        const target = embedNodeById.get(h.id);
+        if (target) {
+          embedSelectedNode = target;
+          embedCamX = -target.x * embedZoom;
+          embedCamY = -target.y * embedZoom;
+          renderEmbedDrawer(target);
+          switchEmbedDrawerTab('embedTabSelected');
+        }
+      };
+      tabHealth.appendChild(row);
+    });
+
+    if (embeddedGraphData.cycles.length > 0) {
+      const cycleTitle = document.createElement('div');
+      cycleTitle.className = 'section-title';
+      cycleTitle.textContent = gtr('cyclesTitleSec') + ' (' + embeddedGraphData.cycles.length + ')';
+      tabHealth.appendChild(cycleTitle);
+      embeddedGraphData.cycles.forEach(c => {
+        const row = document.createElement('div');
+        row.className = 'cycle-row';
+        row.innerHTML = '<strong>' + gtr('loopPrefix') + '</strong> ' + c.join(' ⟷ ');
+        row.onclick = () => {
+          const target = embedNodeById.get(c[0]);
+          if (target) {
+            embedSelectedNode = target;
+            embedCamX = -target.x * embedZoom;
+            embedCamY = -target.y * embedZoom;
+            renderEmbedDrawer(target);
+          }
+        };
+        tabHealth.appendChild(row);
+      });
+    }
+
+    // 2. Export Tab
+    tabExport.replaceChildren();
+    const expCard = document.createElement('div');
+    expCard.innerHTML = '<div class="section-title">' + gtr('exportTitle') + '</div><p class="sub" style="margin-bottom:8px;">' + gtr('exportDesc') + '</p>';
+    const expBtn = document.createElement('button');
+    expBtn.className = 'btn primary';
+    expBtn.style.width = '100%';
+    expBtn.textContent = gtr('exportBtn');
+    expBtn.onclick = () => vscode.postMessage({ type: 'exportArchitectureReport' });
+    tabExport.append(expCard, expBtn);
+
+    // 3. Selected Node Tab
+    tabSelected.replaceChildren();
+    if (!node) {
+      const placeholder = document.createElement('div');
+      placeholder.innerHTML = '<div class="sub" style="text-align:center;padding:16px 0;">' + gtr('clickNodeHint') + '</div>';
+      tabSelected.appendChild(placeholder);
+      return;
+    }
+
+    const header = document.createElement('div');
+    header.innerHTML = '<h3 style="font-size:13px;">' + (node.isHub ? '👑 ' : '') + node.id + '</h3><div class="sub">' + gtr('clusterLabel') + ' ' + node.cluster + ' · ' + node.lines + ' ' + gtr('linesUnit') + ' · ' + gtr('scoreLabel') + ' ' + node.score + '</div>';
+    tabSelected.appendChild(header);
+
+    const actions = document.createElement('div');
+    actions.style.display = 'flex';
+    actions.style.gap = '6px';
+    actions.style.marginTop = '6px';
+
+    const openBtn = document.createElement('button');
+    openBtn.className = 'btn primary';
+    openBtn.style.padding = '3px 8px';
+    openBtn.style.fontSize = '11px';
+    openBtn.textContent = gtr('openFile');
+    openBtn.onclick = () => vscode.postMessage({ type: 'openFile', file: node.id });
+
+    const askBtn = document.createElement('button');
+    askBtn.className = 'btn';
+    askBtn.style.padding = '3px 8px';
+    askBtn.style.fontSize = '11px';
+    askBtn.textContent = gtr('analyzeImpact');
+    askBtn.onclick = () => {
+      switchViewTab('chat');
+      input.value = gtr('askPrompt', { file: node.id });
+      autosize();
+      send();
+    };
+    actions.append(openBtn, askBtn);
+    tabSelected.appendChild(actions);
+
+    const addSection = (titleText, items, clickable) => {
+      const st = document.createElement('div');
+      st.className = 'section-title';
+      st.style.marginTop = '6px';
+      st.textContent = titleText + ' (' + items.length + ')';
+      tabSelected.appendChild(st);
+      const list = document.createElement('div');
+      list.className = 'chip-list';
+      if (!items.length) {
+        const empty = document.createElement('span');
+        empty.className = 'sub';
+        empty.textContent = gtr('none');
+        list.appendChild(empty);
+      } else {
+        items.forEach(item => {
+          const c = document.createElement('span');
+          c.className = 'chip';
+          c.style.fontSize = '10px';
+          c.textContent = item;
+          if (clickable) {
+            c.onclick = () => {
+              const target = embedNodeById.get(item);
+              if (target) {
+                embedSelectedNode = target;
+                embedCamX = -target.x * embedZoom;
+                embedCamY = -target.y * embedZoom;
+                renderEmbedDrawer(target);
+              }
+            };
+          }
+          list.appendChild(c);
+        });
+      }
+      tabSelected.appendChild(list);
+    };
+
+    addSection(gtr('symbolsSection'), node.symbols, false);
+    addSection(gtr('importedBySection'), node.importedBy, true);
+    addSection(gtr('importsSection'), node.imports, true);
+  }
+
+  function switchEmbedDrawerTab(tabId) {
+    document.querySelectorAll('.embed-drawer-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tabId);
+    });
+    document.querySelectorAll('.embed-pane').forEach(p => {
+      p.hidden = p.id !== tabId;
+    });
+  }
+
+  let embedEventsBound = false;
+  function bindEmbedEventsOnce() {
+    if (embedEventsBound) return;
+    embedEventsBound = true;
+
+    $('embedBtnStar')?.addEventListener('click', () => {
+      document.querySelectorAll('#embedLayoutSegmented .embed-seg-btn').forEach(b => b.classList.remove('active'));
+      $('embedBtnStar')?.classList.add('active');
+      applyEmbedLayout('star');
+      embedFitToViewport();
+    });
+    $('embedBtnDiagram')?.addEventListener('click', () => {
+      document.querySelectorAll('#embedLayoutSegmented .embed-seg-btn').forEach(b => b.classList.remove('active'));
+      $('embedBtnDiagram')?.classList.add('active');
+      applyEmbedLayout('diagram');
+      embedFitToViewport();
+    });
+    $('embedBtnHierarchy')?.addEventListener('click', () => {
+      document.querySelectorAll('#embedLayoutSegmented .embed-seg-btn').forEach(b => b.classList.remove('active'));
+      $('embedBtnHierarchy')?.classList.add('active');
+      applyEmbedLayout('hierarchy');
+      embedFitToViewport();
+    });
+
+    $('embedFocusBtn')?.addEventListener('click', () => {
+      embedFocus1HopMode = !embedFocus1HopMode;
+      $('embedFocusBtn').classList.toggle('active', embedFocus1HopMode);
+    });
+    $('embedCyclesBtn')?.addEventListener('click', () => {
+      embedCyclesHighlightMode = !embedCyclesHighlightMode;
+      $('embedCyclesBtn').classList.toggle('active', embedCyclesHighlightMode);
+      if (embedCyclesHighlightMode) switchEmbedDrawerTab('embedTabHealth');
+    });
+
+    $('embedZoomIn')?.addEventListener('click', () => {
+      embedZoom = Math.min(3, embedZoom * 1.25);
+    });
+    $('embedZoomOut')?.addEventListener('click', () => {
+      embedZoom = Math.max(0.2, embedZoom * 0.8);
+    });
+    $('embedZoomFit')?.addEventListener('click', embedFitToViewport);
+
+    document.querySelectorAll('.embed-drawer-tab').forEach(btn => {
+      btn.addEventListener('click', () => switchEmbedDrawerTab(btn.dataset.tab));
+    });
+
+    $('embedDrawerToggle')?.addEventListener('click', () => {
+      const drawer = $('embedInspectorDrawer');
+      const isCol = drawer.classList.toggle('collapsed');
+      $('embedDrawerToggle').textContent = isCol ? '▲' : '▼';
+    });
+
+    $('embedRefreshBtn')?.addEventListener('click', () => {
+      vscode.postMessage({ type: 'refreshGraphify' });
+    });
+    $('embedPopoutBtn')?.addEventListener('click', () => {
+      vscode.postMessage({ type: 'openGraphifyInTab' });
+    });
+
+    const canvas = $('embedGraphCanvas');
+    const tooltip = $('embedTooltip');
+    if (!canvas) return;
+
+    function screenToWorld(sx, sy) {
+      const rect = canvas.getBoundingClientRect();
+      const cx = rect.width / 2 + embedCamX;
+      const cy = rect.height / 2 + embedCamY;
+      return {
+        x: (sx - cx) / embedZoom,
+        y: (sy - cy) / embedZoom
+      };
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+      const w = screenToWorld(sx, sy);
+      const hit = embedSimNodes.find(n => Math.hypot(n.x - w.x, n.y - w.y) <= n.radius + 5);
+      if (hit) {
+        embedDraggingNode = hit;
+        embedSelectedNode = hit;
+        renderEmbedDrawer(hit);
+        switchEmbedDrawerTab('embedTabSelected');
+      } else {
+        embedPanning = true;
+      }
+      embedLastMouse = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!canvas || $('graphifyViewSection').hidden) return;
+      const rect = canvas.getBoundingClientRect();
+      const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+      const w = screenToWorld(sx, sy);
+      if (embedDraggingNode) {
+        embedDraggingNode.x = w.x;
+        embedDraggingNode.y = w.y;
+        embedDraggingNode.targetX = w.x;
+        embedDraggingNode.targetY = w.y;
+      } else if (embedPanning) {
+        embedCamX += e.clientX - embedLastMouse.x;
+        embedCamY += e.clientY - embedLastMouse.y;
+        embedLastMouse = { x: e.clientX, y: e.clientY };
+      } else if (sx >= 0 && sx <= rect.width && sy >= 0 && sy <= rect.height) {
+        embedHoveredNode = embedSimNodes.find(n => Math.hypot(n.x - w.x, n.y - w.y) <= n.radius + 5) || null;
+        if (embedHoveredNode && tooltip) {
+          tooltip.style.display = 'block';
+          tooltip.style.left = (sx + 10) + 'px';
+          tooltip.style.top = (sy - 8) + 'px';
+          tooltip.innerHTML = '<strong>' + embedHoveredNode.label + '</strong><span>' + embedHoveredNode.cluster + ' · ' + embedHoveredNode.lines + ' ' + gtr('linesUnit') + '<br>' + embedHoveredNode.importedBy.length + ' ' + gtr('dependentsTooltip') + ' · ' + embedHoveredNode.imports.length + ' ' + gtr('importsTooltip') + '</span>';
+        } else if (tooltip) {
+          tooltip.style.display = 'none';
+        }
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      embedDraggingNode = null;
+      embedPanning = false;
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      embedZoom = Math.max(0.2, Math.min(3, embedZoom * factor));
+    }, { passive: false });
+
+    window.addEventListener('resize', () => {
+      if (!$('graphifyViewSection').hidden) {
+        resizeAndRedrawGraph();
+      }
+    });
+
+    cancelAnimationFrame(embedRaf);
+    drawEmbeddedGraph();
+  }
 
   document.querySelectorAll('.compare-choice').forEach((button) => {
     button.addEventListener('click', () => {

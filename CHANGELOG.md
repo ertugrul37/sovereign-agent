@@ -2,6 +2,16 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.36] - 2026-11-05
+
+### Major Architectural Integration
+- **🔗 Unified In-Extension Graphify Studio (No Separate Tab):**
+  - **Embedded Navigation Bar:** Integrated an elegant segmented navigation bar at the top of Sovereign Agent's panel (`[ 💬 Chat ] [ 🕸️ Graphify ]`), allowing seamless one-click switching between conversation and codebase knowledge graph without ever opening a separate editor tab!
+  - **Fully Integrated Canvas & Studio View:** Graphify Studio now lives directly inside Sovereign Agent's panel. Features 60fps hardware-accelerated interactive canvas, responsive scaling, floating layout controls (⭐ Star Constellation, 📦 Block Architecture Diagram, 🏛️ Layered Hierarchy), 1-Hop Focus, Cycles highlight, and multi-language picker.
+  - **Embedded Inspector & Health Drawer:** Bottom slide-up drawer shows selected node inspection, live symbol/import counts, `📂 Open File` (opens file in editor while keeping Graphify visible), `🤖 Analyze Impact` (switches back to Chat view and runs impact analysis autonomously), Health & Hubs metrics, and `ARCHITECTURE.md` generation.
+  - **Instant Keyboard & Command Access:** Commands, chips, and buttons seamlessly switch to the embedded Graphify view inside the extension.
+
+
 ## [0.1.35] - 2026-11-05
 
 ### Added & Localized

@@ -608,7 +608,7 @@ export class GraphifyManager implements vscode.Disposable {
     this.panel.webview.html = this.buildWebviewHtml(data, currentLocale);
   }
 
-  private async exportArchitectureReport(data: CodeGraphData, root: string): Promise<void> {
+  async exportArchitectureReport(data: CodeGraphData, root: string): Promise<void> {
     try {
       const reportMd = generateArchitectureReportMarkdown(data);
       const targetPath = path.join(root, 'ARCHITECTURE.md');
