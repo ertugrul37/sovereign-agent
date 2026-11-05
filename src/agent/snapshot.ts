@@ -152,3 +152,4 @@ export class SnapshotManager {
     return { ...res, label: last.label };
   }
 }
+

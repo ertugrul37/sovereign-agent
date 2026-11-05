@@ -2,6 +2,16 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.29] - 2026-11-05
+
+### Added
+- **Major Graphify Architecture Studio Upgrade (`src/agent/graphify.ts`):**
+  - **Multiple Visual Layout Modes:** Added 3 layout engines (`⚡ Cluster Force`, `🏛️ Layered Hierarchy`, `🎯 Radial Hubs`) with smooth animated transitions.
+  - **Floating Canvas Controls & Filters:** Added 1-click neighborhood isolation (`🎯 1-Hop Focus`), Circular Dependency highlight filter (`⚠️ Cycles`), orphan/dead-code filter, and zoom/pan viewport toolbar (`+`, `-`, `⛶ Fit View`).
+  - **Multi-Tab Sidebar Inspector:** Replaced flat list with 3 organized tabs: `🔍 Inspector` (selected node, symbols, dependencies), `📊 Health & Hubs` (God-nodes, circular loops, dead-code candidates), and `📝 Export`.
+  - **Mermaid & Markdown Architecture Report Generator:** Added `exportArchitectureReport` to automatically generate and save `ARCHITECTURE.md` in the workspace root with full metrics and Mermaid flowcharts.
+  - **Enhanced Aesthetics:** Directional quadratic curved arrows with destination arrowheads, pulsating circular dependency warnings, God-node halos (`👑`), and interactive hover cards.
+
 ## [0.1.28] - 2026-11-05
 
 ### Added

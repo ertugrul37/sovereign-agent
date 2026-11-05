@@ -186,3 +186,4 @@ export async function validateCodeAgainstWorkspace(
 
   return { valid, issues, warningNotice };
 }
+
