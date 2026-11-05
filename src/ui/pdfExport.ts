@@ -3,6 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as cp from 'child_process';
 import type { ChatMessage } from '../llm/types';
+import { parseToolCall, visibleText, ToolCall } from '../agent/protocol';
 
 export interface ChatExportOptions {
   history: ChatMessage[];
@@ -92,8 +93,17 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+function normalizeEncoding(str: string): string {
+  return str
+    .replace(/bulam\uFFFDyor/g, 'bulamıyor')
+    .replace(/bulunam\uFFFDyor/g, 'bulunamıyor')
+    .replace(/çal\uFFFD\uFFFD/g, 'çalış')
+    .replace(/yap\uFFFDl/g, 'yapıl')
+    .replace(/\uFFFD/g, 'ı');
+}
+
 function renderInline(str: string): string {
-  let s = escapeHtml(str);
+  let s = escapeHtml(normalizeEncoding(str));
 
   // LaTeX arrows
   s = s.replace(/\$\\rightarrow\$/g, '→');
@@ -142,10 +152,9 @@ export function renderMarkdownToHtml(markdown: string): string {
         return (
           `<div class="code-block">` +
             `<div class="code-header">` +
-              `<span class="code-lang">${escapeHtml(lang || 'code')}</span>` +
-              `<span class="code-tag">Source</span>` +
+              `<span class="code-lang">${escapeHtml(lang || 'terminal')}</span>` +
             `</div>` +
-            `<pre><code>${escapeHtml(code.replace(/\n$/, ''))}</code></pre>` +
+            `<pre><code>${escapeHtml(normalizeEncoding(code.replace(/\n$/, '')))}</code></pre>` +
           `</div>`
         );
       }
@@ -290,6 +299,43 @@ export function renderMarkdownToHtml(markdown: string): string {
     .join('');
 }
 
+function getToolIcon(name: string): string {
+  switch (name) {
+    case 'read_file': return '📖';
+    case 'write_file': return '📝';
+    case 'replace_in_file': return '✏️';
+    case 'list_files': return '📂';
+    case 'search_files': return '🔍';
+    case 'run_command': return '💻';
+    case 'run_tests': return '🧪';
+    case 'web_search': return '🌐';
+    case 'code_graph': return '🕸️';
+    default: return '🛠️';
+  }
+}
+
+function formatToolParam(call: ToolCall): string {
+  const p = call.params;
+  if (p.path) return p.path;
+  if (p.command) return p.command;
+  if (p.pattern) return p.pattern;
+  if (p.query) return p.query;
+  if (p.target) return p.target;
+  return Object.values(p).filter(Boolean)[0] || '';
+}
+
+function renderToolCallCard(call: ToolCall): string {
+  const icon = getToolIcon(call.name);
+  const param = formatToolParam(call);
+  return `
+    <div class="tool-call-pill">
+      <span class="tool-icon">${icon}</span>
+      <span class="tool-name">${escapeHtml(call.name)}</span>
+      ${param ? `<span class="tool-param">${escapeHtml(param)}</span>` : ''}
+      <span class="tool-status">✓ Executed</span>
+    </div>`;
+}
+
 export function buildChatHtml(options: ChatExportOptions): string {
   const { history, workspaceName, model, date } = options;
 
@@ -297,19 +343,25 @@ export function buildChatHtml(options: ChatExportOptions): string {
 
   for (const msg of history) {
     const isUser = msg.role === 'user';
-    const isToolResult = isUser && msg.content.startsWith('[');
+    const isToolOutput = isUser && msg.content.startsWith('[');
 
-    if (isToolResult) {
+    if (isToolOutput) {
+      // Parse [toolName result] or [toolName error]
+      const match = msg.content.match(/^\[([a-zA-Z0-9_]+)\s+(result|error)\]\s*([\s\S]*)$/);
+      const toolName = match ? match[1] : 'tool';
+      const isError = match ? match[2] === 'error' : false;
+      const body = match ? match[3].trim() : msg.content;
+      const icon = isError ? '✕' : '⚙️';
+      const statusLabel = isError ? 'Failed' : 'Success';
+
       messagesHtml += `
-      <div class="msg-wrap tool-result">
-        <div class="msg-bubble tool-bubble">
-          <div class="bubble-author">
-            <span class="author-tool">⚙️ System & Tool Output</span>
-          </div>
-          <div class="msg-content">
-            <pre class="tool-content"><code>${escapeHtml(msg.content)}</code></pre>
-          </div>
+      <div class="msg-wrap tool-result ${isError ? 'failed' : 'succeeded'}">
+        <div class="tool-result-header">
+          <span class="tool-result-icon">${icon}</span>
+          <span class="tool-result-title">${escapeHtml(toolName)} ${isError ? 'Error' : 'Output'}</span>
+          <span class="tool-result-badge ${isError ? 'failed' : 'succeeded'}">${statusLabel}</span>
         </div>
+        <pre class="tool-result-pre"><code>${escapeHtml(normalizeEncoding(body))}</code></pre>
       </div>`;
       continue;
     }
@@ -322,11 +374,18 @@ export function buildChatHtml(options: ChatExportOptions): string {
             <span class="author-user">👤 You</span>
           </div>
           <div class="msg-content">
-            <p>${renderMarkdownToHtml(msg.content)}</p>
+            ${renderMarkdownToHtml(msg.content)}
           </div>
         </div>
       </div>`;
     } else if (msg.role === 'assistant') {
+      // Extract human-facing text before any tool call tag
+      const textToRender = visibleText(msg.content);
+      const toolCall = parseToolCall(msg.content);
+
+      // Clean any unclosed or trailing tool tags from remaining text
+      const cleanText = textToRender.replace(/<[a-zA-Z0-9_]+[\s\S]*$/, '').trim();
+
       messagesHtml += `
       <div class="msg-wrap assistant">
         <div class="msg-bubble assistant-bubble">
@@ -335,7 +394,8 @@ export function buildChatHtml(options: ChatExportOptions): string {
             <span class="model-tag">${escapeHtml(model || 'local-model')}</span>
           </div>
           <div class="msg-content">
-            ${renderMarkdownToHtml(msg.content)}
+            ${cleanText ? renderMarkdownToHtml(cleanText) : ''}
+            ${toolCall ? renderToolCallCard(toolCall) : ''}
           </div>
         </div>
       </div>`;
@@ -351,27 +411,39 @@ export function buildChatHtml(options: ChatExportOptions): string {
 <style>
   @page {
     size: A4 portrait;
-    margin: 12mm 10mm 12mm 10mm;
+    margin: 0;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  html {
+    background-color: #141416 !important;
+  }
   body {
-    background: #141416 !important;
+    background-color: #141416 !important;
     color: #ece9e4;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    font-size: 13.5px;
+    font-size: 13px;
     line-height: 1.6;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    padding: 24px;
+    width: 100%;
+    min-height: 100vh;
+  }
+  .pdf-page-container {
+    padding: 16mm 14mm 16mm 14mm;
     margin: 0 auto;
-    max-width: 900px;
+    max-width: 860px;
+    box-sizing: border-box;
   }
   .header-card {
     background: #1b1b1e;
     border: 1px solid #2e2e33;
     border-radius: 12px;
-    padding: 16px 20px;
-    margin-bottom: 24px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -386,20 +458,20 @@ export function buildChatHtml(options: ChatExportOptions): string {
     gap: 12px;
   }
   .logo-icon {
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
     background: linear-gradient(135deg, #d97757 0%, #b85a3c 100%);
-    border-radius: 9px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #fff;
-    font-size: 18px;
+    font-size: 17px;
     font-weight: bold;
     box-shadow: 0 4px 12px rgba(217, 119, 87, 0.35);
   }
   .brand-text h1 {
-    font-size: 16px;
+    font-size: 15.5px;
     font-weight: 700;
     color: #ffffff;
     letter-spacing: -0.2px;
@@ -410,13 +482,13 @@ export function buildChatHtml(options: ChatExportOptions): string {
   }
   .meta-pills {
     display: flex;
-    gap: 8px;
+    gap: 7px;
     flex-wrap: wrap;
     align-items: center;
   }
   .pill {
-    padding: 4px 10px;
-    border-radius: 14px;
+    padding: 3px 9px;
+    border-radius: 12px;
     background: #242428;
     border: 1px solid #38383f;
     font-size: 11px;
@@ -435,7 +507,7 @@ export function buildChatHtml(options: ChatExportOptions): string {
   .chat-feed {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
   }
   .msg-wrap {
     page-break-inside: avoid;
@@ -451,14 +523,14 @@ export function buildChatHtml(options: ChatExportOptions): string {
   }
   .msg-bubble {
     border-radius: 12px;
-    padding: 14px 18px;
-    max-width: 96%;
+    padding: 12px 16px;
     position: relative;
   }
   .msg-wrap.user .msg-bubble {
     background: #2a2926;
     border: 1px solid #3d3b37;
     color: #f5f3ef;
+    max-width: 95%;
   }
   .msg-wrap.assistant .msg-bubble {
     background: #1a1a1d;
@@ -466,23 +538,16 @@ export function buildChatHtml(options: ChatExportOptions): string {
     color: #ece9e4;
     width: 100%;
   }
-  .msg-wrap.tool-result .msg-bubble {
-    background: #131315;
-    border: 1px dashed #34343a;
-    width: 100%;
-    color: #94a3b8;
-  }
   .bubble-author {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 8px;
+    margin-bottom: 7px;
     font-size: 12px;
     font-weight: 600;
   }
   .author-user { color: #e0a952; }
   .author-bot { color: #d97757; }
-  .author-tool { color: #94a3b8; font-size: 11px; }
   .model-tag {
     font-size: 10.5px;
     padding: 1px 6px;
@@ -494,31 +559,31 @@ export function buildChatHtml(options: ChatExportOptions): string {
   }
   .msg-content h1, .msg-content h2, .msg-content h3, .msg-content h4 {
     color: #ffffff;
-    margin: 14px 0 8px 0;
+    margin: 12px 0 6px 0;
     font-weight: 600;
   }
-  .msg-content h1 { font-size: 17px; }
-  .msg-content h2 { font-size: 15.5px; }
+  .msg-content h1 { font-size: 16px; }
+  .msg-content h2 { font-size: 15px; }
   .msg-content h3 {
-    font-size: 14.5px;
+    font-size: 14px;
     border-left: 3px solid #d97757;
     padding-left: 8px;
   }
-  .msg-content h4 { font-size: 13.5px; }
+  .msg-content h4 { font-size: 13px; }
   .msg-content p {
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
   .msg-content p:last-child {
     margin-bottom: 0;
   }
   .inline-code {
-    background: #26262b;
+    background: #242429;
     border: 1px solid #3c3c44;
     color: #fca5a5;
     padding: 1px 5px;
     border-radius: 4px;
     font-family: Consolas, 'Cascadia Code', monospace;
-    font-size: 12px;
+    font-size: 11.5px;
   }
   .code-filepath {
     background: rgba(56, 189, 248, 0.12);
@@ -527,14 +592,14 @@ export function buildChatHtml(options: ChatExportOptions): string {
     padding: 2px 7px;
     border-radius: 5px;
     font-family: Consolas, monospace;
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 500;
   }
   .code-block {
     background: #111113;
     border: 1px solid #28282e;
     border-radius: 8px;
-    margin: 12px 0;
+    margin: 10px 0;
     overflow: hidden;
     page-break-inside: avoid;
     break-inside: avoid;
@@ -542,35 +607,120 @@ export function buildChatHtml(options: ChatExportOptions): string {
   .code-header {
     background: #18181c;
     border-bottom: 1px solid #28282e;
-    padding: 5px 12px;
-    font-size: 11px;
+    padding: 4px 12px;
+    font-size: 10.5px;
     color: #9c9a95;
     font-family: Consolas, monospace;
     display: flex;
     justify-content: space-between;
   }
-  .code-tag {
-    color: #64748b;
-    font-size: 10px;
-  }
   .code-block pre {
-    padding: 12px 14px;
+    padding: 10px 12px;
     overflow-x: auto;
     font-family: Consolas, 'Cascadia Code', 'Fira Code', monospace;
-    font-size: 12px;
+    font-size: 11.5px;
     line-height: 1.5;
     color: #e2e8f0;
   }
-  .tool-content {
-    font-family: Consolas, monospace;
-    font-size: 11.5px;
-    color: #94a3b8;
-    background: transparent;
-    border: none;
-    padding: 4px 0;
+
+  /* Tool execution card */
+  .tool-call-pill {
+    margin-top: 10px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    background: #18181b;
+    border: 1px solid #2d2d33;
+    border-left: 3px solid #d97757;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
+  .tool-call-pill .tool-icon {
+    font-size: 13px;
+  }
+  .tool-call-pill .tool-name {
+    font-weight: 600;
+    color: #f1f5f9;
+  }
+  .tool-call-pill .tool-param {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    font-family: Consolas, monospace;
+    font-size: 11px;
+    max-width: 420px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tool-call-pill .tool-status {
+    margin-left: auto;
+    font-size: 10.5px;
+    color: #4ade80;
+    font-weight: 500;
+  }
+
+  /* Tool result output */
+  .tool-result {
+    border-radius: 9px;
+    background: #131316;
+    border: 1px solid #28282e;
+    overflow: hidden;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .tool-result.succeeded {
+    border-left: 3px solid #4ade80;
+  }
+  .tool-result.failed {
+    border-left: 3px solid #f85149;
+  }
+  .tool-result-header {
+    background: #18181d;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11.5px;
+    border-bottom: 1px solid #24242a;
+  }
+  .tool-result-title {
+    font-weight: 600;
+    color: #cbd5e1;
+  }
+  .tool-result-badge {
+    margin-left: auto;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .tool-result-badge.succeeded {
+    background: rgba(74, 222, 128, 0.12);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.3);
+  }
+  .tool-result-badge.failed {
+    background: rgba(248, 81, 73, 0.12);
+    color: #f85149;
+    border: 1px solid rgba(248, 81, 73, 0.3);
+  }
+  .tool-result-pre {
+    padding: 8px 12px;
+    overflow-x: auto;
+    font-family: Consolas, 'Cascadia Code', monospace;
+    font-size: 11.5px;
+    line-height: 1.45;
+    color: #94a3b8;
+  }
+
   .chat-table-wrap {
-    margin: 12px 0;
+    margin: 10px 0;
     overflow-x: auto;
     page-break-inside: avoid;
     break-inside: avoid;
@@ -578,7 +728,7 @@ export function buildChatHtml(options: ChatExportOptions): string {
   .chat-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 12.5px;
+    font-size: 12px;
     background: #17171a;
     border: 1px solid #2d2d33;
     border-radius: 8px;
@@ -588,11 +738,11 @@ export function buildChatHtml(options: ChatExportOptions): string {
     background: #202025;
     color: #f1f5f9;
     font-weight: 600;
-    padding: 8px 12px;
+    padding: 7px 11px;
     border: 1px solid #2d2d33;
   }
   .chat-table td {
-    padding: 7px 12px;
+    padding: 6px 11px;
     border: 1px solid #28282e;
     color: #cbd5e1;
   }
@@ -600,28 +750,28 @@ export function buildChatHtml(options: ChatExportOptions): string {
     background: #1b1b1f;
   }
   .chat-list {
-    margin: 8px 0 8px 24px;
+    margin: 6px 0 6px 22px;
   }
   .chat-list li {
-    margin-bottom: 4px;
+    margin-bottom: 3px;
   }
   .chat-quote {
     border-left: 3px solid #52525b;
     padding-left: 10px;
     color: #a1a1aa;
-    margin: 8px 0;
+    margin: 6px 0;
     font-style: italic;
   }
   .chat-divider {
     border: 0;
     border-top: 1px solid #2e2e33;
-    margin: 14px 0;
+    margin: 12px 0;
   }
   .footer-note {
-    margin-top: 32px;
-    padding-top: 14px;
+    margin-top: 28px;
+    padding-top: 12px;
     border-top: 1px solid #28282e;
-    font-size: 11px;
+    font-size: 10.5px;
     color: #737373;
     text-align: center;
     page-break-inside: avoid;
@@ -630,28 +780,30 @@ export function buildChatHtml(options: ChatExportOptions): string {
 </style>
 </head>
 <body>
-  <div class="header-card">
-    <div class="brand">
-      <div class="logo-icon">⚡</div>
-      <div class="brand-text">
-        <h1>Sovereign Agent — Chat Transcript</h1>
-        <p>100% Offline, Local AI Companion</p>
+  <div class="pdf-page-container">
+    <div class="header-card">
+      <div class="brand">
+        <div class="logo-icon">⚡</div>
+        <div class="brand-text">
+          <h1>Sovereign Agent — Chat Transcript</h1>
+          <p>100% Offline, Local AI Companion</p>
+        </div>
+      </div>
+      <div class="meta-pills">
+        <div class="pill">📁 <strong>${escapeHtml(workspaceName)}</strong></div>
+        <div class="pill">🤖 <strong>${escapeHtml(model || 'Default')}</strong></div>
+        <div class="pill">📅 <strong>${escapeHtml(date.toLocaleString())}</strong></div>
+        <div class="pill secure">🔒 Zero Telemetry</div>
       </div>
     </div>
-    <div class="meta-pills">
-      <div class="pill">📁 <strong>${escapeHtml(workspaceName)}</strong></div>
-      <div class="pill">🤖 <strong>${escapeHtml(model || 'Default')}</strong></div>
-      <div class="pill">📅 <strong>${escapeHtml(date.toLocaleString())}</strong></div>
-      <div class="pill secure">🔒 Zero Telemetry</div>
+
+    <div class="chat-feed">
+      ${messagesHtml}
     </div>
-  </div>
 
-  <div class="chat-feed">
-    ${messagesHtml}
-  </div>
-
-  <div class="footer-note">
-    Exported with Sovereign Agent · 100% Local AI & Zero Telemetry · ${escapeHtml(date.toLocaleString())}
+    <div class="footer-note">
+      Exported with Sovereign Agent · 100% Local AI & Zero Telemetry · ${escapeHtml(date.toLocaleString())}
+    </div>
   </div>
 </body>
 </html>`;

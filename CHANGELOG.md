@@ -2,6 +2,18 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.41] - 2026-11-05
+
+### Enhanced & Visual Fidelity Upgrades
+- **🎨 Edge-to-Edge Full-Bleed Dark Canvas for PDF (`src/ui/pdfExport.ts`):**
+  - Eliminated the white outer border around PDF pages by enforcing `@page { margin: 0; size: A4 portrait; }` with full-bleed `#141416` background and comfortable interior `16mm 14mm` container padding.
+- **🛠️ Native Tool Execution & Result Cards in PDF:**
+  - Raw XML tool calls (such as `<list_files>`, `<read_file>`, `<replace_in_file>`, `<run_tests>`) are now automatically intercepted and formatted into elegant, compact tool chips (`🛠️ read_file Makefile`, `🧪 run_tests`), hiding unparsed XML markup.
+  - Tool outputs (`[list_files result]`, `[run_tests error]`, etc.) are rendered as styled status blocks (`⚙️ Output` / `✕ Error`) with monospace body and success/failure badges.
+- **🔤 Clean Terminal Fences & Windows Character Normalization:**
+  - Removed redundant `Source` labels from code blocks; code blocks now show clean language badges or terminal styling.
+  - Automatically normalizes Windows console replacement characters (`\uFFFD`), restoring correct Turkish characters (e.g. `bulamıyor`).
+
 ## [0.1.40] - 2026-11-05
 
 ### Added & Visual PDF Export Engine

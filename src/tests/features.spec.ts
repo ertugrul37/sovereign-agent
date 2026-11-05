@@ -147,7 +147,8 @@ test('Chat PDF visual export engine generates 1:1 chat replication document', as
 
   const history = [
     { role: 'user' as const, content: 'Analyze circular dependencies in `src/agent/agent.ts` $\\rightarrow$ `src/i18n/index.ts`' },
-    { role: 'assistant' as const, content: '### Architecture Overview\n\n| File | Type | Status |\n|---|---|---|\n| agent.ts | Core | Ok |\n\n```typescript\nconst a = 1;\n```' }
+    { role: 'assistant' as const, content: '### Architecture Overview\n\n| File | Type | Status |\n|---|---|---|\n| agent.ts | Core | Ok |\n\n```typescript\nconst a = 1;\n```\n\n<read_file>\n<path>Makefile</path>\n</read_file>' },
+    { role: 'user' as const, content: '[read_file result]\nall: build test' }
   ];
 
   const html = buildChatHtml({
@@ -165,7 +166,11 @@ test('Chat PDF visual export engine generates 1:1 chat replication document', as
   assert.ok(html.includes('code-filepath'), 'highlights source code paths');
   assert.ok(html.includes('chat-table'), 'renders markdown table');
   assert.ok(html.includes('code-block'), 'renders code block');
+  assert.ok(html.includes('tool-call-pill'), 'renders formatted tool call card');
+  assert.ok(!html.includes('&lt;read_file&gt;'), 'does not dump raw unparsed XML tags');
+  assert.ok(html.includes('tool-result'), 'renders formatted tool result card');
   assert.ok(html.includes('@page'), 'includes print page rules');
+  assert.ok(html.includes('margin: 0;'), 'enforces full bleed page without white borders');
   assert.ok(html.includes('print-color-adjust: exact'), 'enforces exact color printing');
 
   const mdHtml = renderMarkdownToHtml('Use `config.ts` $\\rightarrow$ `types.ts`');
