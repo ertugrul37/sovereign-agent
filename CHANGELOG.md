@@ -2,6 +2,11 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.26] - 2026-11-05
+
+### Fixed
+- **Graphify Button Visibility (`src/ui/chatViewProvider.ts`, `media/chat.css`, `package.json`):** Added a high-visibility cyan `Graphify` pill button in the chat header (with flex-wrap so icons never clip on narrow sidebars), a Graphify icon button in the bottom composer toolbar next to `🌐`, a `Graphify` starter chip, and a native `$(type-hierarchy)` button in the VS Code view title bar.
+
 ## [0.1.25] - 2026-11-05
 
 ### Added

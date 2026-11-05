@@ -2,7 +2,7 @@
   "name": "sovereign-agent",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.1.25",
+  "version": "0.1.26",
   "publisher": "ertugrul37",
   "icon": "media/logo.png",
   "license": "GPL-3.0-or-later",
@@ -181,9 +181,14 @@
           "group": "navigation@1"
         },
         {
-          "command": "sovereignAgent.selectModel",
+          "command": "sovereignAgent.openGraphify",
           "when": "view == sovereignAgent.chat",
           "group": "navigation@2"
+        },
+        {
+          "command": "sovereignAgent.selectModel",
+          "when": "view == sovereignAgent.chat",
+          "group": "navigation@3"
         },
         {
           "command": "sovereignAgent.addSelectionToChat",

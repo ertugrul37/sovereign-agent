@@ -1092,7 +1092,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 <body class="empty">
   <header>
     <div class="header-actions">
-      <button id="graphifyBtn" class="icon-button" data-icon="graph" data-i18n-title="ui.graphify" title="" aria-label="Graphify Codebase Knowledge Graph"></button>
+      <button id="graphifyBtn" class="icon-button graphify-header-btn" data-icon="graph" data-i18n-title="ui.graphify" title="Graphify Knowledge Graph" aria-label="Graphify Codebase Knowledge Graph">
+        <span class="header-pill-label">Graphify</span>
+      </button>
       <button id="previewBtn" class="icon-button" data-icon="monitor" data-i18n-title="ui.livePreview" title="" aria-label="Live Web Preview & Tester"></button>
       <button id="compareModel" class="icon-button" data-icon="columns" data-i18n-title="ui.compareModel" title="" aria-label="Compare models"></button>
       <button id="approval" class="icon-button" data-icon="shield" data-i18n-title="ui.autoApprove" title="" aria-haspopup="true" aria-label="Approvals"></button>
@@ -1247,6 +1249,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         <div class="composer-toolbar">
           <button id="plus" class="toolbar-button" data-icon="plus" data-i18n-title="ui.attach" title="" aria-haspopup="true" aria-expanded="false" aria-label="Add"></button>
           <button id="webSearchToggle" type="button" class="toolbar-button web-toggle" data-icon="globe" data-i18n-title="ui.webSearch" title="" aria-pressed="false" aria-label="Web Search"></button>
+          <button id="graphifyComposerBtn" type="button" class="toolbar-button graphify-toolbar-btn" data-icon="graph" data-i18n-title="ui.graphify" title="Graphify Knowledge Graph" aria-label="Graphify Knowledge Graph"></button>
           <div class="segmented" role="group">
             <button id="segChat" type="button" data-mode="Ask" data-i18n="ui.modeChat"></button>
             <button id="segAgent" type="button" data-mode="Code" data-i18n="ui.modeAgent"></button>
@@ -1261,6 +1264,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       </div>
     </div>
     <div id="chips" class="chips">
+      <button type="button" id="graphifyChipBtn" class="chip graphify-chip" data-icon="graph"><span data-i18n="ui.graphify">Graphify</span></button>
       <button type="button" class="chip" data-mode="Code" data-starter="ui.starterCode" data-icon="code"><span data-i18n="ui.chipCode"></span></button>
       <button type="button" class="chip" data-mode="Ask" data-starter="ui.starterLearn" data-icon="cap"><span data-i18n="ui.chipLearn"></span></button>
       <button type="button" class="chip" data-mode="Code" data-starter="ui.starterWrite" data-icon="pencil"><span data-i18n="ui.chipWrite"></span></button>

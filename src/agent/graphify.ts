@@ -869,3 +869,4 @@ export class GraphifyManager implements vscode.Disposable {
 </html>`;
   }
 }
+

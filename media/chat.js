@@ -635,6 +635,10 @@
   $('segAgent').addEventListener('click', () => setMode('Code'));
   document.querySelectorAll('.chip').forEach((chip) => {
     chip.addEventListener('click', () => {
+      if (chip.id === 'graphifyChipBtn') {
+        vscode.postMessage({ type: 'openGraphify' });
+        return;
+      }
       setMode(chip.dataset.mode);
       input.value = s(chip.dataset.starter);
       autosize();
@@ -662,6 +666,9 @@
   });
   if ($('graphifyBtn')) {
     $('graphifyBtn').addEventListener('click', () => vscode.postMessage({ type: 'openGraphify' }));
+  }
+  if ($('graphifyComposerBtn')) {
+    $('graphifyComposerBtn').addEventListener('click', () => vscode.postMessage({ type: 'openGraphify' }));
   }
   if ($('previewBtn')) {
     $('previewBtn').addEventListener('click', () => vscode.postMessage({ type: 'openPreview' }));
