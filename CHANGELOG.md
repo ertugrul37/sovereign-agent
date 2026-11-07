@@ -2,6 +2,23 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.44] - 2026-11-07
+
+### Added: Craft-Anything AI Integration (Study ➔ Build ➔ Check ➔ Refine)
+- **🛠️ Deep Integration with storytold/craft-anything (`src/agent/craftAnything.ts`):**
+  - Integrated the complete **Craft Anything** software reverse-engineering and recreation engine with Local AI.
+  - Added native `<craft_anything>` protocol tool supporting all primary lifecycle actions:
+    - **`study`:** Inspects any target website or local project in clean-room mode, automatically extracting DOM layout hierarchy, color palettes, typography, components, and media assets into `.craft/evidence.json` and `.craft/SPEC.md`.
+    - **`rebuild`:** Coordinates with Local AI to scaffold the complete project in the user's stack of choice (React, Next.js, Vue, Tailwind, etc.) and writes `.craft/CRAFT_PLAN.md` with component milestones.
+    - **`check`:** Evaluates generated build files against reference target evidence, computing an automated **Likeness / Fidelity Score (0-100%)**, missing components, and refinement recommendations into `.craft/REPORT.md`.
+    - **`doctor`:** Diagnostics for local `craft-anything-cli` binary, Rust environment, and MCP server configuration.
+- **🔌 Model Context Protocol (MCP) Bridge:**
+  - Auto-configures and binds `craft-anything-cli mcp` in `sovereignAgent.mcpServers`, enabling Local AI to natively invoke any of Craft Anything's 300+ granular inspection and rebuild tools over STDIO.
+- **💬 Seamless User Access & Localization:**
+  - Added `/craft <target> [prompt]` slash command to quickly launch clean-room studies and rebuilds.
+  - Added `🛠️ Craft Anything` quick-action button in the composer plus menu (`+`).
+  - Localized in English, Turkish, German, Spanish, and French.
+
 ## [0.1.43] - 2026-11-05
 
 ### Design & Color System Upgrade

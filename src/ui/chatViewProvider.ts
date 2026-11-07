@@ -21,6 +21,7 @@ import { GraphifyManager, formatGraphSummary, buildCodeGraph } from '../agent/gr
 import { SnapshotManager } from '../agent/snapshot';
 import { TddRunner } from '../agent/tddRunner';
 import { HardwareBenchmark } from '../agent/benchmark';
+import { CraftAnythingManager } from '../agent/craftAnything';
 import { buildChatHtml, exportToPdf } from './pdfExport';
 
 const execFileAsync = promisify(execFile);
@@ -102,6 +103,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly snapshotManager: SnapshotManager;
   private readonly tddRunner: TddRunner;
   private readonly benchmark: HardwareBenchmark;
+  private readonly craftAnything = new CraftAnythingManager();
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -1064,6 +1066,28 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       await this.runTddCommand(rest || undefined);
       return;
     }
+    if (/^\/craft(-anything)?\b/i.test(text.trim())) {
+      const rest = text.trim().replace(/^\/craft(-anything)?\b/i, '').trim();
+      const loc = activeLocale(getConfig());
+      if (!rest) {
+        effectiveText = loc === 'tr'
+          ? 'Craft-Anything motorunu kullanarak sistem durumunu ve araçları incele (<craft_anything><action>doctor</action></craft_anything>), ardından nasıl bir hedefi inceleyip baştan üretebileceğimizi açıkla.'
+          : 'Inspect the Craft-Anything engine diagnostics and commands (<craft_anything><action>doctor</action></craft_anything>), and explain how we can study and recreate any website or application.';
+      } else {
+        const targetUrl = rest.split(/\s+/)[0];
+        const promptDesc = rest.slice(targetUrl.length).trim() || 'Modern responsive clean architecture';
+        effectiveText = `[Craft Anything Task]
+Please reverse-engineer and rebuild the target using the Craft-Anything (Study ➔ Build ➔ Check ➔ Refine) engine:
+Target: ${targetUrl}
+Requirements: ${promptDesc}
+
+Execution Protocol:
+1. First call <craft_anything><action>study</action><target>${targetUrl}</target><mode>clean-room</mode></craft_anything> to gather clean-room evidence (colors, fonts, structure).
+2. Call <craft_anything><action>rebuild</action><target>${targetUrl}</target><prompt>${promptDesc}</prompt></craft_anything> to initialize the blueprint.
+3. Build the components using <write_file>.
+4. Call <craft_anything><action>check</action><candidate>./</candidate></craft_anything> to measure fidelity likeness score and refine any gaps.`;
+      }
+    }
     const workspaceInstructions = webSearch
       ? `${baseInstructions}\n\nWEB SEARCH ACTIVE: The user enabled Web Search for this request. Call <web_search><query>...</query></web_search> first to retrieve current web results before answering.`.trim()
       : baseInstructions;
@@ -1404,6 +1428,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         browserAction: (params) => this.browserPreview.execute(params, root),
         codeGraph: (params) => this.graphify.execute(params, root),
         runTests: (params) => this.tddRunner.executeTool(params),
+        craftAnything: (params) => this.craftAnything.execute(params, root),
         snapshotManager: this.snapshotManager
       };
     }
@@ -1495,14 +1520,25 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   private mcpServers(): Record<string, McpServerConfig> {
+    const servers: Record<string, McpServerConfig> = {};
     try {
       const parsed = JSON.parse(getConfig().mcpServers) as Record<string, McpServerConfig>;
-      return Object.fromEntries(Object.entries(parsed).filter(([, value]) =>
-        value && typeof value.command === 'string' && value.command.trim().length > 0
-      ));
-    } catch {
-      return {};
+      for (const [k, v] of Object.entries(parsed)) {
+        if (v && typeof v.command === 'string' && v.command.trim().length > 0) {
+          servers[k] = v;
+        }
+      }
+    } catch {}
+
+    // Auto-expose craft-anything MCP server if available
+    if (!servers['craft-anything']) {
+      servers['craft-anything'] = {
+        command: 'craft-anything-cli',
+        args: ['mcp']
+      };
     }
+
+    return servers;
   }
 
   private restoreHistory(): void {

@@ -24,6 +24,15 @@ export interface ToolContext {
   codeGraph?(params: { action?: string; target?: string; query?: string }): Promise<ToolResult>;
   /** Executes automated test runner suite with self-healing feedback; see src/agent/tddRunner.ts. */
   runTests?(params: { command?: string }): Promise<ToolResult>;
+  /** Software reverse-engineering and recreation engine; see src/agent/craftAnything.ts. */
+  craftAnything?(params: {
+    action?: string;
+    target?: string;
+    prompt?: string;
+    mode?: string;
+    stack?: string;
+    candidate?: string;
+  }): Promise<ToolResult>;
   /** Time-travel workspace snapshot manager; see src/agent/snapshot.ts. */
   snapshotManager?: SnapshotManager;
   signal: AbortSignal;
@@ -172,6 +181,12 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
       return { ok: false, output: 'Graphify Codebase Knowledge Graph is not available in this context.' };
     }
     return await ctx.codeGraph(p);
+  }
+  if (call.name === 'craft_anything') {
+    if (!ctx.craftAnything) {
+      return { ok: false, output: 'Craft Anything engine is not configured in this context.' };
+    }
+    return await ctx.craftAnything(p);
   }
   if (!ctx.root) {
     return { ok: false, output: 'No workspace folder is open.' };

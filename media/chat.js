@@ -359,7 +359,7 @@
     return result;
   }
 
-  const TOOL_NAMES_RE = 'list_files|read_file|write_file|replace_in_file|search_files|get_editor_context|run_command|mcp_call|web_search|browser_action|code_graph|run_tests';
+  const TOOL_NAMES_RE = 'list_files|read_file|write_file|replace_in_file|search_files|get_editor_context|run_command|mcp_call|web_search|browser_action|code_graph|run_tests|craft_anything';
 
   const TOOL_ICON_MAP = {
     list_files: 'folder',
@@ -373,7 +373,8 @@
     web_search: 'globe',
     browser_action: 'monitor',
     code_graph: 'graph',
-    run_tests: 'terminal'
+    run_tests: 'terminal',
+    craft_anything: 'sparkles'
   };
 
   function stripToolXml(text) {
@@ -381,11 +382,19 @@
     let clean = text.replace(new RegExp('<(' + TOOL_NAMES_RE + ')(?:\\s+[^>]*)?>[\\s\\S]*?<\\/\\1>', 'gi'), '');
     clean = clean.replace(new RegExp('<(' + TOOL_NAMES_RE + ')(?:\\s+[^>]*)?\\s*\\/>', 'gi'), '');
     clean = clean.replace(new RegExp('<\\/?(' + TOOL_NAMES_RE + ')(?:\\s+[^>]*)?\\/?>', 'gi'), '');
-    clean = clean.replace(/<\/?(?:path|file|filepath|old_text|new_text|content|command|cmd|query|pattern|replace_all|action|target|selector|server|arguments)>/gi, '');
+    clean = clean.replace(/<\/?(?:path|file|filepath|old_text|new_text|content|command|cmd|query|pattern|replace_all|action|target|selector|server|arguments|stack|prompt|mode|candidate)>/gi, '');
     return clean.trim();
   }
 
   function extractToolTarget(name, body, attrs) {
+    if (name === 'craft_anything') {
+      const act = (body && body.match(/<action>([\s\S]*?)<\/action>/i))?.[1]?.trim() || '';
+      const tgt = (body && body.match(/<target>([\s\S]*?)<\/target>/i))?.[1]?.trim() || '';
+      const prompt = (body && body.match(/<prompt>([\s\S]*?)<\/prompt>/i))?.[1]?.trim() || '';
+      const summary = `${act} ${tgt || prompt}`.trim();
+      return summary.length > 55 ? summary.slice(0, 52) + '...' : summary;
+    }
+
     const pathMatch = (body && body.match(/<(?:path|file|filepath|target)>([\s\S]*?)<\/(?:path|file|filepath|target)>/i))
       || (attrs && attrs.match(/\b(?:path|file|target)=["']([^"']+)["']/i));
     if (pathMatch) return pathMatch[1].trim();
@@ -1131,6 +1140,15 @@
         onClick: () => post({ type: 'openGraphify' })
       }),
       menuRow({
+        icon: 'sparkles',
+        label: s('ui.craftAnything') || '🛠️ Craft Anything (Reverse-Engineer & Rebuild)',
+        onClick: () => {
+          closePopovers();
+          input.value = '/craft ';
+          input.focus();
+        }
+      }),
+      menuRow({
         icon: 'download',
         label: s('ui.exportChat') || 'Sohbeti Dışa Aktar',
         end: 'chevron',
@@ -1633,7 +1651,9 @@
           get_editor_context: 'code',
           web_search: 'globe',
           browser_action: 'monitor',
-          code_graph: 'graph'
+          code_graph: 'graph',
+          run_tests: 'terminal',
+          craft_anything: 'sparkles'
         };
         lastTool = document.createElement('details');
         lastTool.className = 'msg tool running';

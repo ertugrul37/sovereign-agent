@@ -16,3 +16,4 @@ export function extractSessionTitle(history: ChatMessage[]): string {
   const cleaned = firstLine.replace(/^#+\s*/, '').replace(/^[*`_]+/, '').replace(/[*`_]+$/, '').trim();
   return cleaned.length > 45 ? cleaned.slice(0, 42) + '...' : cleaned;
 }
+

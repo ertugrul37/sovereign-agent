@@ -148,8 +148,37 @@ Or test a specific command:
 <command>npm test</command>
 </run_tests>
 
+craft_anything: study and reverse-engineer software, websites, or apps to recreate them with local AI (Study ➔ Build ➔ Check ➔ Refine lifecycle):
+- Study an external target URL or app in clean-room mode (extracts DOM, colors, fonts, layout components, and assets):
+<craft_anything>
+<action>study</action>
+<target>https://example.com</target>
+<mode>clean-room</mode>
+</craft_anything>
+- Generate an architectural reconstruction blueprint with your preferred stack:
+<craft_anything>
+<action>rebuild</action>
+<target>https://example.com</target>
+<prompt>Recreate this page with modern responsive components</prompt>
+<stack>React / TypeScript / Tailwind CSS</stack>
+</craft_anything>
+- Check likeness and calculate fidelity score against reference:
+<craft_anything>
+<action>check</action>
+<candidate>./</candidate>
+</craft_anything>
+- Run Craft Anything system & CLI diagnostics:
+<craft_anything>
+<action>doctor</action>
+</craft_anything>
+
 RULES
 - One tool call per message. Never invent tool results.
+- When asked to recreate, clone, study, or reverse-engineer a website or application (e.g. "bunu baştan yap", "recreate this", "craft anything"):
+  1. Call craft_anything with <action>study</action> on the target URL to extract clean-room design tokens, layout hierarchy, and components.
+  2. Call craft_anything with <action>rebuild</action> to create the blueprint and component milestones.
+  3. Scaffold and build the components with write_file following the extracted palette and fonts.
+  4. Call craft_anything with <action>check</action> to compute the likeness score and refine until likeness is high.
 - For architecture questions, dependency impact, or exploring unfamiliar codebases, call code_graph first to get the deterministic Graphify Knowledge Graph instead of reading every file one by one.
 - Never call read_file or replace_in_file on an existing file path you have not first seen via list_files or code_graph (or via get_editor_context / a previous tool result) in this conversation. If you do not yet know the project layout, call list_files or code_graph first. You CAN use write_file to create brand-new files.
 - When calling write_file, always put the full file code inside <content>...</content>. Never omit <content>.

@@ -219,6 +219,49 @@ test('media/chat.js has resilient restored conversation parser and chat session 
   assert.ok(chatJs.includes('newChatBtn'), 'handles new chat from header action');
 });
 
+import { CraftAnythingManager } from '../agent/craftAnything';
+
+test('parses craft_anything protocol calls', () => {
+  const call = parseToolCall('<craft_anything>\n<action>study</action>\n<target>https://example.com</target>\n<mode>clean-room</mode>\n</craft_anything>');
+  assert.equal(call?.name, 'craft_anything');
+  assert.equal(call?.params.action, 'study');
+  assert.equal(call?.params.target, 'https://example.com');
+  assert.equal(call?.params.mode, 'clean-room');
+});
+
+test('CraftAnythingManager executes doctor, commands, and rebuild workflows', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sov-craft-test-'));
+  const craft = new CraftAnythingManager();
+
+  // Test doctor
+  const docRes = await craft.execute({ action: 'doctor' }, tmpDir);
+  assert.equal(docRes.ok, true);
+  assert.ok(docRes.output.includes('Craft-Anything System Diagnostics'));
+
+  // Test commands list
+  const cmdRes = await craft.execute({ action: 'commands' }, tmpDir);
+  assert.equal(cmdRes.ok, true);
+  assert.ok(cmdRes.output.includes('study:'));
+
+  // Test rebuild workflow
+  const rebRes = await craft.execute({
+    action: 'rebuild',
+    target: 'https://example.com',
+    prompt: 'Rebuild as clean Tailwind landing page',
+    stack: 'React / TypeScript'
+  }, tmpDir);
+  assert.equal(rebRes.ok, true);
+  assert.ok(rebRes.output.includes('Rebuild Blueprint Initialized'));
+
+  // Verify .craft/CRAFT_PLAN.md was created
+  const planExists = await fs.stat(path.join(tmpDir, '.craft', 'CRAFT_PLAN.md')).then(() => true).catch(() => false);
+  assert.equal(planExists, true);
+
+  // Clean up
+  await fs.rm(tmpDir, { recursive: true, force: true });
+});
+
+
 
 
 

@@ -153,6 +153,7 @@ export const tr: Record<MessageKey, string> = {
   ,'ui.webSearch': 'Web Araması'
   ,'ui.livePreview': 'Canlı Web Önizleme ve Test'
   ,'ui.graphify': 'Graphify Bilgi Grafiği (Knowledge Graph)'
+  ,'ui.craftAnything': '🛠️ Craft Anything (Tersine Mühendislik & Baştan Üret)'
   ,'ui.rateExtension': 'Marketplace’te 5 Yıldız Ver ⭐'
   ,'ui.starGithub': 'GitHub’da Yıldızla ★'
   ,'ui.rateDesc': '%100 yerel gizliliği sevdiniz mi? 5 yıldız vererek daha fazla geliştiricinin Sovereign Agent’ı keşfetmesine destek olun!'

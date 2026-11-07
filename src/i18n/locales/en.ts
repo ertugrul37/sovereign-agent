@@ -156,6 +156,7 @@ export const en = {
   ,'ui.webSearch': 'Web Search'
   ,'ui.livePreview': 'Live Web Preview & Tester'
   ,'ui.graphify': 'Graphify Knowledge Graph'
+  ,'ui.craftAnything': '🛠️ Craft Anything (Reverse-Engineer & Rebuild)'
   ,'ui.rateExtension': 'Rate 5 Stars on Marketplace ⭐'
   ,'ui.starGithub': 'Star on GitHub ★'
   ,'ui.rateDesc': 'Love 100% local privacy? A quick 5-star rating helps more developers discover Sovereign Agent!'

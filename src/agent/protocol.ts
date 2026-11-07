@@ -19,7 +19,8 @@ export const TOOL_NAMES = [
   'web_search',
   'browser_action',
   'code_graph',
-  'run_tests'
+  'run_tests',
+  'craft_anything'
 ] as const;
 export type ToolName = (typeof TOOL_NAMES)[number];
 
@@ -35,7 +36,8 @@ export const TOOL_PARAMS: Record<ToolName, string[]> = {
   web_search: ['query'],
   browser_action: ['action', 'target', 'selector', 'text'],
   code_graph: ['action', 'target', 'query'],
-  run_tests: ['command']
+  run_tests: ['command'],
+  craft_anything: ['action', 'target', 'prompt', 'mode', 'stack', 'candidate']
 };
 
 export interface ToolCall {
@@ -68,7 +70,11 @@ const PARAM_ALIASES: Record<string, string[]> = {
   action: ['action', 'cmd', 'operation', 'mode'],
   target: ['target', 'path', 'url', 'file', 'page'],
   selector: ['selector', 'element', 'button', 'input', 'id'],
-  text: ['text', 'value', 'input_text']
+  text: ['text', 'value', 'input_text'],
+  prompt: ['prompt', 'instruction', 'request', 'desc', 'description'],
+  mode: ['mode', 'clean_room', 'inspection_mode'],
+  stack: ['stack', 'framework', 'tech', 'language'],
+  candidate: ['candidate', 'output_dir', 'project_dir', 'dist']
 };
 
 function stripOuterCodeFence(code: string, filePath?: string): string {
@@ -245,5 +251,7 @@ export function describeCall(call: ToolCall): string {
       return `code_graph ${p.action ?? 'map'} ${p.target || p.query || ''}`.trim();
     case 'run_tests':
       return `run_tests ${p.command ?? ''}`.trim();
+    case 'craft_anything':
+      return `craft_anything ${p.action ?? 'study'} ${p.target ?? ''}`.trim();
   }
 }
