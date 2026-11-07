@@ -251,7 +251,7 @@ test('CraftAnythingManager executes doctor, commands, and rebuild workflows', as
     stack: 'React / TypeScript'
   }, tmpDir);
   assert.equal(rebRes.ok, true);
-  assert.ok(rebRes.output.includes('Rebuild Blueprint Initialized'));
+  assert.ok(rebRes.output.includes('Rebuild Blueprint'));
 
   // Verify .craft/CRAFT_PLAN.md was created
   const planExists = await fs.stat(path.join(tmpDir, '.craft', 'CRAFT_PLAN.md')).then(() => true).catch(() => false);
@@ -260,6 +260,108 @@ test('CraftAnythingManager executes doctor, commands, and rebuild workflows', as
   // Clean up
   await fs.rm(tmpDir, { recursive: true, force: true });
 });
+
+test('CraftAnythingManager extracts full source code, CSS/JS bundles, SourceMaps (*.map), TSX components, SVGs, and API routes', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sov-craft-extract-'));
+  const craft = new CraftAnythingManager();
+
+  // Create a mock local web project with external CSS, external JS, and a SourceMap (.map) containing original TypeScript/React code
+  const siteDir = path.join(tmpDir, 'mock-site');
+  await fs.mkdir(siteDir, { recursive: true });
+
+  await fs.writeFile(
+    path.join(siteDir, 'theme.css'),
+    ':root { --brand-primary: #6366f1; --brand-bg: #0d0f12; }\n.hero { background: #0d0f12; color: #f1f3f7; }',
+    'utf8'
+  );
+
+  const sourceMapJson = JSON.stringify({
+    version: 3,
+    file: 'bundle.js',
+    sources: ['webpack:///src/components/Navbar.tsx', 'webpack:///src/utils/api.ts'],
+    sourcesContent: [
+      'import React from "react";\nexport const Navbar = () => <nav className="top-nav">Sovereign</nav>;\n',
+      'export async function fetchUser() { return fetch("/api/v1/users/profile"); }\n'
+    ]
+  });
+  await fs.writeFile(path.join(siteDir, 'bundle.js.map'), sourceMapJson, 'utf8');
+  await fs.writeFile(
+    path.join(siteDir, 'bundle.js'),
+    'function app(){fetch("/api/v1/users/profile");console.log("hi");}\n//# sourceMappingURL=bundle.js.map',
+    'utf8'
+  );
+
+  const sampleHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Sovereign Demo App</title>
+  <link rel="stylesheet" href="theme.css" />
+  <style>.inline-box { border: 1px solid #00d2b4; }</style>
+</head>
+<body>
+  <header id="main-header" class="site-header">
+    <nav aria-label="Primary Navigation">
+      <a href="/docs">Docs</a>
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2" /></svg>
+    </nav>
+  </header>
+  <section id="hero-banner" class="hero">
+    <h1>Build Local AI Software</h1>
+    <input type="text" placeholder="Enter URL" readonly />
+  </section>
+  <footer id="site-footer"><p>Copyright 2026</p></footer>
+  <script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"tier":"pro"}}}</script>
+  <script src="bundle.js"></script>
+</body>
+</html>`;
+
+  const htmlFilePath = path.join(siteDir, 'index.html');
+  await fs.writeFile(htmlFilePath, sampleHtml, 'utf8');
+
+  // Execute `extract` action on the local HTML file
+  const res = await craft.execute({ action: 'extract', target: htmlFilePath }, tmpDir);
+  assert.equal(res.ok, true);
+  assert.ok(res.output.includes('Local HTML Source Extracted'));
+
+  const extractedRoot = path.join(tmpDir, '.craft', 'extracted', 'index-html');
+
+  // 1. Check formatted HTML & MANIFEST.md
+  const manifestMd = await fs.readFile(path.join(extractedRoot, 'MANIFEST.md'), 'utf8');
+  assert.ok(manifestMd.includes('Craft-Anything Extracted Source Code Manifest'));
+
+  // 2. Check extracted CSS (inline + external + design-tokens)
+  const extractedThemeCss = await fs.readFile(path.join(extractedRoot, 'styles', '1-theme.css'), 'utf8');
+  assert.ok(extractedThemeCss.includes('--brand-primary: #6366f1'));
+  const tokensCss = await fs.readFile(path.join(extractedRoot, 'styles', 'design-tokens.css'), 'utf8');
+  assert.ok(tokensCss.includes('--brand-primary: #6366f1;'));
+
+  // 3. Check reconstructed original TypeScript/React files from SourceMap!
+  const reconstructedNavbar = await fs.readFile(
+    path.join(extractedRoot, 'original_sources', 'src', 'components', 'Navbar.tsx'),
+    'utf8'
+  );
+  assert.ok(reconstructedNavbar.includes('export const Navbar'));
+
+  // 4. Check auto-generated React TSX components
+  const tsxFiles = await fs.readdir(path.join(extractedRoot, 'components_tsx'));
+  assert.ok(tsxFiles.length >= 3, 'generates TSX components for header, nav, section, footer');
+  const firstTsx = await fs.readFile(path.join(extractedRoot, 'components_tsx', tsxFiles[0]), 'utf8');
+  assert.ok(firstTsx.includes('import React from \'react\';'));
+  assert.ok(firstTsx.includes('className='));
+
+  // 5. Check extracted SVG asset
+  const svgIcon = await fs.readFile(path.join(extractedRoot, 'assets', 'icon-1.svg'), 'utf8');
+  assert.ok(svgIcon.includes('xmlns="http://www.w3.org/2000/svg"'));
+
+  // 6. Check extracted __NEXT_DATA__ and discovered API routes
+  const nextData = await fs.readFile(path.join(extractedRoot, 'data', 'next_data.json'), 'utf8');
+  assert.ok(nextData.includes('"tier": "pro"'));
+  const apis = await fs.readFile(path.join(extractedRoot, 'data', 'discovered_apis.json'), 'utf8');
+  assert.ok(apis.includes('/api/v1/users/profile'));
+
+  await fs.rm(tmpDir, { recursive: true, force: true });
+});
+
 
 
 

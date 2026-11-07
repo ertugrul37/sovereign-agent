@@ -1077,14 +1077,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         const targetUrl = rest.split(/\s+/)[0];
         const promptDesc = rest.slice(targetUrl.length).trim() || 'Modern responsive clean architecture';
         effectiveText = `[Craft Anything Task]
-Please reverse-engineer and rebuild the target using the Craft-Anything (Study ➔ Build ➔ Check ➔ Refine) engine:
+Please extract the source code and rebuild the target using the Craft-Anything (Extract ➔ Study ➔ Build ➔ Check ➔ Refine) engine:
 Target: ${targetUrl}
 Requirements: ${promptDesc}
 
 Execution Protocol:
-1. First call <craft_anything><action>study</action><target>${targetUrl}</target><mode>clean-room</mode></craft_anything> to gather clean-room evidence (colors, fonts, structure).
-2. Call <craft_anything><action>rebuild</action><target>${targetUrl}</target><prompt>${promptDesc}</prompt></craft_anything> to initialize the blueprint.
-3. Build the components using <write_file>.
+1. First call <craft_anything><action>extract</action><target>${targetUrl}</target></craft_anything> to extract the full source code (HTML, external/inline CSS, JS bundles, SourceMap original .ts/.tsx/.vue files, modular HTML & React TSX components, and SVGs) into .craft/extracted/.
+2. Read the extracted source files in .craft/extracted/ using <read_file> to inspect the exact styles and components.
+3. Call <craft_anything><action>rebuild</action><target>${targetUrl}</target><prompt>${promptDesc}</prompt></craft_anything> and write the application files using <write_file>.
 4. Call <craft_anything><action>check</action><candidate>./</candidate></craft_anything> to measure fidelity likeness score and refine any gaps.`;
       }
     }

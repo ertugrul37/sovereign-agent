@@ -2,6 +2,19 @@
 
 All notable changes to the **Sovereign Agent** extension will be documented in this file.
 
+## [0.1.45] - 2026-11-07
+
+### Added: Craft-Anything Deep Source Code Extractor (`extract` Engine)
+- **📦 Physical Source Code Extraction Engine (`src/agent/craftAnything.ts`):**
+  - Upgraded **Craft Anything** so `extract` and `study` physically extract and save all target source code files directly into `.craft/extracted/<target-slug>/` inside the workspace:
+    - **Raw & Pretty-Printed HTML (`index.html`, `index.formatted.html`):** Indented and structured HTML snapshots.
+    - **Stylesheets & CSS Design Tokens (`styles/*.css`, `styles/inline-styles.css`, `styles/design-tokens.css`):** Downloads external `<link rel="stylesheet">` files, extracts inline `<style>` blocks, beautifies minified CSS, and extracts all `--css-variables` into `design-tokens.css`.
+    - **JavaScript Bundles & Modules (`scripts/*.js`, `scripts/inline-scripts.js`):** Downloads external `<script src="...">` bundles and inline scripts.
+    - **SourceMap (`*.map`) Original Source Code Unpacker (`original_sources/`):** Automatically detects `sourceMappingURL` (both external `.map` files and inline base64 sourcemaps) and reconstructs the original unminified TypeScript/React/Vue/Svelte source tree (`.tsx`, `.ts`, `.vue`, `.scss`) on disk.
+    - **Semantic HTML & Ready-to-Use React TSX Component Decompiler (`components/*.html`, `components_tsx/*.tsx`):** Splits `<header>`, `<nav>`, `<main>`, `<section>`, `<article>`, `<form>`, and `<footer>` into modular HTML snippets AND automatically converts them into valid React + TypeScript (`.tsx`) functional components.
+    - **Vector SVG & Hydration/API Extractor (`assets/*.svg`, `data/next_data.json`, `data/discovered_apis.json`):** Extracts inline `<svg>` icons, Next.js `__NEXT_DATA__` / JSON-LD payloads, and API endpoints referenced in JS bundles.
+    - **Package & Archive Unpacker:** Unpacks local `.vsix`, `.zip`, `.crx`, `.jar`, `.whl` archives and `.map` files into `.craft/extracted/<slug>/`.
+
 ## [0.1.44] - 2026-11-07
 
 ### Added: Craft-Anything AI Integration (Study ➔ Build ➔ Check ➔ Refine)
